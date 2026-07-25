@@ -69,3 +69,7 @@ The icon is generated, not drawn by hand:
 ```sh
 python3 Tools/make_icon.py
 ```
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
