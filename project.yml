@@ -1,0 +1,71 @@
+name: Cue
+options:
+  bundleIdPrefix: app.cueprompter
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  Cue:
+    type: application
+    platform: iOS
+    sources:
+      - path: Cue
+    info:
+      path: Cue/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSMicrophoneUsageDescription: "Cue listens to your voice to scroll the script as you speak."
+        NSSpeechRecognitionUsageDescription: "Cue uses on-device speech recognition to track your place in the script."
+        NSCameraUsageDescription: "Cue uses the front camera to record your take."
+        NSPhotoLibraryAddUsageDescription: "Cue saves finished recordings to your Photos library."
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.cueprompter.Cue
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_STYLE: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  CueTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: CueTests
+    dependencies:
+      - target: Cue
+    settings:
+      base:
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Cue.app/Cue"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        PRODUCT_BUNDLE_IDENTIFIER: app.cueprompter.CueTests
+  CueUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: CueUITests
+    dependencies:
+      - target: Cue
+    settings:
+      base:
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.cueprompter.CueUITests
+        TEST_TARGET_NAME: Cue
+schemes:
+  Cue:
+    build:
+      targets:
+        Cue: all
+        CueTests: [test]
+        CueUITests: [test]
+    test:
+      targets:
+        - CueTests
+        - CueUITests
+    run:
+      config: Debug
