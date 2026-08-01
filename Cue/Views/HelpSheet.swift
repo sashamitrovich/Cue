@@ -24,14 +24,10 @@ struct HelpSheet: View {
                     )
                 }
 
-                Section("On the setup screen") {
+                Section("Before you start") {
                     explain("Import", "Load a script from Files or iCloud Drive — .txt, .md or .rtf. Line breaks and blank lines carry through, so leave a blank line where you want ad-lib room.")
-                    explain("Text size", "How large the script is drawn in the prompter. Adjustable mid-take too.")
-                    explain("Idle drift", "How fast the script creeps upward while you're silent. Useful as a nudge if a word goes unrecognised; set it to Off if you'd rather the script never move on its own.")
                     explain("Pace", "Your target words per minute. It's what the run-time estimate is based on until you've spoken enough of a take for On Cue to measure your real pace.")
-                    explain("Countdown", "A pre-roll before listening starts, so you can settle and look at the lens. Tap anywhere to cancel it.")
-                    explain("Mirror", "Flips the text left-to-right. This is for teleprompter rigs that bounce the screen off a sheet of glass in front of the lens — the reflection flips it back the right way round. Reading straight from the phone? Leave it off.")
-                    explain("Align", "Left-aligned reads faster for most people; centred keeps your eyes closer to the lens on a wide screen.")
+                    explain("Countdown", "A pre-roll before listening starts, so you can check your framing and settle before you speak. Tap anywhere to cancel it.")
                 }
 
                 Section("In the prompter") {
@@ -40,9 +36,14 @@ struct HelpSheet: View {
                     explain("Record", "Records a take from the front camera. The recording is saved to Photos when you stop.")
                     explain("Manual", "Turns off voice tracking so you can drag the script with your finger.")
                     explain("Camera", "Turns the live camera view behind the script on or off.")
+                    explain("The controls get out of the way", "Once you start speaking, the bars fade so the script has the whole screen. Tap anywhere to bring them back — except the recording badge, which never hides while the camera is rolling.")
+                    explain("Turning sideways", "In landscape the controls move to a rail on the edge they were already on, so they stay under the same thumb and stop eating the height you need for the script.")
                     explain("HD / 4K", "Recording size and frame rate, offered only as far as your iPhone's front camera supports. Stop recording to change them.")
-                    explain("Reading line", "The orange line your eyes read from. Keep it high on the screen so you're looking near the lens rather than down the phone. The chevrons on the right nudge it mid-take.")
-                    explain("Text and Dim", "Text fades the script so more of the camera shows through; Dim darkens the camera behind it. Between them you can keep the words legible over any background.")
+                    explain("Text size, Centre text", "How the script is drawn. These live here rather than on the first screen because a number like \"32\" means nothing until you can see the words at that size.")
+                    explain("Idle drift", "Creeps the script upward while you're silent. Leave it off unless recognition keeps losing you — it works against deliberate pauses, which On Cue otherwise handles for you.")
+                    explain("Mirror", "Flips the text left-to-right, for teleprompter rigs that bounce the screen off a sheet of glass in front of the lens; the reflection flips it back the right way round. Reading straight from the phone? Leave it off.")
+                    explain("Reading line", "The marked line your eyes read from. Keep it high on the screen so you're looking near the lens rather than down the phone. Adjust it any time from the settings button.")
+                    explain("Text and Dim", "Text fades the script so more of the camera shows through; Dim darkens the picture behind it. Between them you can keep the words legible over any background.")
                     explain("Timing", "Elapsed speaking time, an estimate of what's left, and your pace. The estimate is marked with a ~ until On Cue has heard enough of the take to measure how fast you actually talk.")
                 }
 

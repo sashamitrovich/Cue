@@ -1,6 +1,13 @@
 import SwiftUI
 import Combine
 
+/// The prompter.
+///
+/// Design brief: behave like a first-party capture app. The content is the
+/// script and the speaker's face, so the chrome defers to it — translucent
+/// materials rather than opaque slabs, one accent colour used only where it
+/// carries meaning, and controls that fade away once a take is running and
+/// come back on a tap.
 struct PrompterView: View {
     @ObservedObject var state: TeleprompterState
     @Environment(\.dismiss) private var dismiss
@@ -15,7 +22,7 @@ struct PrompterView: View {
     @State private var dragStartOffset: CGFloat = 0
     @State private var errorMessage: String?
     @State private var errorWorkItem: DispatchWorkItem?
-    @State private var showCameraControls = false
+    @State private var showSettings = false
     @State private var pinchStartZoom: CGFloat = 1
     @State private var isPinching = false
     /// Speaking time only — paused stretches are excluded so the measured pace
@@ -30,138 +37,71 @@ struct PrompterView: View {
     /// `GeometryReader`; this is only used to decide *which* edge, which
     /// geometry can't tell us — both landscapes are the same shape.
     @State private var interfaceOrientation: UIInterfaceOrientation = .portrait
+    /// Chrome hides itself during a take and returns on a tap.
+    @State private var chromeVisible = true
+    @State private var chromeHideAt: Date?
+    /// Grows the handle while it's being dragged, so it's obvious what moved.
+    @State private var isDraggingLine = false
 
-    static let railWidth: CGFloat = 88
+    static let railWidth: CGFloat = 68
+    /// The single accent. Used for the current word, the primary action and
+    /// live values — nothing decorative, so it always means something.
+    static let accent = Color(red: 1.0, green: 0.72, blue: 0.23)
+    /// How long the controls linger after the last touch once a take is live.
+    private static let chromeLinger: TimeInterval = 4
 
     private var isLandscape: Bool { interfaceOrientation.isLandscape }
     /// `landscapeLeft` puts the edge that was the bottom in portrait on the
     /// left of the screen, so the controls follow it there and stay under the
     /// same thumb.
     private var railOnLeading: Bool { interfaceOrientation == .landscapeLeft }
+    /// A take is running, so the chrome is allowed to get out of the way.
+    private var takeIsLive: Bool { state.isListening || camera.isRecording }
 
     private let ticker = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
         GeometryReader { geo in
-            let cueY = geo.size.height * state.cueLineFraction
+            let insets = geo.safeAreaInsets
+            // A pure function of geometry — deliberately not of the measured
+            // chrome height. Deriving it from a measurement made the line's
+            // position depend on when that measurement landed: the script was
+            // scrolled against one value while the line was drawn at another,
+            // which is what put them 45pt apart in landscape. The floor is a
+            // fraction instead, larger in landscape because the screen is
+            // short enough for the bar to swallow a low reading line.
+            let cueY = fullHeight(geo: geo, insets: insets)
+                * min(0.6, max(isLandscape ? 0.34 : 0.16, state.cueLineFraction))
 
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color.black
+                cameraLayer
+                scriptLayer(geo: geo, insets: insets, cueY: cueY)
 
-                if state.cameraEnabled {
-                    CameraPreviewView(session: camera.session)
-                        .ignoresSafeArea()
-                        .scaleEffect(x: -1, y: 1)
-                        .gesture(
-                            MagnificationGesture()
-                                .onChanged { scale in
-                                    if !isPinching {
-                                        pinchStartZoom = camera.zoomFactor
-                                        isPinching = true
-                                    }
-                                    camera.setZoom(pinchStartZoom * scale)
-                                }
-                                .onEnded { _ in
-                                    isPinching = false
-                                }
-                        )
-                    Color.black.opacity(state.cameraDimming).ignoresSafeArea()
-                }
+                // Chrome. Everything here fades together during a take.
+                chrome(geo: geo, insets: insets)
+                    .opacity(chromeVisible ? 1 : 0)
+                    .allowsHitTesting(chromeVisible)
 
-                // The flow reports a height far taller than the screen (42vh
-                // lead-in + script + 60vh tail), and a ZStack sizes itself to
-                // its largest child — without pinning this to the screen's
-                // frame the whole prompter lays out oversized and pushes the
-                // bottom control bar off-screen.
-                ScrollFlow(
-                    state: state,
-                    wordFrames: $wordFrames,
-                    topInset: cueY,
-                    bottomInset: geo.size.height * 0.6,
-                    // Keep the words clear of the rail — it's opaque, so text
-                    // running under it simply disappears mid-line.
-                    leadingInset: isLandscape && railOnLeading ? Self.railWidth : 0,
-                    trailingInset: isLandscape && !railOnLeading ? Self.railWidth : 0
-                )
-                    .coordinateSpace(name: "flow")
-                    .opacity(state.cameraEnabled ? state.textOpacity : 1.0)
-                    .offset(y: offset)
-                    .scaleEffect(x: state.mirror ? -1 : 1, y: 1)
-                    .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
-                    .clipped()
-
-                // The top fade has to finish above the reading line, otherwise
-                // it washes out the very words being read.
-                LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
-                    .frame(height: max(0, cueY * 0.55))
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .allowsHitTesting(false)
-                LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
-                    .frame(height: geo.size.height * 0.25)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
-                    .allowsHitTesting(false)
-
-                Rectangle()
-                    .fill(Color.orange.opacity(0.7))
-                    .frame(height: 2)
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .padding(.top, cueY)
-                    .padding(.leading, isLandscape && railOnLeading ? Self.railWidth : 0)
-                    .padding(.trailing, isLandscape && !railOnLeading ? Self.railWidth : 0)
-                    .allowsHitTesting(false)
-
-                // Nudge the reading line up or down mid-take without opening
-                // the settings sheet. Sits opposite the controls, so it never
-                // ends up underneath the rail in landscape.
-                VStack(spacing: 10) {
-                    nudgeButton(icon: "chevron.up", delta: -0.02)
-                    nudgeButton(icon: "chevron.down", delta: 0.02)
-                }
-                .frame(
-                    maxWidth: .infinity,
-                    maxHeight: .infinity,
-                    alignment: isLandscape && railOnLeading ? .trailing : (isLandscape ? .leading : .trailing)
-                )
-                .padding(.horizontal, 12)
-
-                // In landscape the controls become a rail on the edge they
-                // occupied in portrait, rather than a bottom bar: vertical
-                // space is scarce there, and keeping them on the same physical
-                // edge means your thumb doesn't have to go looking for them.
-                if isLandscape {
-                    HStack(spacing: 0) {
-                        if railOnLeading { controlRail }
-                        Spacer(minLength: 0)
-                        if !railOnLeading { controlRail }
-                    }
-                    .transition(.opacity)
+                // The one thing that must never hide: proof you're recording.
+                if camera.isRecording && !chromeVisible {
+                    recordingBadge
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .padding(.top, insets.top + 8)
                 }
 
                 if let remaining = countdownRemaining {
                     countdownOverlay(remaining)
                 }
-
-                VStack {
-                    topBar
-                    qualityPills
-                    Spacer()
-                    if let msg = errorMessage {
-                        Text(msg)
-                            .font(.footnote)
-                            .padding(12)
-                            .background(Color(red: 0.16, green: 0.08, blue: 0.07))
-                            .foregroundStyle(Color(red: 1, green: 0.7, blue: 0.66))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .padding(.horizontal, 18)
-                    }
-                    if !isLandscape {
-                        footBar
-                    }
-                }
             }
+            // The whole prompter bleeds to the edges — a camera app shows the
+            // feed under the Dynamic Island and home indicator, and chrome is
+            // padded by the insets instead.
+            .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.28), value: isLandscape)
-            .animation(.easeInOut(duration: 0.28), value: railOnLeading)
+            .animation(.easeInOut(duration: 0.25), value: chromeVisible)
             .contentShape(Rectangle())
+            .onTapGesture { revealChrome(toggle: true) }
             .gesture(
                 DragGesture()
                     .onChanged { value in
@@ -200,18 +140,38 @@ struct PrompterView: View {
             .onChange(of: state.activeIndex) { _ in
                 recomputeTarget(cueY: cueY)
             }
-            .onChange(of: wordFrames.count) { _ in
-                recomputeTarget(cueY: cueY)
+            // Keyed on the active word's measured position, not on the word
+            // *count*: rotating rewraps every line and moves every frame while
+            // the count stays identical, which left the script scrolled to
+            // where the words used to be.
+            //
+            // Quantized deliberately. Measured geometry drives state here, and
+            // that state moves the layout, which re-publishes the geometry —
+            // at full precision the sub-pixel difference on each pass is
+            // enough to keep that cycle running forever, pinning the CPU at
+            // 100% and preventing layout from ever settling.
+            .onChange(of: wordFrames[state.activeIndex].map { ($0.midY / 4).rounded() }) { _ in
+                recomputeTarget(cueY: cueY, animated: false)
             }
-            .onChange(of: state.cueLineFraction) { fraction in
-                recomputeTarget(cueY: geo.size.height * fraction)
+            .onChange(of: state.cueLineFraction) { _ in
+                // Same clamp as the layout above, or the script would scroll
+                // to a line the chrome is covering.
+                recomputeTarget(cueY: cueY)
             }
             .onChange(of: state.fontSize) { _ in
                 // Word frames are re-measured after the relayout, so let that
                 // land before repositioning against the reading line.
                 DispatchQueue.main.async {
-                    recomputeTarget(cueY: geo.size.height * state.cueLineFraction)
+                    recomputeTarget(cueY: cueY)
                 }
+            }
+            .onChange(of: isLandscape) { _ in
+                // Rotation changes both the geometry and the chrome height;
+                // re-measure after the new layout lands.
+                DispatchQueue.main.async { recomputeTarget(cueY: cueY, animated: false) }
+            }
+            .onChange(of: takeIsLive) { live in
+                if live { scheduleChromeHide() } else { revealChrome() }
             }
             .onReceive(ticker) { _ in
                 let now = Date()
@@ -224,6 +184,10 @@ struct PrompterView: View {
 
                 if let deadline = countdownDeadline, now >= deadline {
                     startListeningNow()
+                }
+                if let hideAt = chromeHideAt, now >= hideAt {
+                    chromeHideAt = nil
+                    if takeIsLive && !showSettings { chromeVisible = false }
                 }
                 // Only publish a new date when the displayed second changes,
                 // rather than 60 times a second for a readout that can't show it.
@@ -245,7 +209,7 @@ struct PrompterView: View {
                     clock.pause(at: Date())
                 }
             }
-            .sheet(isPresented: $showCameraControls) {
+            .sheet(isPresented: $showSettings) {
                 PrompterControlsSheet(camera: camera, state: state)
             }
         }
@@ -253,14 +217,500 @@ struct PrompterView: View {
         .preferredColorScheme(.dark)
     }
 
+    // MARK: - Content layers
+
+    @ViewBuilder
+    private var cameraLayer: some View {
+        if state.cameraEnabled {
+            CameraPreviewView(session: camera.session)
+                .scaleEffect(x: -1, y: 1)
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { scale in
+                            if !isPinching {
+                                pinchStartZoom = camera.zoomFactor
+                                isPinching = true
+                            }
+                            camera.setZoom(pinchStartZoom * scale)
+                        }
+                        .onEnded { _ in isPinching = false }
+                )
+            Color.black.opacity(state.cameraDimming)
+        }
+    }
+
+    /// Where the rail starts, so it never stacks under the status bar. A
+    /// stated constant rather than a measurement: the bar's contents are fixed
+    /// and measuring it made the layout depend on the order measurements
+    /// arrived in.
+    private func chromeTopInset(insets: EdgeInsets) -> CGFloat {
+        insets.top + (state.showTiming ? 78 : 48)
+    }
+
+    private func fullHeight(geo: GeometryProxy, insets: EdgeInsets) -> CGFloat {
+        geo.size.height + insets.top + insets.bottom
+    }
+
+    private func scriptLayer(geo: GeometryProxy, insets: EdgeInsets, cueY: CGFloat) -> some View {
+        // The flow reports a height far taller than the screen, and a ZStack
+        // sizes itself to its largest child — without pinning this to the
+        // screen's frame the whole prompter lays out oversized.
+        ScrollFlow(
+            state: state,
+            wordFrames: $wordFrames,
+            topInset: cueY,
+            bottomInset: fullHeight(geo: geo, insets: insets) * 0.6,
+            // Keep the words clear of the landscape rail, which is
+            // translucent but still busy behind text.
+            leadingInset: isLandscape && railOnLeading ? Self.railWidth : 0,
+            trailingInset: isLandscape && !railOnLeading ? Self.railWidth : 0
+        )
+        .coordinateSpace(name: "flow")
+        .opacity(state.cameraEnabled ? state.textOpacity : 1.0)
+        .offset(y: offset)
+        .scaleEffect(x: state.mirror ? -1 : 1, y: 1)
+        // Pinned to an explicit frame — the flow is 2-3x taller than the
+        // screen and an unpinned ZStack sizes to it, pushing the controls off
+        // screen entirely. The frame is the *full* screen, insets included:
+        // the container ignores the safe area, so a child sized to the inset
+        // `geo` height gets centred and lands ~(top+bottom)/2 below the origin
+        // the reading line measures from — which is why the line sat a line
+        // and a half above the words it marks.
+        .frame(
+            width: geo.size.width + insets.leading + insets.trailing,
+            height: fullHeight(geo: geo, insets: insets),
+            alignment: .top
+        )
+        .clipped()
+        // Drawn inside the same pinned frame as the script, deliberately: the
+        // offset that scrolls the script is measured from this frame's origin,
+        // so anchoring the line anywhere else means reconciling two coordinate
+        // systems by arithmetic — which is exactly how it ended up 45pt out of
+        // register in landscape.
+        .overlay(alignment: .top) {
+            readingLine(cueY: cueY, insets: insets, height: fullHeight(geo: geo, insets: insets))
+        }
+        .overlay(alignment: .top) {
+            // A short scrim under the top chrome only. The old full-height
+            // bottom fade had nothing to protect once the controls moved to a
+            // rail, and read as a stray veil across the last line.
+            LinearGradient(colors: [.black.opacity(0.75), .clear], startPoint: .top, endPoint: .bottom)
+                .frame(height: max(0, cueY * 0.7))
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// A hairline with a grab handle at the leading edge — enough to find with
+    /// your eye, not a rule drawn through the sentence, and draggable so the
+    /// line can be moved mid-take without opening settings. This replaces the
+    /// floating chevrons, which sat on top of the words they were meant to
+    /// help you read.
+    private func readingLine(cueY: CGFloat, insets: EdgeInsets, height: CGFloat) -> some View {
+        HStack(spacing: 6) {
+            Capsule()
+                .fill(Self.accent)
+                .frame(width: 26, height: isDraggingLine ? 6 : 4)
+                .overlay {
+                    Capsule().stroke(.black.opacity(0.25), lineWidth: 0.5)
+                }
+                .contentShape(Rectangle().inset(by: -22))
+                .gesture(
+                    DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                        .onChanged { value in
+                            isDraggingLine = true
+                            revealChrome()
+                            guard height > 0 else { return }
+                            state.cueLineFraction = min(0.6, max(0.08, value.location.y / height))
+                        }
+                        .onEnded { _ in isDraggingLine = false }
+                )
+                .opacity(chromeVisible ? 1 : 0.5)
+                .accessibilityLabel("Reading line position")
+                .accessibilityValue("\(Int(state.cueLineFraction * 100)) percent")
+                .accessibilityAdjustableAction { direction in
+                    let delta = direction == .increment ? 0.02 : -0.02
+                    state.cueLineFraction = min(0.6, max(0.08, state.cueLineFraction + delta))
+                }
+            Rectangle()
+                .fill(.white.opacity(0.22))
+                .frame(height: 1)
+                .allowsHitTesting(false)
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .padding(.top, cueY)
+        .padding(.leading, (isLandscape && railOnLeading ? Self.railWidth : 0) + insets.leading + 12)
+        .padding(.trailing, (isLandscape && !railOnLeading ? Self.railWidth : 0) + insets.trailing + 12)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .accessibilityIdentifier("readingLine")
+    }
+
+    // MARK: - Chrome
+
+    @ViewBuilder
+    private func chrome(geo: GeometryProxy, insets: EdgeInsets) -> some View {
+        ZStack {
+            VStack(spacing: 0) {
+                statusBar(insets: insets)
+                Spacer(minLength: 0)
+                if let msg = errorMessage {
+                    errorBanner(msg)
+                        .padding(.bottom, 12)
+                }
+                if !isLandscape {
+                    controlBar(insets: insets)
+                }
+            }
+
+            if isLandscape {
+                HStack(spacing: 0) {
+                    if railOnLeading { controlRail(insets: insets) }
+                    Spacer(minLength: 0)
+                    if !railOnLeading { controlRail(insets: insets) }
+                }
+            }
+        }
+    }
+
+    /// One bar at the top: state, timing, and the two controls that aren't
+    /// part of running a take. Everything is one type size and one weight so
+    /// nothing shouts.
+    private func statusBar(insets: EdgeInsets) -> some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 10) {
+                HStack(spacing: 7) {
+                    Circle()
+                        .fill(state.isListening ? Self.accent : Color.white.opacity(0.45))
+                        .frame(width: 7, height: 7)
+                    Text(statusText)
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+
+                Spacer(minLength: 8)
+
+                if camera.isRecording { recordingBadge }
+
+                if state.cameraEnabled, let mode = camera.selectedMode, let tier = camera.selectedTier {
+                    qualityControl(mode: mode, tier: tier)
+                }
+
+                glassButton(
+                    icon: state.cameraEnabled ? "video.fill" : "video.slash.fill",
+                    label: state.cameraEnabled ? "Turn camera off" : "Turn camera on",
+                    tinted: state.cameraEnabled
+                ) { toggleCamera() }
+                .disabled(camera.isRecording)
+
+                glassButton(icon: "slider.horizontal.3", label: "Prompter settings") {
+                    revealChrome()
+                    showSettings = true
+                }
+
+                glassButton(icon: "xmark", label: "Exit") {
+                    pauseTake()
+                    camera.stop()
+                    dismiss()
+                }
+            }
+
+            if state.showTiming { timingRow }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, insets.top + 8)
+        .padding(.bottom, 10)
+        .padding(.leading, insets.leading)
+        .padding(.trailing, insets.trailing)
+        .background {
+            // Material, not black: the feed stays readable through the bar,
+            // which is what keeps the chrome feeling like a layer over the
+            // picture rather than a lid on it.
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5)
+                }
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// Elapsed, remaining and pace, plus progress as a hairline rather than a
+    /// bar — it's ambient information, not a control.
+    private var timingRow: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 8) {
+                Text(ReadingPace.timeString(elapsed))
+                Text("·").foregroundStyle(.white.opacity(0.3))
+                // Marked "~" until there's enough of the take to measure the
+                // speaker's real pace — before that it's only the target wpm.
+                Text("\(isMeasuringPace ? "" : "~")\(ReadingPace.timeString(remainingSeconds)) left")
+                Spacer(minLength: 0)
+                Text("\(Int(effectiveWPM.rounded())) wpm")
+                    .foregroundStyle(isMeasuringPace ? Self.accent.opacity(0.95) : .white.opacity(0.5))
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.white.opacity(0.62))
+
+            GeometryReader { bar in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.white.opacity(0.12))
+                    Capsule()
+                        .fill(Self.accent.opacity(0.9))
+                        .frame(width: max(0, bar.size.width * state.progress))
+                }
+            }
+            .frame(height: 2)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Elapsed \(ReadingPace.timeString(elapsed)), about \(ReadingPace.timeString(remainingSeconds)) remaining")
+    }
+
+    private var recordingBadge: some View {
+        HStack(spacing: 6) {
+            Circle().fill(Color.red).frame(width: 7, height: 7)
+            Text(timeString(camera.recordingSeconds))
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().stroke(.white.opacity(0.12), lineWidth: 0.5))
+    }
+
+    /// Quality as one compact control in the bar, rather than pills floating
+    /// over the script with nothing to anchor them.
+    private func qualityControl(mode: VideoMode, tier: QualityTier) -> some View {
+        HStack(spacing: 0) {
+            Button {
+                revealChrome()
+                if let next = CaptureQualityMenu.nextTier(after: tier, in: camera.capabilities.qualityTiers) {
+                    camera.selectTier(next)
+                }
+            } label: {
+                Text(mode.tierLabel)
+                    .frame(minWidth: 30)
+                    .padding(.vertical, 5)
+            }
+            .disabled(camera.capabilities.qualityTiers.count < 2 || camera.isRecording)
+
+            Rectangle().fill(.white.opacity(0.14)).frame(width: 0.5, height: 16)
+
+            Button {
+                revealChrome()
+                camera.cycleFrameRate()
+            } label: {
+                Text(mode.frameRateLabel)
+                    .frame(minWidth: 28)
+                    .padding(.vertical, 5)
+            }
+            .disabled(tier.frameRates.count < 2 || camera.isRecording)
+        }
+        .font(.caption.weight(.semibold).monospacedDigit())
+        .foregroundStyle(camera.isRecording ? .white.opacity(0.35) : .white.opacity(0.9))
+        .buttonStyle(.plain)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().stroke(.white.opacity(0.12), lineWidth: 0.5))
+        .accessibilityLabel("Video quality \(mode.label)")
+    }
+
+    private func errorBanner(_ msg: String) -> some View {
+        Text(msg)
+            .font(.footnote)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.red.opacity(0.75), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.horizontal, 18)
+    }
+
+    // MARK: - Take controls
+
+    /// The same four controls in both orientations, in the same order, at the
+    /// same weight — only the axis changes.
+    @ViewBuilder
+    private var controlButtons: some View {
+        takeButton(icon: "arrow.counterclockwise", label: "Restart") {
+            state.activeIndex = 0
+            // A restart is a fresh take, so the timing starts over too.
+            clock.reset()
+            if state.isListening { clock.start(at: Date()) }
+            displayNow = Date()
+        }
+        takeButton(
+            icon: countdownRemaining != nil ? "xmark" : (state.isListening ? "pause.fill" : "play.fill"),
+            label: countdownRemaining != nil ? "Cancel" : (state.isListening ? "Pause" : "Listen"),
+            primary: true
+        ) {
+            guard !state.manualMode else { return }
+            if countdownRemaining != nil {
+                countdownDeadline = nil
+            } else if state.isListening {
+                pauseTake()
+            } else {
+                beginTake()
+            }
+        }
+        if state.cameraEnabled {
+            takeButton(
+                icon: camera.isRecording ? "stop.fill" : "circle.fill",
+                label: camera.isRecording ? "Stop" : "Record",
+                recording: camera.isRecording
+            ) {
+                if camera.isRecording { camera.stopRecording() } else { camera.startRecording() }
+            }
+        }
+        takeButton(icon: "hand.raised.fill", label: "Manual", on: state.manualMode) {
+            state.manualMode.toggle()
+            if state.manualMode {
+                pauseTake()
+                dragStartOffset = targetOffset
+            }
+        }
+    }
+
+    private func controlBar(insets: EdgeInsets) -> some View {
+        HStack(spacing: 0) { controlButtons }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 10)
+            .padding(.top, 12)
+            .padding(.bottom, insets.bottom > 0 ? insets.bottom : 14)
+            .background {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .overlay(alignment: .top) {
+                        Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5)
+                    }
+                    .allowsHitTesting(false)
+            }
+    }
+
+    /// The landscape form: the same controls stacked against the edge they
+    /// occupied in portrait, costing horizontal space instead of the vertical
+    /// space landscape has none of.
+    private func controlRail(insets: EdgeInsets) -> some View {
+        VStack(spacing: 10) {
+            Spacer(minLength: 0)
+            controlButtons
+            Spacer(minLength: 0)
+        }
+        .frame(width: Self.railWidth)
+        .padding(.leading, railOnLeading ? insets.leading : 0)
+        .padding(.trailing, railOnLeading ? 0 : insets.trailing)
+        .padding(.top, chromeTopInset(insets: insets))
+        .padding(.bottom, insets.bottom)
+        .frame(maxHeight: .infinity)
+        .background(alignment: .bottom) {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(alignment: railOnLeading ? .trailing : .leading) {
+                    Rectangle().fill(.white.opacity(0.08)).frame(width: 0.5)
+                }
+                .padding(.top, chromeTopInset(insets: insets))
+                .ignoresSafeArea(edges: .bottom)
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// One control: a circular glass button with its label beneath. Uniform
+    /// size and weight, so the accent fill on the primary action is the only
+    /// thing that stands out.
+    @ViewBuilder
+    private func takeButton(
+        icon: String,
+        label: String,
+        primary: Bool = false,
+        on: Bool = false,
+        recording: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            revealChrome()
+            action()
+        } label: {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(primary ? AnyShapeStyle(Self.accent) : AnyShapeStyle(.ultraThinMaterial))
+                        .overlay(Circle().stroke(.white.opacity(primary ? 0 : 0.14), lineWidth: 0.5))
+                    Image(systemName: icon)
+                        .font(.system(size: primary ? 20 : 17, weight: .semibold))
+                        .foregroundStyle(
+                            primary ? Color.black
+                                : (recording ? Color.red : (on ? Self.accent : Color.white))
+                        )
+                }
+                .frame(width: isLandscape ? 46 : 52, height: isLandscape ? 46 : 52)
+
+                if !isLandscape {
+                    Text(label)
+                        .font(.caption2)
+                        .foregroundStyle(on ? Self.accent : .white.opacity(0.65))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    /// Pre-roll before a take. Full screen and tap-anywhere-to-cancel, so a
+    /// mistimed start doesn't send you hunting for a small button.
+    @ViewBuilder
+    private func countdownOverlay(_ remaining: Int) -> some View {
+        ZStack {
+            // Deliberately not a blur or a scrim: the whole point of a
+            // pre-roll is to check your framing, posture and eyeline before
+            // you speak, so the picture has to stay legible underneath.
+            Color.clear
+            VStack(spacing: 8) {
+                Text("\(remaining)")
+                    .font(.system(size: 108, weight: .light, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(Self.accent)
+                    .shadow(color: .black.opacity(0.85), radius: 14)
+                    .shadow(color: .black.opacity(0.5), radius: 3)
+                    .contentTransition(.numericText(countsDown: true))
+                Text("Tap anywhere to cancel")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .shadow(color: .black.opacity(0.8), radius: 6)
+            }
+        }
+        .ignoresSafeArea()
+        .contentShape(Rectangle())
+        .onTapGesture { countdownDeadline = nil }
+        .accessibilityLabel("Starting in \(remaining) seconds")
+        .transition(.opacity)
+        .zIndex(10)
+    }
+
+    // MARK: - Chrome visibility
+
+    /// Brings the controls back and restarts the linger timer. Called from
+    /// every control, so using one never makes the others vanish underneath
+    /// your thumb.
+    private func revealChrome(toggle: Bool = false) {
+        if toggle && chromeVisible && takeIsLive {
+            chromeVisible = false
+            chromeHideAt = nil
+            return
+        }
+        chromeVisible = true
+        scheduleChromeHide()
+    }
+
+    private func scheduleChromeHide() {
+        chromeHideAt = takeIsLive ? Date().addingTimeInterval(Self.chromeLinger) : nil
+    }
+
     /// Read from the window scene rather than `UIDevice.orientation`, which
     /// also reports face-up and face-down — neither of which changes the
     /// layout, and both of which would otherwise throw the rail to a random
     /// side when the phone is set down on a table.
     private func syncInterfaceOrientation() {
-        let scene = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive } ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
         if let orientation = scene?.interfaceOrientation, orientation != .unknown {
             interfaceOrientation = orientation
         }
@@ -272,6 +722,12 @@ struct PrompterView: View {
     private var countdownRemaining: Int? {
         guard let deadline = countdownDeadline else { return nil }
         return max(1, Int(deadline.timeIntervalSince(displayNow).rounded(.up)))
+    }
+
+    private var statusText: String {
+        if countdownRemaining != nil { return "Get ready…" }
+        if state.manualMode { return "Manual — drag to scroll" }
+        return state.isListening ? "Listening" : "Tap play to begin"
     }
 
     /// Starts a take, after the pre-roll if one is configured.
@@ -291,6 +747,7 @@ struct PrompterView: View {
         lastVoiceTime = Date()
         clock.start(at: Date())
         speech.begin()
+        scheduleChromeHide()
     }
 
     private func pauseTake() {
@@ -298,6 +755,7 @@ struct PrompterView: View {
         state.isListening = false
         clock.pause(at: Date())
         speech.end()
+        chromeVisible = true
     }
 
     /// Starts or tears down the capture session live, so the button's effect
@@ -334,339 +792,42 @@ struct PrompterView: View {
         ReadingPace.measuredWPM(wordsRead: state.wordsRead, elapsed: elapsed) != nil
     }
 
-    private func recomputeTarget(cueY: CGFloat) {
+    private func recomputeTarget(cueY: CGFloat, animated: Bool = true) {
         guard let frame = wordFrames[state.activeIndex] else { return }
-        targetOffset = cueY - frame.midY
-        dragStartOffset = targetOffset
+        let newTarget = cueY - frame.midY
+        // A change too small to see is not worth a state write — writing one
+        // re-enters layout, which is how the feedback loop starts.
+        guard abs(newTarget - targetOffset) > 0.5 || offset == 0 else { return }
+        targetOffset = newTarget
+        dragStartOffset = newTarget
+        // The first layout has nothing to animate from: snap, or the opening
+        // line sits below the reading line until the cursor happens to move.
+        if !animated || offset == 0 { offset = newTarget }
     }
 
     private func showError(_ msg: String) {
         errorMessage = msg
+        revealChrome()
         errorWorkItem?.cancel()
         let item = DispatchWorkItem { errorMessage = nil }
         errorWorkItem = item
         DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: item)
     }
 
-    private var topBar: some View {
-        VStack(spacing: 8) {
-            HStack {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(state.isListening ? Color.orange : Color(.systemGray4))
-                        .frame(width: 10, height: 10)
-                    Text(statusText)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if camera.isRecording {
-                    HStack(spacing: 6) {
-                        Circle().fill(Color.red).frame(width: 8, height: 8)
-                        Text(timeString(camera.recordingSeconds)).font(.caption).monospacedDigit()
-                    }
-                    .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(Color.red.opacity(0.16))
-                    .clipShape(Capsule())
-                }
-                // Camera on/off lives here rather than on the setup screen:
-                // this is where you can see what it actually does.
-                Button {
-                    toggleCamera()
-                } label: {
-                    Image(systemName: state.cameraEnabled ? "video.fill" : "video.slash.fill")
-                        .font(.footnote)
-                        .foregroundStyle(state.cameraEnabled ? Color(red: 1.0, green: 0.72, blue: 0.23) : .primary)
-                        .padding(8)
-                        .background(.white.opacity(0.08))
-                        .clipShape(Circle())
-                }
-                .disabled(camera.isRecording)
-                .accessibilityLabel(state.cameraEnabled ? "Turn camera off" : "Turn camera on")
-
-                Button {
-                    showCameraControls = true
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.footnote)
-                        .padding(8)
-                        .background(.white.opacity(0.08))
-                        .clipShape(Circle())
-                }
-                .accessibilityLabel("Prompter settings")
-                Button("Exit") {
-                    pauseTake()
-                    camera.stop()
-                    dismiss()
-                }
-                .font(.subheadline)
-                .foregroundStyle(Color(red: 1, green: 0.54, blue: 0.48))
-            }
-
-            if state.showTiming {
-                timingRow
-            }
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 8)
-        .padding(.bottom, 10)
-        // With a high reading line the script can reach up behind the status
-        // row, so give it its own backing rather than relying on the fade.
-        .background(
-            LinearGradient(
-                stops: [
-                    .init(color: .black, location: 0),
-                    .init(color: .black.opacity(0.92), location: 0.7),
-                    .init(color: .clear, location: 1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-        )
-    }
-
-    private var statusText: String {
-        if countdownRemaining != nil { return "Get ready…" }
-        if state.manualMode { return "Manual — drag to scroll" }
-        return state.isListening ? "Listening — speak your script" : "Tap play to begin"
-    }
-
-    /// Elapsed speaking time, time left at the current pace, and how far
-    /// through the script the cursor is.
-    private var timingRow: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 10) {
-                Label(ReadingPace.timeString(elapsed), systemImage: "timer")
-                    .labelStyle(.titleAndIcon)
-                Text("·")
-                // Marked "~" until there's enough of the take to measure the
-                // speaker's real pace — before that it's only the target wpm.
-                Text("\(isMeasuringPace ? "" : "~")\(ReadingPace.timeString(remainingSeconds)) left")
-                Spacer()
-                Text("\(Int(effectiveWPM.rounded())) wpm")
-                    .foregroundStyle(isMeasuringPace ? Color.orange.opacity(0.9) : .secondary)
-            }
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.secondary)
-
-            GeometryReader { bar in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.white.opacity(0.14))
-                    Capsule()
-                        .fill(Color.orange.opacity(0.85))
-                        .frame(width: max(0, bar.size.width * state.progress))
-                }
-            }
-            .frame(height: 3)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Elapsed \(ReadingPace.timeString(elapsed)), about \(ReadingPace.timeString(remainingSeconds)) remaining")
-    }
-
-    /// Camera.app-style quality toggles: tap to switch size, tap to switch
-    /// frame rate. Hidden while recording, because the capture format can't be
-    /// changed without tearing down the file being written.
+    /// A small circular control for the things that aren't part of running a
+    /// take: camera, settings, exit.
     @ViewBuilder
-    private var qualityPills: some View {
-        if state.cameraEnabled, !camera.isRecording, let mode = camera.selectedMode, let tier = camera.selectedTier {
-            HStack(spacing: 8) {
-                Spacer()
-                // Both pills stay put whatever is selected — they're a readout
-                // of what you're recording as much as a control, and one
-                // vanishing as you switch tier is worse than one that simply
-                // has nothing else to offer on this device.
-                pill(mode.tierLabel, enabled: camera.capabilities.qualityTiers.count > 1) {
-                    if let next = CaptureQualityMenu.nextTier(after: tier, in: camera.capabilities.qualityTiers) {
-                        camera.selectTier(next)
-                    }
-                }
-                pill(mode.frameRateLabel, enabled: tier.frameRates.count > 1) {
-                    camera.cycleFrameRate()
-                }
-            }
-            .padding(.trailing, 18)
-            .padding(.top, 2)
-        }
-    }
-
-    @ViewBuilder
-    private func pill(_ text: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+    private func glassButton(icon: String, label: String, tinted: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(text)
-                .font(.system(size: 13, weight: .semibold).monospacedDigit())
-                .foregroundStyle(enabled ? Color(red: 1.0, green: 0.72, blue: 0.23) : Color(white: 0.62))
-                .frame(minWidth: 34)
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(.black.opacity(0.55), in: Capsule())
-                .overlay(Capsule().stroke(.white.opacity(enabled ? 0.18 : 0.10), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .accessibilityLabel("Video quality \(text)")
-    }
-
-    /// The take controls themselves — laid out as a bottom bar in portrait and
-    /// as a side rail in landscape, but the same buttons in the same order
-    /// either way, so the muscle memory carries across a rotation.
-    @ViewBuilder
-    private var controlButtons: some View {
-            footButton(icon: "arrow.counterclockwise", label: "Restart") {
-                state.activeIndex = 0
-                // A restart is a fresh take, so the timing starts over too.
-                clock.reset()
-                if state.isListening { clock.start(at: Date()) }
-                displayNow = Date()
-            }
-            footButton(
-                icon: countdownRemaining != nil ? "xmark" : (state.isListening ? "pause.fill" : "play.fill"),
-                label: countdownRemaining != nil ? "Cancel" : (state.isListening ? "Pause" : "Listen"),
-                primary: true
-            ) {
-                guard !state.manualMode else { return }
-                if countdownRemaining != nil {
-                    countdownDeadline = nil
-                } else if state.isListening {
-                    pauseTake()
-                } else {
-                    beginTake()
-                }
-            }
-            if state.cameraEnabled {
-                footButton(
-                    icon: camera.isRecording ? "stop.fill" : "circle.fill",
-                    label: camera.isRecording ? "Stop" : "Record",
-                    on: camera.isRecording
-                ) {
-                    if camera.isRecording { camera.stopRecording() } else { camera.startRecording() }
-                }
-            }
-            footButton(icon: "hand.raised.fill", label: "Manual", on: state.manualMode) {
-                state.manualMode.toggle()
-                if state.manualMode {
-                    pauseTake()
-                    dragStartOffset = targetOffset
-                }
-            }
-    }
-
-    private var footBar: some View {
-        HStack(spacing: 0) {
-            controlButtons
-        }
-        // A real bar: full width, its own surface, a hairline against the
-        // script above it. The earlier version backed only the buttons'
-        // intrinsic width, so over a camera feed the script showed through
-        // either side of a floating black box.
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 8)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
-        .background(alignment: .top) {
-            ZStack(alignment: .top) {
-                // Opaque, not translucent: at 86% the script was still legible
-                // through the buttons over a camera feed, which is what made
-                // the old bar look like a floating box of noise.
-                Color.black
-                Rectangle()
-                    .fill(.white.opacity(0.10))
-                    .frame(height: 0.5)
-            }
-            .ignoresSafeArea(edges: .bottom)
-            .allowsHitTesting(false)
-        }
-    }
-
-    /// The landscape form: the same controls stacked against one side, so they
-    /// cost horizontal space (of which there is plenty) instead of vertical
-    /// space (of which there is almost none).
-    private var controlRail: some View {
-        VStack(spacing: 14) {
-            Spacer(minLength: 0)
-            controlButtons
-            Spacer(minLength: 0)
-        }
-        .frame(width: Self.railWidth)
-        .frame(maxHeight: .infinity)
-        .background {
-            ZStack(alignment: railOnLeading ? .trailing : .leading) {
-                Color.black
-                Rectangle()
-                    .fill(.white.opacity(0.10))
-                    .frame(width: 0.5)
-            }
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-        }
-    }
-
-    /// Pre-roll before a take. Deliberately sits above everything and takes the
-    /// whole screen: tapping anywhere cancels, so a mistimed start doesn't
-    /// force you to hunt for a small button.
-    @ViewBuilder
-    private func countdownOverlay(_ remaining: Int) -> some View {
-        ZStack {
-            Color.black.opacity(0.55).ignoresSafeArea()
-            VStack(spacing: 10) {
-                Text("\(remaining)")
-                    .font(.system(size: 96, weight: .bold, design: .serif))
-                    .foregroundStyle(Color(red: 1.0, green: 0.72, blue: 0.23))
-                    .monospacedDigit()
-                    .shadow(color: .black.opacity(0.8), radius: 10)
-                Text("Tap anywhere to cancel")
-                    .font(.footnote)
-                    .foregroundStyle(.white.opacity(0.7))
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture { countdownDeadline = nil }
-        .accessibilityLabel("Starting in \(remaining) seconds")
-        .zIndex(10)
-    }
-
-    @ViewBuilder
-    private func nudgeButton(icon: String, delta: Double) -> some View {
-        Button {
-            state.cueLineFraction = min(0.6, max(0.05, state.cueLineFraction + delta))
-        } label: {
             Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.75))
-                .frame(width: 38, height: 38)
-                .background(.black.opacity(0.45), in: Circle())
-                .overlay(Circle().stroke(.white.opacity(0.15), lineWidth: 1))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(tinted ? Self.accent : .white.opacity(0.9))
+                .frame(width: 34, height: 34)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().stroke(.white.opacity(0.12), lineWidth: 0.5))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(delta < 0 ? "Move text up" : "Move text down")
-    }
-
-    /// One item in the bottom bar. All items share the same metrics so the
-    /// labels sit on a single baseline; the primary action is distinguished
-    /// by colour rather than by being a different size.
-    @ViewBuilder
-    private func footButton(icon: String, label: String, primary: Bool = false, on: Bool = false, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 19, weight: .semibold))
-                    .frame(width: 50, height: 44)
-                    .background(primary ? Color.orange : Color.white.opacity(0.10))
-                    .foregroundStyle(primary ? .black : (on ? Color.orange : .white))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(on ? Color.orange : .clear, lineWidth: 1.5)
-                    )
-                Text(label)
-                    .font(.caption2)
-                    .foregroundStyle(on ? Color.orange : .secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     private func timeString(_ seconds: Int) -> String {
@@ -713,14 +874,17 @@ private struct ScrollFlow: View {
     @ViewBuilder
     private func wordView(_ word: ScriptWord) -> some View {
         let wordState = state.state(for: word.id)
+        // System type, not a serif: SF is drawn for screen legibility at a
+        // glance, which is the whole job here — you read this in your
+        // peripheral vision while looking at a lens.
         Text(word.raw)
-            .font(.system(size: state.fontSize, weight: wordState == .spoken ? .medium : .semibold, design: .serif))
+            .font(.system(size: state.fontSize, weight: wordState == .spoken ? .semibold : .bold, design: .default))
             .foregroundStyle(color(for: wordState))
             // Words sit over live video, so they need their own dark halo — a
             // flat colour alone disappears against faces, windows, and
             // anything else bright behind them.
-            .shadow(color: .black.opacity(0.92), radius: 2, x: 0, y: 1)
-            .shadow(color: .black.opacity(0.65), radius: 7)
+            .shadow(color: .black.opacity(0.9), radius: 2, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.6), radius: 8)
             .background(
                 GeometryReader { g in
                     Color.clear.preference(
@@ -736,9 +900,9 @@ private struct ScrollFlow: View {
         // Already-read text drops well back so progress is obvious at a glance,
         // the current word is picked out in the accent colour, and what's still
         // to read stays at full brightness because that's what's being read.
-        case .spoken: return Color(white: 0.34)
-        case .active: return Color(red: 1.0, green: 0.72, blue: 0.23)
-        case .upcoming: return Color(white: 0.96)
+        case .spoken: return Color(white: 0.42)
+        case .active: return PrompterView.accent
+        case .upcoming: return Color(white: 0.97)
         }
     }
 }

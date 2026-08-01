@@ -1,19 +1,18 @@
 import SwiftUI
 
-/// Reading and camera settings for the live prompter. Script settings always
-/// apply; the camera sections appear only when the camera is on, and each
-/// individual camera row is conditional on `camera.capabilities` — what's shown
-/// reflects what this specific iPhone's front camera actually supports.
+/// Everything you can tune while the prompter is open.
+///
+/// Standard grouped sections with real headers and footers: the footer says
+/// what the section is *for*, so no control needs an explanation bolted onto
+/// it. Camera sections appear only when the camera is on, and each individual
+/// row is conditional on what this iPhone's front camera actually supports.
 struct PrompterControlsSheet: View {
     @ObservedObject var camera: CameraController
     @ObservedObject var state: TeleprompterState
     @Environment(\.dismiss) private var dismiss
 
-    private var hasAnyCameraCapability: Bool {
-        camera.capabilities.maxZoom > camera.capabilities.minZoom + 0.05
-            || camera.capabilities.qualityTiers.count > 1
-            || (camera.selectedTier?.frameRates.count ?? 0) > 1
-            || camera.capabilities.supportsHDR
+    private var hasAdjustableCapture: Bool {
+        camera.capabilities.supportsHDR
             || camera.capabilities.supportsStabilization
             || camera.capabilities.supportsLowLightBoost
     }
@@ -21,162 +20,18 @@ struct PrompterControlsSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Reading line") {
-                    HStack {
-                        Text("\(Int(state.cueLineFraction * 100))%")
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                            .frame(width: 48, alignment: .leading)
-                        Slider(value: $state.cueLineFraction, in: 0.08...0.6)
-                    }
-                    Text("How far down the screen you read. Keep it high so your eyes stay near the camera lens.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section("Text size") {
-                    HStack {
-                        Text("\(Int(state.fontSize))")
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                            .frame(width: 48, alignment: .leading)
-                        Slider(value: $state.fontSize, in: 20...64, step: 1)
-                    }
-                }
-
-                Section("Timing") {
-                    Toggle("Show timing", isOn: $state.showTiming)
-                    Picker("Countdown", selection: $state.countdownSeconds) {
-                        ForEach(TeleprompterState.countdownOptions, id: \.self) { seconds in
-                            Text(seconds == 0 ? "Off" : "\(seconds)s").tag(seconds)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    HStack {
-                        Text("\(Int(state.targetWPM)) wpm")
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                            .frame(width: 80, alignment: .leading)
-                        Slider(value: $state.targetWPM, in: ReadingPace.wpmRange, step: 5)
-                    }
-                    Text("Your target pace, used for the estimate until you've read enough of the take for On Cue to measure your real one.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
+                readingSection
+                timingSection
                 if state.cameraEnabled {
-                    Section("Contrast over camera") {
-                        HStack {
-                            Text("Text")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 48, alignment: .leading)
-                            Slider(value: $state.textOpacity, in: 0.3...1.0)
-                        }
-                        HStack {
-                            Text("Dim")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 48, alignment: .leading)
-                            Slider(value: $state.cameraDimming, in: 0.0...0.85)
-                        }
-                        Text("Raise Dim to darken the camera behind the words. Lower Text to see more of yourself through them.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                    legibilitySection
+                    qualitySection
+                    if camera.capabilities.maxZoom > camera.capabilities.minZoom + 0.05 {
+                        zoomSection
                     }
-                }
-
-                if state.cameraEnabled && camera.capabilities.maxZoom > camera.capabilities.minZoom + 0.05 {
-                    Section("Zoom") {
-                        HStack {
-                            Text("\(camera.zoomFactor, specifier: "%.1f")×")
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(.secondary)
-                                .frame(width: 48, alignment: .leading)
-                            Slider(
-                                value: Binding(
-                                    get: { camera.zoomFactor },
-                                    set: { camera.setZoom($0) }
-                                ),
-                                in: camera.capabilities.minZoom...camera.capabilities.maxZoom
-                            )
-                        }
-                    }
-                }
-
-                if state.cameraEnabled, let mode = camera.selectedMode, let tier = camera.selectedTier {
-                    // Two short segmented toggles instead of an exhaustive
-                    // format list — the same choice Camera.app offers, and the
-                    // same one mirrored on the prompter itself.
-                    Section("Video quality") {
-                        if camera.capabilities.qualityTiers.count > 1 {
-                            Picker("Size", selection: Binding(
-                                get: { tier },
-                                set: { camera.selectTier($0) }
-                            )) {
-                                ForEach(camera.capabilities.qualityTiers) { option in
-                                    Text(option.label).tag(option)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                        }
-                        if tier.frameRates.count > 1 {
-                            Picker("Frame rate", selection: Binding(
-                                get: { mode.frameRate },
-                                set: { camera.apply(VideoMode(height: tier.height, frameRate: $0)) }
-                            )) {
-                                ForEach(tier.frameRates, id: \.self) { rate in
-                                    Text("\(Int(rate)) fps").tag(rate)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                        }
-                        if camera.isRecording {
-                            Text("Stop recording to change quality.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        // What this iPhone's front camera actually reports —
-                        // the ground truth behind the toggles above.
-                        Text("This camera offers " + camera.capabilities.qualityTiers.map { tier in
-                            "\(tier.label) at \(tier.frameRates.map { "\(Int($0))" }.joined(separator: "/")) fps"
-                        }.joined(separator: ", ") + ".")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                if state.cameraEnabled && (camera.capabilities.supportsHDR || camera.capabilities.supportsStabilization || camera.capabilities.supportsLowLightBoost) {
-                    Section("Capture") {
-                        if camera.capabilities.supportsHDR {
-                            Toggle("HDR video", isOn: Binding(
-                                get: { camera.hdrEnabled },
-                                set: { camera.setHDR($0) }
-                            ))
-                        }
-                        if camera.capabilities.supportsStabilization {
-                            Toggle("Stabilization", isOn: Binding(
-                                get: { camera.stabilizationEnabled },
-                                set: { camera.setStabilization($0) }
-                            ))
-                        }
-                        if camera.capabilities.supportsLowLightBoost {
-                            Toggle("Low-light boost", isOn: Binding(
-                                get: { camera.lowLightBoostEnabled },
-                                set: { camera.setLowLightBoost($0) }
-                            ))
-                        }
-                    }
-                }
-
-                if state.cameraEnabled && !hasAnyCameraCapability {
-                    Section {
-                        Text("This iPhone's front camera doesn't expose any adjustable capture options — it'll record at its default settings.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
+                    if hasAdjustableCapture { captureSection }
                 }
             }
+            .tint(PrompterView.accent)
             .navigationTitle("Prompter")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -186,5 +41,210 @@ struct PrompterControlsSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .preferredColorScheme(.dark)
+    }
+
+    // MARK: - Reading
+
+    private var readingSection: some View {
+        Section {
+            labelledSlider(
+                "Reading line",
+                value: $state.cueLineFraction,
+                range: 0.08...0.6,
+                display: "\(Int(state.cueLineFraction * 100))%",
+                icons: ("arrow.up.to.line", "arrow.down.to.line")
+            )
+            labelledSlider(
+                "Text size",
+                value: $state.fontSize,
+                range: 20...64,
+                step: 1,
+                display: "\(Int(state.fontSize))",
+                icons: ("textformat.size.smaller", "textformat.size.larger")
+            )
+            Toggle("Centre text", isOn: $state.centerAlign)
+            Toggle("Mirror", isOn: $state.mirror)
+            Picker("Idle drift", selection: $state.driftIndex) {
+                ForEach(Array(TeleprompterState.driftLabels.enumerated()), id: \.offset) { index, label in
+                    Text(label).tag(index)
+                }
+            }
+        } header: {
+            Text("Reading")
+        } footer: {
+            // Adjusted here rather than before starting, because these are the
+            // settings whose effect you can only judge by looking at the
+            // script — which is visible behind this sheet.
+            Text("Keep the reading line high on the screen so your eyes stay near the lens. Idle drift creeps the script upward while you're silent — leave it off unless recognition keeps losing you, since it works against deliberate pauses. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
+        }
+    }
+
+    // MARK: - Timing
+
+    private var timingSection: some View {
+        Section {
+            Toggle("Show timing", isOn: $state.showTiming)
+            Picker("Countdown", selection: $state.countdownSeconds) {
+                ForEach(TeleprompterState.countdownOptions, id: \.self) { seconds in
+                    Text(seconds == 0 ? "Off" : "\(seconds)s").tag(seconds)
+                }
+            }
+            .pickerStyle(.segmented)
+            labelledSlider(
+                "Pace",
+                value: $state.targetWPM,
+                range: ReadingPace.wpmRange,
+                step: 5,
+                display: "\(Int(state.targetWPM)) wpm",
+                icons: ("tortoise.fill", "hare.fill")
+            )
+        } header: {
+            Text("Timing")
+        } footer: {
+            Text("Your target pace drives the estimate until you've read enough of a take for On Cue to measure your real one.")
+        }
+    }
+
+    // MARK: - Legibility
+
+    private var legibilitySection: some View {
+        Section {
+            labelledSlider(
+                "Text",
+                value: $state.textOpacity,
+                range: 0.3...1.0,
+                display: "\(Int(state.textOpacity * 100))%",
+                icons: ("circle.lefthalf.filled", "circle.fill")
+            )
+            labelledSlider(
+                "Dim",
+                value: $state.cameraDimming,
+                range: 0.0...0.85,
+                display: "\(Int(state.cameraDimming * 100))%",
+                icons: ("sun.max.fill", "moon.fill")
+            )
+        } header: {
+            Text("Over the camera")
+        } footer: {
+            Text("Raise Dim to darken the picture behind the words. Lower Text to see more of yourself through them.")
+        }
+    }
+
+    // MARK: - Camera
+
+    @ViewBuilder
+    private var qualitySection: some View {
+        if let mode = camera.selectedMode, let tier = camera.selectedTier {
+            Section {
+                if camera.capabilities.qualityTiers.count > 1 {
+                    Picker("Size", selection: Binding(
+                        get: { tier },
+                        set: { camera.selectTier($0) }
+                    )) {
+                        ForEach(camera.capabilities.qualityTiers) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                if tier.frameRates.count > 1 {
+                    Picker("Frame rate", selection: Binding(
+                        get: { mode.frameRate },
+                        set: { camera.apply(VideoMode(height: tier.height, frameRate: $0)) }
+                    )) {
+                        ForEach(tier.frameRates, id: \.self) { rate in
+                            Text("\(Int(rate))").tag(rate)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+            } header: {
+                Text("Video quality")
+            } footer: {
+                // What this iPhone actually reports — ground truth behind the
+                // controls above.
+                Text(camera.isRecording
+                     ? "Stop recording to change quality."
+                     : "This camera offers " + camera.capabilities.qualityTiers.map { tier in
+                        "\(tier.label) at \(tier.frameRates.map { "\(Int($0))" }.joined(separator: "/")) fps"
+                     }.joined(separator: ", ") + ".")
+            }
+            .disabled(camera.isRecording)
+        }
+    }
+
+    private var zoomSection: some View {
+        Section("Zoom") {
+            labelledSlider(
+                "Zoom",
+                value: Binding(get: { camera.zoomFactor }, set: { camera.setZoom($0) }),
+                range: camera.capabilities.minZoom...camera.capabilities.maxZoom,
+                display: String(format: "%.1f×", camera.zoomFactor),
+                icons: ("minus.magnifyingglass", "plus.magnifyingglass")
+            )
+        }
+    }
+
+    private var captureSection: some View {
+        Section("Capture") {
+            if camera.capabilities.supportsHDR {
+                Toggle("HDR video", isOn: Binding(
+                    get: { camera.hdrEnabled },
+                    set: { camera.setHDR($0) }
+                ))
+            }
+            if camera.capabilities.supportsStabilization {
+                Toggle("Stabilisation", isOn: Binding(
+                    get: { camera.stabilizationEnabled },
+                    set: { camera.setStabilization($0) }
+                ))
+            }
+            if camera.capabilities.supportsLowLightBoost {
+                Toggle("Low-light boost", isOn: Binding(
+                    get: { camera.lowLightBoostEnabled },
+                    set: { camera.setLowLightBoost($0) }
+                ))
+            }
+        }
+    }
+
+    // MARK: - Shared row
+
+    /// A slider row in the shape iOS uses for these: title and current value
+    /// on one line, the slider beneath it flanked by symbols showing which way
+    /// is which.
+    private func labelledSlider<V: BinaryFloatingPoint>(
+        _ title: String,
+        value: Binding<V>,
+        range: ClosedRange<V>,
+        step: V.Stride? = nil,
+        display: String,
+        icons: (String, String)
+    ) -> some View where V.Stride: BinaryFloatingPoint {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(display)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            HStack(spacing: 10) {
+                Image(systemName: icons.0)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let step {
+                    Slider(value: value, in: range, step: step)
+                } else {
+                    Slider(value: value, in: range)
+                }
+                Image(systemName: icons.1)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
     }
 }

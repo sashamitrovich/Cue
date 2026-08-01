@@ -11,9 +11,10 @@ Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription a
 - **Follows your voice.** On-device speech recognition matches what you say against the script and moves the reading line to keep your place. Skip a word, paraphrase, or pause and it stays with you.
 - **Records while you read.** Front-camera capture with the script overlaid, saved straight to Photos. The camera is on by default and toggles off from the prompter itself, where you can see what it does.
 - **Explains itself.** A "?" on the setup screen opens a plain-language guide to every option — including Mirror, which is for teleprompter glass rigs and not for reading off the phone.
-- **Times your read.** Word count and estimated run time as you write, then elapsed time, time left and a progress bar while you speak. The estimate starts from your target pace and switches to your *measured* pace once there's enough of the take to judge from.
+- **Times your read.** Word count and estimated run time as you write — pick a relaxed, natural or brisk pace right in the estimate — then elapsed time, time left and a progress bar while you speak. The estimate starts from your target pace and switches to your *measured* pace once there's enough of the take to judge from.
 - **Counts you in.** An optional 3, 5 or 10 second pre-roll before listening starts, so you can settle and find the lens. Tap anywhere to cancel it.
 - **Adapts to the device.** Zoom, HDR, stabilisation and low-light boost appear as controls only if the connected iPhone's front camera actually supports them. Recording quality is a Camera.app-style pair of toggles — HD or 4K, and the frame rates that size offers (24/25/30/60, as far as the camera supports) — right on the prompter.
+- **Gets out of the way.** Once a take is running the controls fade, leaving the script the whole screen; a tap anywhere brings them back. The recording indicator never hides.
 - **Stays readable over video.** Adjustable text opacity and camera dimming, with per-word contrast shadows so words survive against a bright background.
 - **Keeps your formatting.** Line breaks and blank lines carry over from the editor, so you can leave deliberate gaps as ad-lib room.
 - **Imports scripts** from Files or iCloud Drive (`.txt`, `.md`, `.rtf`).

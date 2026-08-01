@@ -99,4 +99,58 @@ final class PrompterSmokeTests: XCTestCase {
             "the rail belongs against a side edge"
         )
     }
+
+    /// The reading line has to sit ON the word being read, not above or below
+    /// it. This is the defect that eyeballing screenshots kept missing: the
+    /// script rendered fine, it was just a line out of register.
+    func testReadingLineSitsOnTheWordBeingRead() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera"]
+        app.launch()
+        app.buttons["Start prompting →"].tap()
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+            let line = app.otherElements["readingLine"]
+            XCTAssertTrue(line.waitForExistence(timeout: 5), "reading line must exist in \(orientation.rawValue)")
+            let firstWord = app.staticTexts["Welcome,"]
+            XCTAssertTrue(firstWord.waitForExistence(timeout: 5), "first word must be on screen in \(orientation.rawValue)")
+
+            let drift = abs(line.frame.midY - firstWord.frame.midY)
+            XCTAssertLessThan(
+                drift, 26,
+                "reading line \(line.frame) vs word \(firstWord.frame) — off by \(Int(drift))pt "
+                + "in window \(app.windows.firstMatch.frame) (orientation \(orientation.rawValue))"
+            )
+        }
+        XCUIDevice.shared.orientation = .portrait
+    }
+
+    /// Every take control must be fully on screen in landscape — the rail was
+    /// taller than the screen, so the last button was clipped off the bottom.
+    func testAllControlsFitInTheLandscapeRail() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera"]
+        app.launch()
+        app.buttons["Start prompting →"].tap()
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+        let window = app.windows.firstMatch.frame
+        for name in ["Restart", "Listen", "Manual"] {
+            let control = app.buttons[name]
+            XCTAssertTrue(control.exists, "\(name) must exist in landscape")
+            XCTAssertTrue(
+                window.contains(control.frame),
+                "\(name) is clipped: frame \(control.frame) is not inside window \(window)"
+            )
+            XCTAssertTrue(control.isHittable, "\(name) must be tappable in landscape")
+        }
+    }
 }

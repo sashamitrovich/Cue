@@ -21,6 +21,21 @@ enum ReadingPace {
     /// drag the average toward zero and report a wildly inflated time left.
     private static let measuredBounds: ClosedRange<Double> = 60...300
 
+    /// Speaking speeds people can actually picture, since "140 wpm" means
+    /// nothing to most readers. Values are conventional: unhurried
+    /// presentation, relaxed conversation, and a broadcast-style read.
+    static let namedPaces: [(label: String, wpm: Double)] = [
+        ("relaxed", 110),
+        ("natural", 140),
+        ("brisk", 165)
+    ]
+
+    /// The name for a speed — the nearest named pace, so a value nudged by
+    /// the slider still reads as something rather than as a bare number.
+    static func name(forWPM wpm: Double) -> String {
+        namedPaces.min { abs($0.wpm - wpm) < abs($1.wpm - wpm) }?.label ?? "natural"
+    }
+
     /// How long `count` words takes at `wpm`.
     static func seconds(forWords count: Int, wpm: Double) -> Double {
         guard count > 0, wpm > 0 else { return 0 }

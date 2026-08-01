@@ -32,9 +32,27 @@ The simulator has **no microphone and no camera**. Speech recognition and camera
 
 Hardware-coupled types (`SpeechTracker`, `CameraController`) are deliberately not unit tested for this reason. Don't add tests that pretend to cover them; put logic worth testing into pure types instead (as `TranscriptDeltaTracker` and `ScriptImporter` do).
 
+## Design principles
+
+The prompter behaves like a first-party capture app: the content is the script and the speaker's face, and the chrome defers to it. Translucent materials rather than opaque slabs; one accent colour, used only where it carries meaning (current word, primary action, live pace); controls that fade during a take and return on a tap, with the recording badge the one thing that never hides.
+
+Settings are placed by whether you can judge them without looking at the script. Anything whose effect is only visible on the script — text size, reading line, alignment, mirroring — belongs on the prompter, not the setup screen, where a value like "32" means nothing. The setup screen carries only pre-start decisions, and the pace control lives inside the estimate sentence it governs, as a named speed rather than a bare wpm number.
+
 ## Verifying visual changes
 
 Layout and legibility changes need real evidence, because code that looks right often doesn't render. The loop:
+
+**Measurable geometry belongs in assertions, not in this loop.** Screenshots are for judging taste. Anything with a number — is the reading line on the word, is a control inside the window — goes into a UI test, because eyeballing exported screenshots passed both of those defects repeatedly. See `testReadingLineSitsOnTheWordBeingRead` and `testAllControlsFitInTheLandscapeRail`.
+
+**Run verification on a throwaway simulator.** Parallel runs against the shared `iPhone 14` device kill each other and leave DerivedData in states that fail with an unsigned `Cue.debug.dylib` — failures that have nothing to do with the code:
+
+```sh
+DEVICE=$(xcrun simctl create CueVerify com.apple.CoreSimulator.SimDeviceType.iPhone-14 com.apple.CoreSimulator.SimRuntime.iOS-26-5)
+xcodebuild -project Cue.xcodeproj -scheme Cue -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath /tmp/dd-verify test
+xcrun simctl delete $DEVICE
+```
+
+`timeout` does not exist on macOS — a command that pipes through it silently never runs xcodebuild at all, which reads as an inconclusive result rather than an error.
 
 1. `xcodebuild ... -only-testing:CueUITests/CaptureScreens test` — attaches a screenshot.
 2. `xcrun xcresulttool export attachments --path <the .xcresult> --output-path <dir>`
@@ -57,6 +75,10 @@ This is how a scrim that appeared correct in code but rendered at ~30% of intend
 **`words` and `lines` must stay consistent.** `words` is the flat reading-order list the matcher walks; `lines` groups those same words for layout with blank lines preserved as ad-lib space. Word ids are sequential across the whole script and must agree between the two. The flat list's contract is depended on by the original matcher tests.
 
 **Normalize line endings before splitting.** Splitting CRLF text on a newline *character set* invents a blank line between every line. `buildWords` normalizes `\r\n` and `\r` first.
+
+**Never position layout from a measurement that the position influences.** The reading line's `cueY` was once derived from a measured chrome height. Measurement drove state, state moved layout, layout re-published the measurement — at full precision the sub-pixel difference each pass kept that cycle running forever, pinning the CPU at 100% so the prompter never became interactive and every UI test timed out. It also meant the script was scrolled against one value while the line was drawn at another, leaving them 45pt apart in landscape. `cueY` is now a pure function of geometry (fraction of the full height, floored higher in landscape), and the rail's top inset is a stated constant. Where a measurement genuinely must drive state: quantize the key, skip writes below ~0.5pt, and never write synchronously into a value the same layout pass reads.
+
+**The script's frame is pinned to the *full* screen, top-aligned.** Pinned, because `ScrollFlow` is 2–3× taller than the screen and an unpinned ZStack sizes to it, pushing the controls off screen — removing the pin made Listen untappable and clipped the rail. Full-screen (`geo.size` + insets) rather than the inset `geo` height, because the container ignores the safe area and a smaller child gets centred, dropping the script ~(top+bottom)/2 below the origin the chrome uses.
 
 **Layout must come from live geometry, not `UIScreen`.** `UIScreen.main.bounds` reports the wrong height in landscape. `ScrollFlow` takes its insets from the `GeometryReader`.
 

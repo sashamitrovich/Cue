@@ -56,6 +56,26 @@ final class ReadingPaceTests: XCTestCase {
         )
     }
 
+    // MARK: - Named paces
+
+    func testNamedPacesCoverTheUsefulRange() {
+        let values = ReadingPace.namedPaces.map(\.wpm)
+        XCTAssertEqual(values, values.sorted(), "presented slowest to fastest")
+        for wpm in values {
+            XCTAssertTrue(ReadingPace.wpmRange.contains(wpm), "\(wpm) must be reachable from the slider too")
+        }
+    }
+
+    func testPaceNameSnapsToTheNearestNamedSpeed() {
+        XCTAssertEqual(ReadingPace.name(forWPM: 110), "relaxed")
+        XCTAssertEqual(ReadingPace.name(forWPM: 140), "natural")
+        XCTAssertEqual(ReadingPace.name(forWPM: 165), "brisk")
+        // A value nudged by the slider still reads as a word, not a number.
+        XCTAssertEqual(ReadingPace.name(forWPM: 132), "natural")
+        XCTAssertEqual(ReadingPace.name(forWPM: 200), "brisk")
+        XCTAssertEqual(ReadingPace.name(forWPM: 90), "relaxed")
+    }
+
     // MARK: - Formatting
 
     func testTimeStringFormatting() {
