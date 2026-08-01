@@ -11,10 +11,20 @@ final class PrompterSmokeTests: XCTestCase {
 
     func testPrompterControlsAreOnScreen() throws {
         let app = XCUIApplication()
+        // The simulator has no camera; without this the capture-permission
+        // prompt would block the run.
+        app.launchArguments = ["-uiTestingNoCamera"]
         app.launch()
 
         let startButton = app.buttons["Start prompting →"]
         XCTAssertTrue(startButton.waitForExistence(timeout: 5), "Setup screen should show the start button")
+        // It must be reachable without scrolling — the script editor is sized
+        // to leave room for it rather than pushing it below the fold.
+        XCTAssertTrue(startButton.isHittable, "Start button must be on screen without scrolling")
+        XCTAssertTrue(
+            app.windows.firstMatch.frame.contains(startButton.frame),
+            "Start button frame must be inside the window without scrolling"
+        )
         startButton.tap()
 
         let listen = app.buttons["Listen"]
@@ -38,6 +48,9 @@ final class PrompterSmokeTests: XCTestCase {
 
     func testExitReturnsToSetup() throws {
         let app = XCUIApplication()
+        // The simulator has no camera; without this the capture-permission
+        // prompt would block the run.
+        app.launchArguments = ["-uiTestingNoCamera"]
         app.launch()
 
         app.buttons["Start prompting →"].tap()

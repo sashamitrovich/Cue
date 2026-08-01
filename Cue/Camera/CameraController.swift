@@ -41,6 +41,8 @@ final class CameraController: NSObject, ObservableObject {
 
     private var timer: Timer?
     private var orientationObserver: NSObjectProtocol?
+    /// Inputs and outputs are added once; stopping only stops the session.
+    private var isConfigured = false
 
     var selectedTier: QualityTier? {
         guard let selectedMode else { return nil }
@@ -48,6 +50,13 @@ final class CameraController: NSObject, ObservableObject {
     }
 
     func configureAndStart() {
+        // The camera can be switched off and back on mid-take. Re-running
+        // `setup` would add a second set of inputs and outputs to the session,
+        // so once configured this only restarts the running session.
+        if isConfigured {
+            start()
+            return
+        }
         AVCaptureDevice.requestAccess(for: .video) { videoOK in
             AVCaptureDevice.requestAccess(for: .audio) { audioOK in
                 DispatchQueue.main.async {
@@ -115,10 +124,14 @@ final class CameraController: NSObject, ObservableObject {
             detectCapabilities(for: camera)
         }
 
-        startTrackingOrientation()
+        isConfigured = true
+        start()
+    }
 
+    private func start() {
+        startTrackingOrientation()
         DispatchQueue.global(qos: .userInitiated).async {
-            self.session.startRunning()
+            if !self.session.isRunning { self.session.startRunning() }
             DispatchQueue.main.async { self.isRunning = true }
         }
     }
@@ -274,6 +287,9 @@ final class CameraController: NSObject, ObservableObject {
     /// rotation. `AVCaptureMovieFileOutput`'s connection doesn't follow
     /// SwiftUI's interface rotation automatically — it has to be set explicitly.
     private func startTrackingOrientation() {
+        // Paired with the removal in `stop()` — the begin/end calls are
+        // nesting-counted, so re-registering on every restart would leak.
+        guard orientationObserver == nil else { return }
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         applyCurrentOrientation()
         orientationObserver = NotificationCenter.default.addObserver(
@@ -296,6 +312,7 @@ final class CameraController: NSObject, ObservableObject {
         if isRecording { stopRecording() }
         if let orientationObserver {
             NotificationCenter.default.removeObserver(orientationObserver)
+            UIDevice.current.endGeneratingDeviceOrientationNotifications()
             self.orientationObserver = nil
         }
         if session.isRunning {

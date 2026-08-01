@@ -34,7 +34,11 @@ final class TeleprompterState: ObservableObject {
     @Published var driftIndex: Int = 0
     @Published var mirror: Bool = false
     @Published var centerAlign: Bool = false
-    @Published var cameraEnabled: Bool = false
+    /// Recording yourself is the common case, so the camera starts on and is
+    /// turned off from the prompter, where you can see what it does.
+    /// UI tests opt out: the simulator has no camera, and the permission
+    /// prompt would block the run.
+    @Published var cameraEnabled: Bool = !ProcessInfo.processInfo.arguments.contains("-uiTestingNoCamera")
     @Published var manualMode: Bool = false
     /// How opaque the scrolling script text is, so the camera feed behind it
     /// can show through more or less — 1.0 is fully opaque text, lower

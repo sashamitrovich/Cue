@@ -62,6 +62,14 @@ This is how a scrim that appeared correct in code but rendered at ~30% of intend
 
 **Quality is two toggles, not a format list.** `CaptureQualityMenu` collapses the device's formats into at most two tiers (HD / 4K), each with its available frame rates — the same choice Camera.app offers. Keep only the largest size per tier: 720p and 1080p both label as "HD" and would give the toggle two indistinguishable positions. Every offered mode resolves to the *widest-FOV* format that can serve it, for the same reason `setup` picks a wide format explicitly.
 
+**Both quality pills stay visible.** They're a readout as much as a control; a pill that vanishes when you switch tier (because that tier offers one frame rate) reads as a bug. A pill with nothing to offer renders dimmed and disabled instead.
+
+**`setup()` runs once.** The camera can be toggled off and back on mid-take, and re-running it would add a second set of inputs and outputs to the session — `isConfigured` gates it, and restarts go through `start()`. Orientation notifications are begin/end nesting-counted, so `startTrackingOrientation` no-ops when already registered.
+
+**The start button must be reachable without scrolling.** `SetupView` sizes the script editor from live geometry (~30% of screen height, clamped) so the button sits above the fold on every screen; the editor scrolls internally. A UI test asserts the button is hittable and inside the window before any scrolling. Options live *below* the button.
+
+**UI tests pass `-uiTestingNoCamera`.** The camera defaults to on, and the simulator has no camera — without the launch argument the capture-permission prompt blocks the run. `TeleprompterState.cameraEnabled` reads it.
+
 **Never reconfigure the capture device while recording.** `apply(_:)` refuses, and the on-screen pills hide, because changing `activeFormat` mid-take tears down the file being written.
 
 **The idle timer stays disabled for the whole prompter screen.** A take is minutes of talking to the lens without touching the screen, so iOS would otherwise dim and lock mid-recording. Set in `PrompterView.onAppear`, cleared in `onDisappear` — don't scope it to `isRecording` only.

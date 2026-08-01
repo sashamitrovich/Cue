@@ -238,6 +238,18 @@ struct PrompterView: View {
         speech.end()
     }
 
+    /// Starts or tears down the capture session live, so the button's effect
+    /// is visible immediately behind the script.
+    private func toggleCamera() {
+        guard !camera.isRecording else { return }
+        state.cameraEnabled.toggle()
+        if state.cameraEnabled {
+            camera.configureAndStart()
+        } else {
+            camera.stop()
+        }
+    }
+
     // MARK: - Timing
 
     private var elapsed: TimeInterval { clock.elapsed(at: displayNow) }
@@ -295,6 +307,21 @@ struct PrompterView: View {
                     .background(Color.red.opacity(0.16))
                     .clipShape(Capsule())
                 }
+                // Camera on/off lives here rather than on the setup screen:
+                // this is where you can see what it actually does.
+                Button {
+                    toggleCamera()
+                } label: {
+                    Image(systemName: state.cameraEnabled ? "video.fill" : "video.slash.fill")
+                        .font(.footnote)
+                        .foregroundStyle(state.cameraEnabled ? Color(red: 1.0, green: 0.72, blue: 0.23) : .primary)
+                        .padding(8)
+                        .background(.white.opacity(0.08))
+                        .clipShape(Circle())
+                }
+                .disabled(camera.isRecording)
+                .accessibilityLabel(state.cameraEnabled ? "Turn camera off" : "Turn camera on")
+
                 Button {
                     showCameraControls = true
                 } label: {
@@ -304,6 +331,7 @@ struct PrompterView: View {
                         .background(.white.opacity(0.08))
                         .clipShape(Circle())
                 }
+                .accessibilityLabel("Prompter settings")
                 Button("Exit") {
                     pauseTake()
                     camera.stop()
@@ -383,15 +411,17 @@ struct PrompterView: View {
         if state.cameraEnabled, !camera.isRecording, let mode = camera.selectedMode, let tier = camera.selectedTier {
             HStack(spacing: 8) {
                 Spacer()
-                if camera.capabilities.qualityTiers.count > 1 {
-                    pill(mode.tierLabel) {
-                        if let next = CaptureQualityMenu.nextTier(after: tier, in: camera.capabilities.qualityTiers) {
-                            camera.selectTier(next)
-                        }
+                // Both pills stay put whatever is selected — they're a readout
+                // of what you're recording as much as a control, and one
+                // vanishing as you switch tier is worse than one that simply
+                // has nothing else to offer on this device.
+                pill(mode.tierLabel, enabled: camera.capabilities.qualityTiers.count > 1) {
+                    if let next = CaptureQualityMenu.nextTier(after: tier, in: camera.capabilities.qualityTiers) {
+                        camera.selectTier(next)
                     }
                 }
-                if tier.frameRates.count > 1 {
-                    pill(mode.frameRateLabel) { camera.cycleFrameRate() }
+                pill(mode.frameRateLabel, enabled: tier.frameRates.count > 1) {
+                    camera.cycleFrameRate()
                 }
             }
             .padding(.trailing, 18)
@@ -400,18 +430,19 @@ struct PrompterView: View {
     }
 
     @ViewBuilder
-    private func pill(_ text: String, action: @escaping () -> Void) -> some View {
+    private func pill(_ text: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(text)
                 .font(.system(size: 13, weight: .semibold).monospacedDigit())
-                .foregroundStyle(Color(red: 1.0, green: 0.72, blue: 0.23))
+                .foregroundStyle(enabled ? Color(red: 1.0, green: 0.72, blue: 0.23) : Color(white: 0.62))
                 .frame(minWidth: 34)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 10)
                 .background(.black.opacity(0.55), in: Capsule())
-                .overlay(Capsule().stroke(.white.opacity(0.18), lineWidth: 1))
+                .overlay(Capsule().stroke(.white.opacity(enabled ? 0.18 : 0.10), lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
         .accessibilityLabel("Video quality \(text)")
     }
 
