@@ -4,7 +4,7 @@
 
 A voice-controlled teleprompter for iPhone. The script scrolls as you speak — stop talking and it waits for you — while the front camera records your take.
 
-Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription, no account, no network: speech recognition runs on-device by default and nothing leaves the phone.
+Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription and no account. Speech recognition prefers Apple's on-device recogniser; if the phone hasn't downloaded the offline speech model, iOS falls back to Apple's speech service, which transcribes server-side. Scripts and recordings never leave the device.
 
 ## What it does
 

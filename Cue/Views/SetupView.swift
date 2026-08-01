@@ -162,7 +162,7 @@ struct SetupView: View {
                     .font(.caption)
             }
 
-            Text("Uses on-device speech recognition to track your place. Grant microphone (and camera, if recording) access when asked. Nothing leaves your phone.")
+            Text("Speech recognition runs on your iPhone. If it hasn't downloaded the offline speech model, iOS falls back to Apple's speech service and sends audio there to transcribe. Recordings are only ever saved to your own Photos library.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

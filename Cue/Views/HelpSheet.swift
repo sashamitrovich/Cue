@@ -19,8 +19,8 @@ struct HelpSheet: View {
                         "Tap Listen and start speaking. On Cue matches what it hears against your script and scrolls to keep the line you're on at the reading line. Stop talking and it waits. Paraphrase, skip a word, or start a sentence again and it stays with you."
                     )
                     explain(
-                        "Nothing leaves your phone",
-                        "Speech recognition runs on-device, and takes are saved straight to your Photos library."
+                        "Where your words go",
+                        "Speech recognition runs on your iPhone. If your phone hasn't downloaded the offline speech model (Settings → General → Keyboard → Dictation), iOS falls back to Apple's speech service, which means audio is sent to Apple to be transcribed — the same thing dictation does. Your script and your recordings never leave the phone: takes are saved straight to your Photos library."
                     )
                 }
 
