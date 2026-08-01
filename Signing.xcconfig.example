@@ -1,0 +1,10 @@
+// Copy to Signing.xcconfig and fill in your Apple Developer Team ID.
+// That file is gitignored, so your team ID never lands in the repo.
+//
+//   cp Signing.xcconfig.example Signing.xcconfig
+//   xcodegen generate
+//
+// Find the ID in Xcode > Settings > Accounts (or the Membership page on
+// developer.apple.com). Without it the project still builds for the
+// simulator; a device build needs it.
+DEVELOPMENT_TEAM = YOUR_TEAM_ID

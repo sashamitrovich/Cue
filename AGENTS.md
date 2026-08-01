@@ -20,6 +20,10 @@ Run the full suite before claiming a change works. `build` alone misses layout r
 
 New source files under `Cue/`, `CueTests/` or `CueUITests/` are picked up automatically by directory; re-run `xcodegen generate` so Xcode sees them.
 
+**Signing set in Xcode's UI does not survive.** Regeneration rebuilds the project file, so a team picked in Signing & Capabilities is wiped and the "requires a development team" error returns. `DEVELOPMENT_TEAM` comes from `Signing.xcconfig`, which is gitignored (copy `Signing.xcconfig.example`) so the team ID stays out of the public repo. Never add `DEVELOPMENT_TEAM` back to `project.yml`'s target settings — even an empty value there overrides the xcconfig and resets Team to None, which is exactly the bug this replaced.
+
+Bump `CFBundleVersion` in `project.yml` for every TestFlight upload; App Store Connect rejects a build number it has already accepted.
+
 ## What you cannot verify here
 
 The simulator has **no microphone and no camera**. Speech recognition and camera capture cannot be exercised locally — do not claim they work based on a green build. Say plainly that they need testing on a physical device, and ask.

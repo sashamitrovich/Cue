@@ -14,3 +14,6 @@ xcuserdata/
 
 # Python
 __pycache__/
+
+# Local signing (team ID) — copy Signing.xcconfig.example to create it
+Signing.xcconfig

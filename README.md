@@ -35,7 +35,14 @@ open Cue.xcodeproj
 
 The Xcode project is generated rather than committed, so `project.yml` is the source of truth for targets, build settings and Info.plist keys. Re-run `xcodegen generate` after changing it.
 
-To run on your own device, set a development team under **Signing & Capabilities** for the `Cue` target.
+To run on your own device, give the project your Apple Developer Team ID:
+
+```sh
+cp Signing.xcconfig.example Signing.xcconfig   # then edit in your team ID
+xcodegen generate
+```
+
+Set it there rather than in Xcode's **Signing & Capabilities** pane — the project file is regenerated, so a team picked in the UI is wiped on the next `xcodegen generate`. `Signing.xcconfig` is gitignored.
 
 ## Tests
 
