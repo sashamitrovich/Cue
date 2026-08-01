@@ -136,6 +136,13 @@ struct PrompterControlsSheet: View {
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
+                        // What this iPhone's front camera actually reports —
+                        // the ground truth behind the toggles above.
+                        Text("This camera offers " + camera.capabilities.qualityTiers.map { tier in
+                            "\(tier.label) at \(tier.frameRates.map { "\(Int($0))" }.joined(separator: "/")) fps"
+                        }.joined(separator: ", ") + ".")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
 

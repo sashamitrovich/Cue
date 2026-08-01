@@ -86,8 +86,14 @@ final class CameraController: NSObject, ObservableObject {
             // narrower field of view than what Camera.app shows — the wide
             // framing has to be opted into by picking the format with the
             // largest FOV explicitly, otherwise the preview looks zoomed in.
+            // Widescreen only, so the running format is one the quality
+            // toggles can actually name — a 4:3 stills format would leave the
+            // pills describing something the session isn't recording.
             let wideFormat = camera.formats
-                .filter { CMVideoFormatDescriptionGetDimensions($0.formatDescription).height >= 1080 }
+                .filter {
+                    let dims = CMVideoFormatDescriptionGetDimensions($0.formatDescription)
+                    return dims.height >= 1080 && Self.isWidescreen(dims)
+                }
                 .max { $0.videoFieldOfView < $1.videoFieldOfView }
             do {
                 try camera.lockForConfiguration()
@@ -149,7 +155,7 @@ final class CameraController: NSObject, ObservableObject {
         var formats: [VideoMode: AVCaptureDevice.Format] = [:]
         for format in device.formats {
             let dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
-            guard dims.height >= 720 else { continue }
+            guard dims.height >= 720, Self.isWidescreen(dims) else { continue }
             if format.isVideoHDRSupported { caps.supportsHDR = true }
 
             for rate in CaptureQualityMenu.offeredFrameRates
@@ -192,6 +198,15 @@ final class CameraController: NSObject, ObservableObject {
             if caps.supportsStabilization { self.setStabilization(true) }
             if caps.supportsLowLightBoost { self.setLowLightBoost(true) }
         }
+    }
+
+    /// Video is 16:9. The front camera also publishes 4:3 stills-shaped
+    /// formats (3088x2320, 1920x1440) whose heights would otherwise be read as
+    /// video sizes — 2320 outranking 2160 is what put a photo format behind
+    /// the "4K" toggle and left it offering a single frame rate.
+    private static func isWidescreen(_ dims: CMVideoDimensions) -> Bool {
+        guard dims.height > 0 else { return false }
+        return abs(Double(dims.width) / Double(dims.height) - 16.0 / 9.0) < 0.05
     }
 
     /// Digital zoom, clamped to this device's actual reported range (front

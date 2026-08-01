@@ -50,7 +50,7 @@ final class TeleprompterState: ObservableObject {
     @Published var cueLineFraction: Double = 0.18
     /// How much the camera feed is darkened behind the script. Higher values
     /// buy text contrast at the cost of a dimmer preview.
-    @Published var cameraDimming: Double = 0.55
+    @Published var cameraDimming: Double = 0.34
     @Published var isListening: Bool = false
     /// The delivery pace used to estimate how long the script runs, until
     /// enough of a take has been spoken to measure the real one.

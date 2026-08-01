@@ -66,6 +66,10 @@ This is how a scrim that appeared correct in code but rendered at ~30% of intend
 
 **Quality is two toggles, not a format list.** `CaptureQualityMenu` collapses the device's formats into at most two tiers (HD / 4K), each with its available frame rates — the same choice Camera.app offers. Keep only the largest size per tier: 720p and 1080p both label as "HD" and would give the toggle two indistinguishable positions. Every offered mode resolves to the *widest-FOV* format that can serve it, for the same reason `setup` picks a wide format explicitly.
 
+**Only 16:9 formats are video sizes.** The front camera publishes 4:3, stills-shaped formats (3088x2320, 1920x1440) next to the video ones. Grouping by height alone let 2320 outrank 2160 and put a stills format behind the "4K" toggle, where it offered a single frame rate — which is how the bug was noticed. `CameraController.isWidescreen` filters at the AVFoundation boundary and `VideoMode.recognizedHeights` (720/1080/2160) guards the pure side.
+
+**The bottom bar is a bar.** It spans the full width with an opaque background; backing only the buttons' intrinsic width leaves the script visible around a floating black box over a camera feed, and translucency isn't enough either — at 86% the words were still legible through it.
+
 **Both quality pills stay visible.** They're a readout as much as a control; a pill that vanishes when you switch tier (because that tier offers one frame rate) reads as a bug. A pill with nothing to offer renders dimmed and disabled instead.
 
 **`setup()` runs once.** The camera can be toggled off and back on mid-take, and re-running it would add a second set of inputs and outputs to the session — `isConfigured` gates it, and restarts go through `start()`. Orientation notifications are begin/end nesting-counted, so `startTrackingOrientation` no-ops when already registered.

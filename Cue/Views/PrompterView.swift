@@ -447,7 +447,7 @@ struct PrompterView: View {
     }
 
     private var footBar: some View {
-        HStack(spacing: 28) {
+        HStack(spacing: 0) {
             footButton(icon: "arrow.counterclockwise", label: "Restart") {
                 state.activeIndex = 0
                 // A restart is a fresh take, so the timing starts over too.
@@ -470,7 +470,11 @@ struct PrompterView: View {
                 }
             }
             if state.cameraEnabled {
-                footButton(icon: camera.isRecording ? "stop.fill" : "circle.fill", label: camera.isRecording ? "Stop" : "Record") {
+                footButton(
+                    icon: camera.isRecording ? "stop.fill" : "circle.fill",
+                    label: camera.isRecording ? "Stop" : "Record",
+                    on: camera.isRecording
+                ) {
                     if camera.isRecording { camera.stopRecording() } else { camera.startRecording() }
                 }
             }
@@ -482,26 +486,27 @@ struct PrompterView: View {
                 }
             }
         }
-        .padding(.top, 34)
-        .padding(.bottom, 12)
-        // The script scrolls behind these controls, so they need their own
-        // backing or the words render straight through the buttons. The stops
-        // reach near-opaque well before the buttons begin — an evenly spaced
-        // gradient is only ~30% dark by the time it reaches them.
-        .background(
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: .black.opacity(0.92), location: 0.22),
-                    .init(color: .black, location: 0.5),
-                    .init(color: .black, location: 1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+        // A real bar: full width, its own surface, a hairline against the
+        // script above it. The earlier version backed only the buttons'
+        // intrinsic width, so over a camera feed the script showed through
+        // either side of a floating black box.
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 8)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+        .background(alignment: .top) {
+            ZStack(alignment: .top) {
+                // Opaque, not translucent: at 86% the script was still legible
+                // through the buttons over a camera feed, which is what made
+                // the old bar look like a floating box of noise.
+                Color.black
+                Rectangle()
+                    .fill(.white.opacity(0.10))
+                    .frame(height: 0.5)
+            }
+            .ignoresSafeArea(edges: .bottom)
             .allowsHitTesting(false)
-        )
+        }
     }
 
     /// Pre-roll before a take. Deliberately sits above everything and takes the
@@ -544,22 +549,29 @@ struct PrompterView: View {
         .accessibilityLabel(delta < 0 ? "Move text up" : "Move text down")
     }
 
+    /// One item in the bottom bar. All items share the same metrics so the
+    /// labels sit on a single baseline; the primary action is distinguished
+    /// by colour rather than by being a different size.
     @ViewBuilder
     private func footButton(icon: String, label: String, primary: Bool = false, on: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: primary ? 22 : 18))
-                    .frame(width: primary ? 62 : 48, height: primary ? 62 : 48)
-                    .background(primary ? Color.orange : Color(.secondarySystemBackground))
-                    .foregroundStyle(primary ? .black : (on ? Color.orange : .primary))
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .font(.system(size: 19, weight: .semibold))
+                    .frame(width: 50, height: 44)
+                    .background(primary ? Color.orange : Color.white.opacity(0.10))
+                    .foregroundStyle(primary ? .black : (on ? Color.orange : .white))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .stroke(on ? Color.orange : .clear, lineWidth: 1.5)
                     )
-                Text(label).font(.caption2).foregroundStyle(.secondary)
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(on ? Color.orange : .secondary)
             }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

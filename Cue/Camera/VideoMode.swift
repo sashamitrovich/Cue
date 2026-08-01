@@ -9,6 +9,13 @@ struct VideoMode: Hashable, Identifiable {
 
     var id: String { "\(height)p\(Int(frameRate.rounded()))" }
 
+    /// The 16:9 video sizes Camera.app records at. The front camera also
+    /// publishes 4:3, photo-shaped formats — 3088x2320, 1920x1440 — and those
+    /// must not be treated as video sizes: grouping by height alone made
+    /// 2320 outrank 2160 and put a stills format behind the "4K" toggle,
+    /// which then appeared to offer only one frame rate.
+    static let recognizedHeights: Set<Int32> = [720, 1080, 2160]
+
     /// Camera.app's vocabulary: anything at or above ~2160 lines is "4K",
     /// everything else on offer is "HD".
     var tierLabel: String { height >= 2000 ? "4K" : "HD" }
@@ -28,16 +35,19 @@ struct QualityTier: Identifiable, Hashable {
 /// Turns the long list of raw camera formats into the two-toggle menu the
 /// prompter shows — a size (HD / 4K) and a frame rate within it.
 enum CaptureQualityMenu {
-    /// The rates worth offering. Camera.app exposes 24/25/30/60 depending on
-    /// region and format; for a teleprompter 30 and 60 are the meaningful
-    /// choices, and anything else is noise on a control you glance at mid-take.
-    static let offeredFrameRates: [Double] = [30, 60]
+    /// The same rates Camera.app offers, so the app doesn't appear to support
+    /// less than the phone does. Which of them actually appear depends on the
+    /// device and region — 25 fps is a PAL-market format.
+    static let offeredFrameRates: [Double] = [24, 25, 30, 60]
 
     /// Groups modes into at most two tiers: the largest sub-4K size the device
     /// offers, and 4K. Intermediate sizes are dropped — the point of this
     /// control is a glanceable toggle, not an exhaustive format list.
     static func tiers(from modes: [VideoMode]) -> [QualityTier] {
-        let byHeight = Dictionary(grouping: modes, by: \.height)
+        let byHeight = Dictionary(
+            grouping: modes.filter { VideoMode.recognizedHeights.contains($0.height) },
+            by: \.height
+        )
         let fourKHeights = byHeight.keys.filter { $0 >= 2000 }
         let hdHeights = byHeight.keys.filter { $0 < 2000 }
 

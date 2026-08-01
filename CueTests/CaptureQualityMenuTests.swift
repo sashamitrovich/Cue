@@ -38,6 +38,34 @@ final class CaptureQualityMenuTests: XCTestCase {
         XCTAssertEqual(tiers[0].frameRates, [30, 60])
     }
 
+    func testStillsShapedFormatsNeverBecomeTiers() {
+        // The iPhone front camera publishes 4:3 formats — 3088x2320 and
+        // 1920x1440 — alongside the 16:9 video ones. Grouping by height alone
+        // let 2320 outrank 2160, putting a stills format behind the "4K"
+        // toggle where it offered a single frame rate.
+        let stills2320 = VideoMode(height: 2320, frameRate: 30)
+        let stills1440 = VideoMode(height: 1440, frameRate: 30)
+        let tiers = CaptureQualityMenu.tiers(from: [
+            stills1440, stills2320, hd30, hd60, uhd30, uhd60
+        ])
+        XCTAssertEqual(tiers.map(\.height), [1080, 2160])
+        XCTAssertEqual(tiers[1].frameRates, [30, 60], "4K must report the video format's rates, not a stills format's")
+    }
+
+    func testCameraAppFrameRatesAreOffered() {
+        // Camera.app offers 24/25/30/60; the app shouldn't appear to support
+        // less than the phone does.
+        XCTAssertEqual(CaptureQualityMenu.offeredFrameRates, [24, 25, 30, 60])
+
+        let tier = CaptureQualityMenu.tiers(from: [
+            VideoMode(height: 2160, frameRate: 24),
+            VideoMode(height: 2160, frameRate: 25),
+            uhd30, uhd60
+        ])[0]
+        XCTAssertEqual(tier.frameRates, [24, 25, 30, 60])
+        XCTAssertEqual(CaptureQualityMenu.nextFrameRate(after: 60, in: tier), 24, "the rate toggle wraps")
+    }
+
     func testDeviceWithOnlyHDGetsOneTier() {
         let tiers = CaptureQualityMenu.tiers(from: [hd30])
         XCTAssertEqual(tiers.map(\.label), ["HD"])
