@@ -22,6 +22,10 @@ targets:
       path: Cue/Info.plist
       properties:
         UILaunchScreen: {}
+        # The home-screen name, deliberately separate from the App Store
+        # listing name ("On Cue Teleprompter") — that one has to be globally
+        # unique, this one only has to fit under the icon without truncating.
+        CFBundleDisplayName: "On Cue"
         # Bump CFBundleVersion for every TestFlight upload — App Store Connect
         # rejects a build number it has already seen.
         CFBundleShortVersionString: "1.0"
