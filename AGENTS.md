@@ -78,6 +78,8 @@ This is how a scrim that appeared correct in code but rendered at ~30% of intend
 
 **UI tests pass `-uiTestingNoCamera`.** The camera defaults to on, and the simulator has no camera — without the launch argument the capture-permission prompt blocks the run. `TeleprompterState.cameraEnabled` reads it.
 
+**Format-dependent camera properties raise uncatchable exceptions.** `isVideoHDREnabled`, `activeVideoMin/MaxFrameDuration` and `videoZoomFactor` are validated against the **active format**, and an unsupported value raises an Objective-C exception — which Swift cannot catch, so the app dies. Always gate on the format in force (`device.activeFormat.isVideoHDRSupported`, the format's own `videoSupportedFrameRateRanges`, the device's live zoom range), never on a device-wide or cached capability. `capabilities.supportsHDR` describing "some format supports HDR" is what crashed the app when the frame-rate pill switched to a format without HDR. Re-read zoom range and HDR support after every format change.
+
 **Never reconfigure the capture device while recording.** `apply(_:)` refuses, and the on-screen pills hide, because changing `activeFormat` mid-take tears down the file being written.
 
 **The idle timer stays disabled for the whole prompter screen.** A take is minutes of talking to the lens without touching the screen, so iOS would otherwise dim and lock mid-recording. Set in `PrompterView.onAppear`, cleared in `onDisappear` — don't scope it to `isRecording` only.

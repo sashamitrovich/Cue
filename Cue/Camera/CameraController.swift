@@ -156,7 +156,6 @@ final class CameraController: NSObject, ObservableObject {
         for format in device.formats {
             let dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
             guard dims.height >= 720, Self.isWidescreen(dims) else { continue }
-            if format.isVideoHDRSupported { caps.supportsHDR = true }
 
             for rate in CaptureQualityMenu.offeredFrameRates
             where format.videoSupportedFrameRateRanges.contains(
@@ -173,6 +172,10 @@ final class CameraController: NSObject, ObservableObject {
             }
         }
         caps.qualityTiers = CaptureQualityMenu.tiers(from: Array(formats.keys))
+
+        // Reported for the format actually in force — a device-wide "some
+        // format supports HDR" would offer a toggle whose setter raises.
+        caps.supportsHDR = device.activeFormat.isVideoHDRSupported
 
         if let connection = movieOutput.connection(with: .video) {
             caps.supportsStabilization = connection.isVideoStabilizationSupported
@@ -213,7 +216,10 @@ final class CameraController: NSObject, ObservableObject {
     /// cameras rarely go far past 1x — older models may not zoom at all).
     func setZoom(_ factor: CGFloat) {
         guard let device = cameraDevice else { return }
-        let clamped = min(max(factor, capabilities.minZoom), capabilities.maxZoom)
+        // Clamped against the device's live range rather than the cached one:
+        // the range is a property of the active format, and asking for a
+        // factor outside it raises an uncatchable exception.
+        let clamped = min(max(factor, device.minAvailableVideoZoomFactor), device.maxAvailableVideoZoomFactor)
         do {
             try device.lockForConfiguration()
             device.ramp(toVideoZoomFactor: clamped, withRate: 12)
@@ -238,6 +244,16 @@ final class CameraController: NSObject, ObservableObject {
         apply(VideoMode(height: tier.height, frameRate: next))
     }
 
+    /// Switches the capture format.
+    ///
+    /// Every property touched here raises an Objective-C exception when given
+    /// a value the *active format* doesn't support — and those cannot be
+    /// caught in Swift, they terminate the app. So each one is checked against
+    /// the format actually in force rather than against device-wide
+    /// capabilities. This is what crashed the app when tapping the frame-rate
+    /// pill: `capabilities.supportsHDR` is true when *any* format supports
+    /// HDR, and setting `isVideoHDREnabled` on a format that doesn't (or on a
+    /// 10-bit format, where it isn't settable at all) raises immediately.
     func apply(_ mode: VideoMode) {
         guard let device = cameraDevice, let format = formatsByMode[mode] else { return }
         // Reconfiguring the device mid-recording would tear down the file
@@ -245,29 +261,46 @@ final class CameraController: NSObject, ObservableObject {
         // same reason.
         guard !isRecording else { return }
         do {
-            try device.lockForConfiguration()
             session.beginConfiguration()
+            try device.lockForConfiguration()
             device.activeFormat = format
-            let duration = CMTime(value: 1, timescale: CMTimeScale(mode.frameRate.rounded()))
-            device.activeVideoMinFrameDuration = duration
-            device.activeVideoMaxFrameDuration = duration
-            if capabilities.supportsHDR {
+
+            // Frame duration must fall inside one of the *new* format's
+            // ranges; anything else raises "Unsupported frame duration".
+            if format.videoSupportedFrameRateRanges.contains(
+                where: { $0.minFrameRate <= mode.frameRate && mode.frameRate <= $0.maxFrameRate }
+            ) {
+                let duration = CMTime(value: 1, timescale: CMTimeScale(mode.frameRate.rounded()))
+                device.activeVideoMinFrameDuration = duration
+                device.activeVideoMaxFrameDuration = duration
+            }
+
+            if device.activeFormat.isVideoHDRSupported {
                 device.automaticallyAdjustsVideoHDREnabled = false
                 device.isVideoHDREnabled = hdrEnabled
             }
-            session.commitConfiguration()
+
             device.unlockForConfiguration()
+            session.commitConfiguration()
             selectedMode = mode
-            // Zoom is expressed relative to the active format, so re-clamp it
-            // rather than leaving a now-out-of-range factor behind.
+            // Zoom range and HDR availability are properties of the active
+            // format, so they have to be re-read — a stale maximum would let
+            // the zoom slider ask for a factor this format rejects, which
+            // raises an exception of its own.
+            capabilities.minZoom = device.minAvailableVideoZoomFactor
+            capabilities.maxZoom = device.maxAvailableVideoZoomFactor
+            capabilities.supportsHDR = device.activeFormat.isVideoHDRSupported
             zoomFactor = device.videoZoomFactor
         } catch {
+            session.commitConfiguration()
             errorMessage = "Couldn't change quality: \(error.localizedDescription)"
         }
     }
 
     func setHDR(_ enabled: Bool) {
-        guard let device = cameraDevice, capabilities.supportsHDR else { return }
+        // Gated on the active format, not on the device: setting this for a
+        // format that doesn't support HDR raises an uncatchable exception.
+        guard let device = cameraDevice, device.activeFormat.isVideoHDRSupported else { return }
         do {
             try device.lockForConfiguration()
             device.automaticallyAdjustsVideoHDREnabled = false
