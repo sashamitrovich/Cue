@@ -22,7 +22,9 @@ New source files under `Cue/`, `CueTests/` or `CueUITests/` are picked up automa
 
 **Signing set in Xcode's UI does not survive.** Regeneration rebuilds the project file, so a team picked in Signing & Capabilities is wiped and the "requires a development team" error returns. `DEVELOPMENT_TEAM` comes from `Signing.xcconfig`, which is gitignored (copy `Signing.xcconfig.example`) so the team ID stays out of the public repo. Never add `DEVELOPMENT_TEAM` back to `project.yml`'s target settings — even an empty value there overrides the xcconfig and resets Team to None, which is exactly the bug this replaced.
 
-Bump `CFBundleVersion` in `project.yml` for every TestFlight upload; App Store Connect rejects a build number it has already accepted.
+Bump `CFBundleVersion` in `project.yml` immediately **after** every accepted upload, not before the next one — App Store Connect permanently rejects a build number it has already accepted, and bumping after means the repo always holds an unused number.
+
+`Tools/release.sh [--upload]` runs archive → export → validate → upload, reading the team from `Signing.xcconfig` and the API key id/issuer from `ASC_KEY_ID`/`ASC_ISSUER_ID` (with `AuthKey_<KEYID>.p8` in `~/.appstoreconnect/private_keys/`). **`uploadSymbols` must stay `false`**: with it on, Xcode 26's packaging step fails with the useless `error: exportArchive Copy failed` while copying the dSYM. That message says nothing about symbols — it also appears when there is no local Apple Distribution identity, so check `security find-identity -v -p codesigning` before assuming it's the symbols.
 
 ## What you cannot verify here
 
