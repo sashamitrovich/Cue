@@ -39,7 +39,7 @@ final class SpeechTracker: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 guard let self, self.shouldRun else { return }
                 guard status == .authorized else {
-                    self.errorMessage = "Speech recognition permission was denied. Enable it in Settings → Privacy & Security → Speech Recognition → Cue."
+                    self.errorMessage = "Speech recognition permission was denied. Enable it in Settings → Privacy & Security → Speech Recognition → On Cue."
                     self.isListening = false
                     return
                 }
@@ -49,7 +49,7 @@ final class SpeechTracker: NSObject, ObservableObject {
                         if granted {
                             self.startEngine()
                         } else {
-                            self.errorMessage = "Microphone access was denied. Enable it in Settings → Privacy & Security → Microphone → Cue."
+                            self.errorMessage = "Microphone access was denied. Enable it in Settings → Privacy & Security → Microphone → On Cue."
                             self.isListening = false
                         }
                     }

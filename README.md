@@ -1,4 +1,6 @@
-# Cue
+# On Cue
+
+*(repo name: `Cue`; App Store listing: "On Cue Teleprompter")*
 
 A voice-controlled teleprompter for iPhone. The script scrolls as you speak — stop talking and it waits for you — while the front camera records your take.
 

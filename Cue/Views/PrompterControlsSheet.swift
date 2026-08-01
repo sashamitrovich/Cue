@@ -59,7 +59,7 @@ struct PrompterControlsSheet: View {
                             .frame(width: 80, alignment: .leading)
                         Slider(value: $state.targetWPM, in: ReadingPace.wpmRange, step: 5)
                     }
-                    Text("Your target pace, used for the estimate until you've read enough of the take for Cue to measure your real one.")
+                    Text("Your target pace, used for the estimate until you've read enough of the take for On Cue to measure your real one.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

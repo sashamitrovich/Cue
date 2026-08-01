@@ -48,7 +48,7 @@ struct SetupView: View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Text("Cue").font(.system(size: 36, weight: .bold, design: .serif))
+                    Text("On Cue").font(.system(size: 36, weight: .bold, design: .serif))
                     Circle().fill(Color.orange).frame(width: 10, height: 10)
                     Spacer()
                     Button {
@@ -61,7 +61,7 @@ struct SetupView: View {
                             .background(Color(.secondarySystemBackground), in: Circle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("How Cue works")
+                    .accessibilityLabel("How On Cue works")
                 }
                 Text("The script scrolls when you speak. Stop, and it waits for you.")
                     .font(.subheadline)

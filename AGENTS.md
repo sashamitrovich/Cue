@@ -2,7 +2,7 @@
 
 Guidance for AI agents (and humans) making changes here. Read this before touching the code.
 
-Cue is a SwiftUI iPhone teleprompter: the script scrolls as you speak, with front-camera recording. iOS 16.0 deployment target.
+On Cue is a SwiftUI iPhone teleprompter (the repo and product name are `Cue`; the App Store listing is "On Cue Teleprompter" and the home-screen name is "On Cue"): the script scrolls as you speak, with front-camera recording. iOS 16.0 deployment target.
 
 ## Build and test
 

@@ -38,10 +38,10 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        NSMicrophoneUsageDescription: "Cue listens to your voice to scroll the script as you speak."
-        NSSpeechRecognitionUsageDescription: "Cue uses on-device speech recognition to track your place in the script."
-        NSCameraUsageDescription: "Cue uses the front camera to record your take."
-        NSPhotoLibraryAddUsageDescription: "Cue saves finished recordings to your Photos library."
+        NSMicrophoneUsageDescription: "On Cue listens to your voice to scroll the script as you speak."
+        NSSpeechRecognitionUsageDescription: "On Cue uses on-device speech recognition to track your place in the script."
+        NSCameraUsageDescription: "On Cue uses the front camera to record your take."
+        NSPhotoLibraryAddUsageDescription: "On Cue saves finished recordings to your Photos library."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.cueprompter.Cue
