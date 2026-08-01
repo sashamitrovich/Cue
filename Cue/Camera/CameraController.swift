@@ -4,26 +4,13 @@ import CoreMedia
 import Photos
 import UIKit
 
-/// A recording resolution/frame-rate combo actually offered by the connected
-/// device's front camera. Built from `AVCaptureDevice.formats`, so it only
-/// ever lists what this specific iPhone can do.
-struct ResolutionOption: Identifiable, Hashable {
-    let id: String
-    let label: String
-    let height: Int32
-    let maxFrameRate: Double
-    let format: AVCaptureDevice.Format
-
-    static func == (lhs: ResolutionOption, rhs: ResolutionOption) -> Bool { lhs.id == rhs.id }
-    func hash(into hasher: inout Hasher) { hasher.combine(id) }
-}
-
 /// What the connected device's front camera supports, detected at runtime.
 /// The controls sheet only shows a row when the matching flag/list is non-empty.
 struct CameraCapabilities {
     var minZoom: CGFloat = 1
     var maxZoom: CGFloat = 1
-    var resolutionOptions: [ResolutionOption] = []
+    /// Size tiers (HD / 4K) with the frame rates each one offers.
+    var qualityTiers: [QualityTier] = []
     var supportsHDR: Bool = false
     var supportsStabilization: Bool = false
     var supportsLowLightBoost: Bool = false
@@ -43,13 +30,22 @@ final class CameraController: NSObject, ObservableObject {
 
     @Published var capabilities = CameraCapabilities()
     @Published var zoomFactor: CGFloat = 1
-    @Published var selectedResolution: ResolutionOption?
+    @Published var selectedMode: VideoMode?
     @Published var hdrEnabled = false
     @Published var stabilizationEnabled = true
     @Published var lowLightBoostEnabled = true
 
+    /// The widest-field-of-view format backing each offered mode, so switching
+    /// quality never quietly narrows the framing (see `setup`).
+    private var formatsByMode: [VideoMode: AVCaptureDevice.Format] = [:]
+
     private var timer: Timer?
     private var orientationObserver: NSObjectProtocol?
+
+    var selectedTier: QualityTier? {
+        guard let selectedMode else { return nil }
+        return CaptureQualityMenu.tier(for: selectedMode, in: capabilities.qualityTiers)
+    }
 
     func configureAndStart() {
         AVCaptureDevice.requestAccess(for: .video) { videoOK in
@@ -127,47 +123,59 @@ final class CameraController: NSObject, ObservableObject {
         }
     }
 
-    /// Inspects the connected device's actual formats to build the zoom
-    /// range and resolution/frame-rate list — different iPhone models
-    /// expose very different sets here (e.g. 4K60 front camera on newer
-    /// Pro models vs 1080p30 on older ones).
+    /// Inspects the connected device's actual formats to build the zoom range
+    /// and the HD/4K quality menu — different iPhone models expose very
+    /// different sets here (e.g. a 4K60 front camera on newer Pro models vs
+    /// 1080p30 on older ones).
     private func detectCapabilities(for device: AVCaptureDevice) {
         var caps = CameraCapabilities()
         caps.minZoom = device.minAvailableVideoZoomFactor
         caps.maxZoom = device.maxAvailableVideoZoomFactor
         caps.supportsLowLightBoost = device.isLowLightBoostSupported
 
-        var seen = Set<String>()
-        var options: [ResolutionOption] = []
+        var formats: [VideoMode: AVCaptureDevice.Format] = [:]
         for format in device.formats {
             let dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
             guard dims.height >= 720 else { continue }
-            let maxFPS = format.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 30
-            let key = "\(dims.width)x\(dims.height)@\(Int(maxFPS))"
-            guard !seen.contains(key) else { continue }
-            seen.insert(key)
-            options.append(ResolutionOption(
-                id: key,
-                label: "\(dims.height)p • \(Int(maxFPS))fps",
-                height: dims.height,
-                maxFrameRate: maxFPS,
-                format: format
-            ))
             if format.isVideoHDRSupported { caps.supportsHDR = true }
+
+            for rate in CaptureQualityMenu.offeredFrameRates
+            where format.videoSupportedFrameRateRanges.contains(
+                where: { $0.minFrameRate <= rate && rate <= $0.maxFrameRate }
+            ) {
+                let mode = VideoMode(height: dims.height, frameRate: rate)
+                // Same rule as initial setup: among formats that can serve a
+                // mode, keep the widest field of view, so changing quality
+                // never crops the framing in.
+                if let existing = formats[mode], existing.videoFieldOfView >= format.videoFieldOfView {
+                    continue
+                }
+                formats[mode] = format
+            }
         }
-        options.sort {
-            $0.height != $1.height ? $0.height > $1.height : $0.maxFrameRate > $1.maxFrameRate
-        }
-        caps.resolutionOptions = options
+        caps.qualityTiers = CaptureQualityMenu.tiers(from: Array(formats.keys))
 
         if let connection = movieOutput.connection(with: .video) {
             caps.supportsStabilization = connection.isVideoStabilizationSupported
         }
 
+        // Report the mode the session is already running, rather than applying
+        // one — `setup` picked the widest-FOV format deliberately and
+        // reconfiguring here would undo that before the preview even appears.
+        let activeHeight = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription).height
+        let activeRate = device.activeVideoMinFrameDuration.seconds > 0
+            ? 1 / device.activeVideoMinFrameDuration.seconds
+            : 30
+        let tiers = caps.qualityTiers
+        let current = tiers.first { $0.height == activeHeight }
+            .flatMap { CaptureQualityMenu.mode(in: $0, preferringFrameRate: activeRate) }
+            ?? tiers.last.flatMap { CaptureQualityMenu.mode(in: $0, preferringFrameRate: 30) }
+
         DispatchQueue.main.async {
             self.capabilities = caps
+            self.formatsByMode = formats
             self.zoomFactor = device.videoZoomFactor
-            self.selectedResolution = options.first
+            self.selectedMode = current
             if caps.supportsStabilization { self.setStabilization(true) }
             if caps.supportsLowLightBoost { self.setLowLightBoost(true) }
         }
@@ -188,26 +196,45 @@ final class CameraController: NSObject, ObservableObject {
         }
     }
 
-    func applyResolution(_ option: ResolutionOption) {
-        guard let device = cameraDevice else { return }
+    /// Switches size tier (HD ⇄ 4K), keeping the current frame rate where the
+    /// new tier supports it.
+    func selectTier(_ tier: QualityTier) {
+        guard let mode = CaptureQualityMenu.mode(in: tier, preferringFrameRate: selectedMode?.frameRate) else { return }
+        apply(mode)
+    }
+
+    /// Cycles the frame rate within the current size tier.
+    func cycleFrameRate() {
+        guard let current = selectedMode, let tier = selectedTier,
+              let next = CaptureQualityMenu.nextFrameRate(after: current.frameRate, in: tier) else { return }
+        apply(VideoMode(height: tier.height, frameRate: next))
+    }
+
+    func apply(_ mode: VideoMode) {
+        guard let device = cameraDevice, let format = formatsByMode[mode] else { return }
+        // Reconfiguring the device mid-recording would tear down the file
+        // being written; Camera.app hides the control while recording for the
+        // same reason.
+        guard !isRecording else { return }
         do {
             try device.lockForConfiguration()
             session.beginConfiguration()
-            device.activeFormat = option.format
-            if let range = option.format.videoSupportedFrameRateRanges.first(where: { $0.maxFrameRate >= option.maxFrameRate }) {
-                let duration = range.minFrameDuration
-                device.activeVideoMinFrameDuration = duration
-                device.activeVideoMaxFrameDuration = duration
-            }
+            device.activeFormat = format
+            let duration = CMTime(value: 1, timescale: CMTimeScale(mode.frameRate.rounded()))
+            device.activeVideoMinFrameDuration = duration
+            device.activeVideoMaxFrameDuration = duration
             if capabilities.supportsHDR {
                 device.automaticallyAdjustsVideoHDREnabled = false
                 device.isVideoHDREnabled = hdrEnabled
             }
             session.commitConfiguration()
             device.unlockForConfiguration()
-            selectedResolution = option
+            selectedMode = mode
+            // Zoom is expressed relative to the active format, so re-clamp it
+            // rather than leaving a now-out-of-range factor behind.
+            zoomFactor = device.videoZoomFactor
         } catch {
-            errorMessage = "Couldn't change resolution: \(error.localizedDescription)"
+            errorMessage = "Couldn't change quality: \(error.localizedDescription)"
         }
     }
 

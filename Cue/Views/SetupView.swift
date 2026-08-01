@@ -51,6 +51,8 @@ struct SetupView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .scrollContentBackground(.hidden)
 
+                estimateLine
+
                 HStack(spacing: 12) {
                     stepper(label: "Text size", value: "\(Int(state.fontSize))") {
                         state.fontSize = max(20, state.fontSize - 2)
@@ -61,6 +63,19 @@ struct SetupView: View {
                         state.driftIndex = max(0, state.driftIndex - 1)
                     } up: {
                         state.driftIndex = min(TeleprompterState.driftSteps.count - 1, state.driftIndex + 1)
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    stepper(label: "Pace", value: "\(Int(state.targetWPM))") {
+                        state.targetWPM = max(ReadingPace.wpmRange.lowerBound, state.targetWPM - 5)
+                    } up: {
+                        state.targetWPM = min(ReadingPace.wpmRange.upperBound, state.targetWPM + 5)
+                    }
+                    stepper(label: "Countdown", value: countdownLabel) {
+                        stepCountdown(-1)
+                    } up: {
+                        stepCountdown(1)
                     }
                 }
 
@@ -103,6 +118,30 @@ struct SetupView: View {
         ) { result in
             handleImport(result)
         }
+    }
+
+    /// Length of the script as typed, and roughly how long it runs at the
+    /// chosen pace — the thing you actually want to know when writing to a
+    /// time limit.
+    private var estimateLine: some View {
+        let count = TeleprompterState.wordCount(in: state.scriptText)
+        let seconds = ReadingPace.seconds(forWords: count, wpm: state.targetWPM)
+        return HStack(spacing: 6) {
+            Image(systemName: "timer").font(.caption2)
+            Text("\(count) word\(count == 1 ? "" : "s") · about \(ReadingPace.timeString(seconds)) at \(Int(state.targetWPM)) wpm")
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+
+    private var countdownLabel: String {
+        state.countdownSeconds == 0 ? "Off" : "\(state.countdownSeconds)s"
+    }
+
+    private func stepCountdown(_ direction: Int) {
+        let options = TeleprompterState.countdownOptions
+        let current = options.firstIndex(of: state.countdownSeconds) ?? 0
+        state.countdownSeconds = options[min(options.count - 1, max(0, current + direction))]
     }
 
     private func handleImport(_ result: Result<[URL], Error>) {

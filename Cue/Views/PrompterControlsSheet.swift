@@ -11,7 +11,8 @@ struct PrompterControlsSheet: View {
 
     private var hasAnyCameraCapability: Bool {
         camera.capabilities.maxZoom > camera.capabilities.minZoom + 0.05
-            || camera.capabilities.resolutionOptions.count > 1
+            || camera.capabilities.qualityTiers.count > 1
+            || (camera.selectedTier?.frameRates.count ?? 0) > 1
             || camera.capabilities.supportsHDR
             || camera.capabilities.supportsStabilization
             || camera.capabilities.supportsLowLightBoost
@@ -41,6 +42,26 @@ struct PrompterControlsSheet: View {
                             .frame(width: 48, alignment: .leading)
                         Slider(value: $state.fontSize, in: 20...64, step: 1)
                     }
+                }
+
+                Section("Timing") {
+                    Toggle("Show timing", isOn: $state.showTiming)
+                    Picker("Countdown", selection: $state.countdownSeconds) {
+                        ForEach(TeleprompterState.countdownOptions, id: \.self) { seconds in
+                            Text(seconds == 0 ? "Off" : "\(seconds)s").tag(seconds)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    HStack {
+                        Text("\(Int(state.targetWPM)) wpm")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 80, alignment: .leading)
+                        Slider(value: $state.targetWPM, in: ReadingPace.wpmRange, step: 5)
+                    }
+                    Text("Your target pace, used for the estimate until you've read enough of the take for Cue to measure your real one.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 if state.cameraEnabled {
@@ -83,18 +104,38 @@ struct PrompterControlsSheet: View {
                     }
                 }
 
-                if state.cameraEnabled && camera.capabilities.resolutionOptions.count > 1 {
-                    Section("Resolution") {
-                        Picker("Resolution", selection: Binding(
-                            get: { camera.selectedResolution },
-                            set: { if let option = $0 { camera.applyResolution(option) } }
-                        )) {
-                            ForEach(camera.capabilities.resolutionOptions) { option in
-                                Text(option.label).tag(Optional(option))
+                if state.cameraEnabled, let mode = camera.selectedMode, let tier = camera.selectedTier {
+                    // Two short segmented toggles instead of an exhaustive
+                    // format list — the same choice Camera.app offers, and the
+                    // same one mirrored on the prompter itself.
+                    Section("Video quality") {
+                        if camera.capabilities.qualityTiers.count > 1 {
+                            Picker("Size", selection: Binding(
+                                get: { tier },
+                                set: { camera.selectTier($0) }
+                            )) {
+                                ForEach(camera.capabilities.qualityTiers) { option in
+                                    Text(option.label).tag(option)
+                                }
                             }
+                            .pickerStyle(.segmented)
                         }
-                        .pickerStyle(.inline)
-                        .labelsHidden()
+                        if tier.frameRates.count > 1 {
+                            Picker("Frame rate", selection: Binding(
+                                get: { mode.frameRate },
+                                set: { camera.apply(VideoMode(height: tier.height, frameRate: $0)) }
+                            )) {
+                                ForEach(tier.frameRates, id: \.self) { rate in
+                                    Text("\(Int(rate)) fps").tag(rate)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                        }
+                        if camera.isRecording {
+                            Text("Stop recording to change quality.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 

@@ -48,12 +48,39 @@ final class TeleprompterState: ObservableObject {
     /// buy text contrast at the cost of a dimmer preview.
     @Published var cameraDimming: Double = 0.55
     @Published var isListening: Bool = false
+    /// The delivery pace used to estimate how long the script runs, until
+    /// enough of a take has been spoken to measure the real one.
+    @Published var targetWPM: Double = ReadingPace.defaultWPM
+    /// Seconds counted down before listening starts, so there's time to settle
+    /// and look at the lens. Zero means start immediately.
+    @Published var countdownSeconds: Int = 3
+    /// Whether the timing readout is shown over the prompter.
+    @Published var showTiming: Bool = true
+
+    static let countdownOptions = [0, 3, 5, 10]
 
     static let driftSteps: [CGFloat] = [0, 8, 16, 26, 40]
     static let driftLabels = ["Off", "Slow", "Easy", "Medium", "Fast"]
 
     var driftSpeed: CGFloat { Self.driftSteps[driftIndex] }
     var driftLabel: String { Self.driftLabels[driftIndex] }
+
+    /// Words still ahead of the cursor. The active word counts as unread —
+    /// it's the one being said, not one that's been said.
+    var wordsRemaining: Int { max(0, words.count - activeIndex) }
+    var wordsRead: Int { min(activeIndex, words.count) }
+
+    /// How far through the script the cursor is, 0...1.
+    var progress: Double {
+        guard words.count > 1 else { return 0 }
+        return Double(activeIndex) / Double(words.count - 1)
+    }
+
+    /// Counts words in arbitrary script text, for estimating a run time before
+    /// `buildWords` has been called (the setup screen, as you type).
+    static func wordCount(in text: String) -> Int {
+        text.split(whereSeparator: { $0.isWhitespace }).count
+    }
 
     /// Tokenizes the script into a flat word list for matching, and in parallel
     /// groups those same words by the lines they were typed on so the prompter

@@ -18,6 +18,14 @@ struct PrompterView: View {
     @State private var showCameraControls = false
     @State private var pinchStartZoom: CGFloat = 1
     @State private var isPinching = false
+    /// Speaking time only — paused stretches are excluded so the measured pace
+    /// reflects time actually spent talking.
+    @State private var clock = SpeakingClock()
+    /// Re-read once a second to refresh the timing readout. The 60 fps ticker
+    /// already redraws this view, so this only exists to change at 1 Hz.
+    @State private var displayNow = Date()
+    /// When the pre-roll countdown ends, or nil when none is running.
+    @State private var countdownDeadline: Date?
 
     private let ticker = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
 
@@ -88,8 +96,13 @@ struct PrompterView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                 .padding(.trailing, 12)
 
+                if let remaining = countdownRemaining {
+                    countdownOverlay(remaining)
+                }
+
                 VStack {
                     topBar
+                    qualityPills
                     Spacer()
                     if let msg = errorMessage {
                         Text(msg)
@@ -116,6 +129,11 @@ struct PrompterView: View {
                     }
             )
             .onAppear {
+                // A take is minutes of talking to the lens without touching
+                // the screen, so iOS would dim and lock mid-recording. Held
+                // for the whole prompter, not just while recording — the
+                // screen going dark mid-read is just as bad.
+                UIApplication.shared.isIdleTimerDisabled = true
                 dragStartOffset = targetOffset
                 recomputeTarget(cueY: cueY)
                 speech.onTranscript = { words in
@@ -127,6 +145,9 @@ struct PrompterView: View {
                 }
             }
             .onDisappear {
+                UIApplication.shared.isIdleTimerDisabled = false
+                countdownDeadline = nil
+                clock.pause(at: Date())
                 speech.end()
                 camera.stop()
             }
@@ -147,12 +168,22 @@ struct PrompterView: View {
                 }
             }
             .onReceive(ticker) { _ in
+                let now = Date()
                 if state.isListening && !state.manualMode && state.driftSpeed > 0 {
-                    if Date().timeIntervalSince(lastVoiceTime) > 1.2 {
+                    if now.timeIntervalSince(lastVoiceTime) > 1.2 {
                         targetOffset -= state.driftSpeed / 60
                     }
                 }
                 offset += (targetOffset - offset) * 0.12
+
+                if let deadline = countdownDeadline, now >= deadline {
+                    startListeningNow()
+                }
+                // Only publish a new date when the displayed second changes,
+                // rather than 60 times a second for a readout that can't show it.
+                if Int(now.timeIntervalSince1970) != Int(displayNow.timeIntervalSince1970) {
+                    displayNow = now
+                }
             }
             .onReceive(speech.$errorMessage.compactMap { $0 }) { showError($0) }
             .onReceive(camera.$errorMessage.compactMap { $0 }) { showError($0) }
@@ -162,6 +193,7 @@ struct PrompterView: View {
                 // leaving it stuck showing "Listening".
                 if !listening && state.isListening {
                     state.isListening = false
+                    clock.pause(at: Date())
                 }
             }
             .sheet(isPresented: $showCameraControls) {
@@ -170,6 +202,62 @@ struct PrompterView: View {
         }
         .statusBarHidden()
         .preferredColorScheme(.dark)
+    }
+
+    // MARK: - Take control
+
+    /// Whole seconds still to run on the pre-roll, or nil when none is running.
+    private var countdownRemaining: Int? {
+        guard let deadline = countdownDeadline else { return nil }
+        return max(1, Int(deadline.timeIntervalSince(displayNow).rounded(.up)))
+    }
+
+    /// Starts a take, after the pre-roll if one is configured.
+    private func beginTake() {
+        guard !state.manualMode else { return }
+        if state.countdownSeconds > 0 {
+            displayNow = Date()
+            countdownDeadline = Date().addingTimeInterval(Double(state.countdownSeconds))
+        } else {
+            startListeningNow()
+        }
+    }
+
+    private func startListeningNow() {
+        countdownDeadline = nil
+        state.isListening = true
+        lastVoiceTime = Date()
+        clock.start(at: Date())
+        speech.begin()
+    }
+
+    private func pauseTake() {
+        countdownDeadline = nil
+        state.isListening = false
+        clock.pause(at: Date())
+        speech.end()
+    }
+
+    // MARK: - Timing
+
+    private var elapsed: TimeInterval { clock.elapsed(at: displayNow) }
+
+    /// The pace estimates are built from: the speaker's own once enough of the
+    /// take has been read to measure it, otherwise their configured target.
+    private var effectiveWPM: Double {
+        ReadingPace.effectiveWPM(
+            baseline: state.targetWPM,
+            wordsRead: state.wordsRead,
+            elapsed: elapsed
+        )
+    }
+
+    private var remainingSeconds: Double {
+        ReadingPace.seconds(forWords: state.wordsRemaining, wpm: effectiveWPM)
+    }
+
+    private var isMeasuringPace: Bool {
+        ReadingPace.measuredWPM(wordsRead: state.wordsRead, elapsed: elapsed) != nil
     }
 
     private func recomputeTarget(cueY: CGFloat) {
@@ -187,41 +275,47 @@ struct PrompterView: View {
     }
 
     private var topBar: some View {
-        HStack {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(state.isListening ? Color.orange : Color(.systemGray4))
-                    .frame(width: 10, height: 10)
-                Text(state.manualMode ? "Manual — drag to scroll" : (state.isListening ? "Listening — speak your script" : "Tap play to begin"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if camera.isRecording {
-                HStack(spacing: 6) {
-                    Circle().fill(Color.red).frame(width: 8, height: 8)
-                    Text(timeString(camera.recordingSeconds)).font(.caption).monospacedDigit()
+        VStack(spacing: 8) {
+            HStack {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(state.isListening ? Color.orange : Color(.systemGray4))
+                        .frame(width: 10, height: 10)
+                    Text(statusText)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(Color.red.opacity(0.16))
-                .clipShape(Capsule())
+                Spacer()
+                if camera.isRecording {
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.red).frame(width: 8, height: 8)
+                        Text(timeString(camera.recordingSeconds)).font(.caption).monospacedDigit()
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(Color.red.opacity(0.16))
+                    .clipShape(Capsule())
+                }
+                Button {
+                    showCameraControls = true
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.footnote)
+                        .padding(8)
+                        .background(.white.opacity(0.08))
+                        .clipShape(Circle())
+                }
+                Button("Exit") {
+                    pauseTake()
+                    camera.stop()
+                    dismiss()
+                }
+                .font(.subheadline)
+                .foregroundStyle(Color(red: 1, green: 0.54, blue: 0.48))
             }
-            Button {
-                showCameraControls = true
-            } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.footnote)
-                    .padding(8)
-                    .background(.white.opacity(0.08))
-                    .clipShape(Circle())
+
+            if state.showTiming {
+                timingRow
             }
-            Button("Exit") {
-                speech.end()
-                camera.stop()
-                dismiss()
-            }
-            .font(.subheadline)
-            .foregroundStyle(Color(red: 1, green: 0.54, blue: 0.48))
         }
         .padding(.horizontal, 18)
         .padding(.top, 8)
@@ -243,20 +337,105 @@ struct PrompterView: View {
         )
     }
 
+    private var statusText: String {
+        if countdownRemaining != nil { return "Get ready…" }
+        if state.manualMode { return "Manual — drag to scroll" }
+        return state.isListening ? "Listening — speak your script" : "Tap play to begin"
+    }
+
+    /// Elapsed speaking time, time left at the current pace, and how far
+    /// through the script the cursor is.
+    private var timingRow: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 10) {
+                Label(ReadingPace.timeString(elapsed), systemImage: "timer")
+                    .labelStyle(.titleAndIcon)
+                Text("·")
+                // Marked "~" until there's enough of the take to measure the
+                // speaker's real pace — before that it's only the target wpm.
+                Text("\(isMeasuringPace ? "" : "~")\(ReadingPace.timeString(remainingSeconds)) left")
+                Spacer()
+                Text("\(Int(effectiveWPM.rounded())) wpm")
+                    .foregroundStyle(isMeasuringPace ? Color.orange.opacity(0.9) : .secondary)
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
+
+            GeometryReader { bar in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.white.opacity(0.14))
+                    Capsule()
+                        .fill(Color.orange.opacity(0.85))
+                        .frame(width: max(0, bar.size.width * state.progress))
+                }
+            }
+            .frame(height: 3)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Elapsed \(ReadingPace.timeString(elapsed)), about \(ReadingPace.timeString(remainingSeconds)) remaining")
+    }
+
+    /// Camera.app-style quality toggles: tap to switch size, tap to switch
+    /// frame rate. Hidden while recording, because the capture format can't be
+    /// changed without tearing down the file being written.
+    @ViewBuilder
+    private var qualityPills: some View {
+        if state.cameraEnabled, !camera.isRecording, let mode = camera.selectedMode, let tier = camera.selectedTier {
+            HStack(spacing: 8) {
+                Spacer()
+                if camera.capabilities.qualityTiers.count > 1 {
+                    pill(mode.tierLabel) {
+                        if let next = CaptureQualityMenu.nextTier(after: tier, in: camera.capabilities.qualityTiers) {
+                            camera.selectTier(next)
+                        }
+                    }
+                }
+                if tier.frameRates.count > 1 {
+                    pill(mode.frameRateLabel) { camera.cycleFrameRate() }
+                }
+            }
+            .padding(.trailing, 18)
+            .padding(.top, 2)
+        }
+    }
+
+    @ViewBuilder
+    private func pill(_ text: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(text)
+                .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                .foregroundStyle(Color(red: 1.0, green: 0.72, blue: 0.23))
+                .frame(minWidth: 34)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(.black.opacity(0.55), in: Capsule())
+                .overlay(Capsule().stroke(.white.opacity(0.18), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Video quality \(text)")
+    }
+
     private var footBar: some View {
         HStack(spacing: 28) {
             footButton(icon: "arrow.counterclockwise", label: "Restart") {
                 state.activeIndex = 0
+                // A restart is a fresh take, so the timing starts over too.
+                clock.reset()
+                if state.isListening { clock.start(at: Date()) }
+                displayNow = Date()
             }
-            footButton(icon: state.isListening ? "pause.fill" : "play.fill", label: state.isListening ? "Pause" : "Listen", primary: true) {
+            footButton(
+                icon: countdownRemaining != nil ? "xmark" : (state.isListening ? "pause.fill" : "play.fill"),
+                label: countdownRemaining != nil ? "Cancel" : (state.isListening ? "Pause" : "Listen"),
+                primary: true
+            ) {
                 guard !state.manualMode else { return }
-                if state.isListening {
-                    state.isListening = false
-                    speech.end()
+                if countdownRemaining != nil {
+                    countdownDeadline = nil
+                } else if state.isListening {
+                    pauseTake()
                 } else {
-                    state.isListening = true
-                    lastVoiceTime = Date()
-                    speech.begin()
+                    beginTake()
                 }
             }
             if state.cameraEnabled {
@@ -267,8 +446,7 @@ struct PrompterView: View {
             footButton(icon: "hand.raised.fill", label: "Manual", on: state.manualMode) {
                 state.manualMode.toggle()
                 if state.manualMode {
-                    state.isListening = false
-                    speech.end()
+                    pauseTake()
                     dragStartOffset = targetOffset
                 }
             }
@@ -293,6 +471,30 @@ struct PrompterView: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
         )
+    }
+
+    /// Pre-roll before a take. Deliberately sits above everything and takes the
+    /// whole screen: tapping anywhere cancels, so a mistimed start doesn't
+    /// force you to hunt for a small button.
+    @ViewBuilder
+    private func countdownOverlay(_ remaining: Int) -> some View {
+        ZStack {
+            Color.black.opacity(0.55).ignoresSafeArea()
+            VStack(spacing: 10) {
+                Text("\(remaining)")
+                    .font(.system(size: 96, weight: .bold, design: .serif))
+                    .foregroundStyle(Color(red: 1.0, green: 0.72, blue: 0.23))
+                    .monospacedDigit()
+                    .shadow(color: .black.opacity(0.8), radius: 10)
+                Text("Tap anywhere to cancel")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { countdownDeadline = nil }
+        .accessibilityLabel("Starting in \(remaining) seconds")
+        .zIndex(10)
     }
 
     @ViewBuilder

@@ -58,7 +58,15 @@ This is how a scrim that appeared correct in code but rendered at ~30% of intend
 
 **Camera controls are capability-gated.** Every row in `PrompterControlsSheet` is conditional on what `CameraController.detectCapabilities` found on the actual device. Never show a control the connected iPhone doesn't support.
 
-**`sessionPreset` is `.inputPriority`** so `device.activeFormat` takes effect. Changing it to a fixed preset silently breaks the resolution picker.
+**`sessionPreset` is `.inputPriority`** so `device.activeFormat` takes effect. Changing it to a fixed preset silently breaks the quality picker.
+
+**Quality is two toggles, not a format list.** `CaptureQualityMenu` collapses the device's formats into at most two tiers (HD / 4K), each with its available frame rates — the same choice Camera.app offers. Keep only the largest size per tier: 720p and 1080p both label as "HD" and would give the toggle two indistinguishable positions. Every offered mode resolves to the *widest-FOV* format that can serve it, for the same reason `setup` picks a wide format explicitly.
+
+**Never reconfigure the capture device while recording.** `apply(_:)` refuses, and the on-screen pills hide, because changing `activeFormat` mid-take tears down the file being written.
+
+**The idle timer stays disabled for the whole prompter screen.** A take is minutes of talking to the lens without touching the screen, so iOS would otherwise dim and lock mid-recording. Set in `PrompterView.onAppear`, cleared in `onDisappear` — don't scope it to `isRecording` only.
+
+**Elapsed time excludes pauses.** `SpeakingClock` accumulates only while listening, so the measured pace reflects time actually spent talking. Anything that stops listening (pause, manual mode, exit, a fatal recognition error) must pause the clock too, or the pace readout decays during a break.
 
 ## Permissions
 

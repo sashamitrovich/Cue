@@ -8,7 +8,9 @@ Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription, 
 
 - **Follows your voice.** On-device speech recognition matches what you say against the script and moves the reading line to keep your place. Skip a word, paraphrase, or pause and it stays with you.
 - **Records while you read.** Front-camera capture with the script overlaid, saved straight to Photos.
-- **Adapts to the device.** Zoom, resolution and frame rate, HDR, stabilisation and low-light boost appear as controls only if the connected iPhone's front camera actually supports them.
+- **Times your read.** Word count and estimated run time as you write, then elapsed time, time left and a progress bar while you speak. The estimate starts from your target pace and switches to your *measured* pace once there's enough of the take to judge from.
+- **Counts you in.** An optional 3, 5 or 10 second pre-roll before listening starts, so you can settle and find the lens. Tap anywhere to cancel it.
+- **Adapts to the device.** Zoom, HDR, stabilisation and low-light boost appear as controls only if the connected iPhone's front camera actually supports them. Recording quality is a Camera.app-style pair of toggles — HD or 4K, and the frame rates that size offers — right on the prompter.
 - **Stays readable over video.** Adjustable text opacity and camera dimming, with per-word contrast shadows so words survive against a bright background.
 - **Keeps your formatting.** Line breaks and blank lines carry over from the editor, so you can leave deliberate gaps as ad-lib room.
 - **Imports scripts** from Files or iCloud Drive (`.txt`, `.md`, `.rtf`).
@@ -41,7 +43,7 @@ xcodebuild -project Cue.xcodeproj -scheme Cue \
   -destination 'platform=iOS Simulator,name=iPhone 14' test
 ```
 
-Unit tests cover the parts with real logic — script tokenisation, line grouping, transcript handling and the word matcher. UI tests are smoke tests that catch layout regressions such as controls being pushed off-screen. Hardware-coupled code (`CameraController`, `SpeechTracker`) is deliberately not unit tested: it needs a real camera and microphone.
+Unit tests cover the parts with real logic — script tokenisation, line grouping, transcript handling, the word matcher, pace/timing maths and the video-quality menu. UI tests are smoke tests that catch layout regressions such as controls being pushed off-screen. Hardware-coupled code (`CameraController`, `SpeechTracker`) is deliberately not unit tested: it needs a real camera and microphone.
 
 ## How the voice tracking works
 
