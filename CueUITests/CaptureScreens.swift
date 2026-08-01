@@ -24,5 +24,14 @@ final class CaptureScreens: XCTestCase {
         shot.name = "prompter"
         shot.lifetime = .keepAlways
         add(shot)
+
+        // Landscape lays the controls out as a side rail rather than a bar.
+        XCUIDevice.shared.orientation = .landscapeLeft
+        _ = app.buttons["Listen"].waitForExistence(timeout: 5)
+        let landscapeShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        landscapeShot.name = "prompter-landscape"
+        landscapeShot.lifetime = .keepAlways
+        add(landscapeShot)
+        XCUIDevice.shared.orientation = .portrait
     }
 }

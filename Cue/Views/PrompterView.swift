@@ -26,6 +26,18 @@ struct PrompterView: View {
     @State private var displayNow = Date()
     /// When the pre-roll countdown ends, or nil when none is running.
     @State private var countdownDeadline: Date?
+    /// Drives where the take controls live. Sizes still come from the
+    /// `GeometryReader`; this is only used to decide *which* edge, which
+    /// geometry can't tell us — both landscapes are the same shape.
+    @State private var interfaceOrientation: UIInterfaceOrientation = .portrait
+
+    static let railWidth: CGFloat = 88
+
+    private var isLandscape: Bool { interfaceOrientation.isLandscape }
+    /// `landscapeLeft` puts the edge that was the bottom in portrait on the
+    /// left of the screen, so the controls follow it there and stay under the
+    /// same thumb.
+    private var railOnLeading: Bool { interfaceOrientation == .landscapeLeft }
 
     private let ticker = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
 
@@ -61,7 +73,16 @@ struct PrompterView: View {
                 // its largest child — without pinning this to the screen's
                 // frame the whole prompter lays out oversized and pushes the
                 // bottom control bar off-screen.
-                ScrollFlow(state: state, wordFrames: $wordFrames, topInset: cueY, bottomInset: geo.size.height * 0.6)
+                ScrollFlow(
+                    state: state,
+                    wordFrames: $wordFrames,
+                    topInset: cueY,
+                    bottomInset: geo.size.height * 0.6,
+                    // Keep the words clear of the rail — it's opaque, so text
+                    // running under it simply disappears mid-line.
+                    leadingInset: isLandscape && railOnLeading ? Self.railWidth : 0,
+                    trailingInset: isLandscape && !railOnLeading ? Self.railWidth : 0
+                )
                     .coordinateSpace(name: "flow")
                     .opacity(state.cameraEnabled ? state.textOpacity : 1.0)
                     .offset(y: offset)
@@ -85,16 +106,36 @@ struct PrompterView: View {
                     .frame(height: 2)
                     .frame(maxHeight: .infinity, alignment: .top)
                     .padding(.top, cueY)
+                    .padding(.leading, isLandscape && railOnLeading ? Self.railWidth : 0)
+                    .padding(.trailing, isLandscape && !railOnLeading ? Self.railWidth : 0)
                     .allowsHitTesting(false)
 
                 // Nudge the reading line up or down mid-take without opening
-                // the settings sheet.
+                // the settings sheet. Sits opposite the controls, so it never
+                // ends up underneath the rail in landscape.
                 VStack(spacing: 10) {
                     nudgeButton(icon: "chevron.up", delta: -0.02)
                     nudgeButton(icon: "chevron.down", delta: 0.02)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                .padding(.trailing, 12)
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: .infinity,
+                    alignment: isLandscape && railOnLeading ? .trailing : (isLandscape ? .leading : .trailing)
+                )
+                .padding(.horizontal, 12)
+
+                // In landscape the controls become a rail on the edge they
+                // occupied in portrait, rather than a bottom bar: vertical
+                // space is scarce there, and keeping them on the same physical
+                // edge means your thumb doesn't have to go looking for them.
+                if isLandscape {
+                    HStack(spacing: 0) {
+                        if railOnLeading { controlRail }
+                        Spacer(minLength: 0)
+                        if !railOnLeading { controlRail }
+                    }
+                    .transition(.opacity)
+                }
 
                 if let remaining = countdownRemaining {
                     countdownOverlay(remaining)
@@ -113,9 +154,13 @@ struct PrompterView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .padding(.horizontal, 18)
                     }
-                    footBar
+                    if !isLandscape {
+                        footBar
+                    }
                 }
             }
+            .animation(.easeInOut(duration: 0.28), value: isLandscape)
+            .animation(.easeInOut(duration: 0.28), value: railOnLeading)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture()
@@ -134,6 +179,7 @@ struct PrompterView: View {
                 // for the whole prompter, not just while recording — the
                 // screen going dark mid-read is just as bad.
                 UIApplication.shared.isIdleTimerDisabled = true
+                syncInterfaceOrientation()
                 dragStartOffset = targetOffset
                 recomputeTarget(cueY: cueY)
                 speech.onTranscript = { words in
@@ -185,6 +231,9 @@ struct PrompterView: View {
                     displayNow = now
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+                syncInterfaceOrientation()
+            }
             .onReceive(speech.$errorMessage.compactMap { $0 }) { showError($0) }
             .onReceive(camera.$errorMessage.compactMap { $0 }) { showError($0) }
             .onReceive(speech.$isListening) { listening in
@@ -202,6 +251,19 @@ struct PrompterView: View {
         }
         .statusBarHidden()
         .preferredColorScheme(.dark)
+    }
+
+    /// Read from the window scene rather than `UIDevice.orientation`, which
+    /// also reports face-up and face-down — neither of which changes the
+    /// layout, and both of which would otherwise throw the rail to a random
+    /// side when the phone is set down on a table.
+    private func syncInterfaceOrientation() {
+        let scene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive } ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        if let orientation = scene?.interfaceOrientation, orientation != .unknown {
+            interfaceOrientation = orientation
+        }
     }
 
     // MARK: - Take control
@@ -446,8 +508,11 @@ struct PrompterView: View {
         .accessibilityLabel("Video quality \(text)")
     }
 
-    private var footBar: some View {
-        HStack(spacing: 0) {
+    /// The take controls themselves — laid out as a bottom bar in portrait and
+    /// as a side rail in landscape, but the same buttons in the same order
+    /// either way, so the muscle memory carries across a rotation.
+    @ViewBuilder
+    private var controlButtons: some View {
             footButton(icon: "arrow.counterclockwise", label: "Restart") {
                 state.activeIndex = 0
                 // A restart is a fresh take, so the timing starts over too.
@@ -485,6 +550,11 @@ struct PrompterView: View {
                     dragStartOffset = targetOffset
                 }
             }
+    }
+
+    private var footBar: some View {
+        HStack(spacing: 0) {
+            controlButtons
         }
         // A real bar: full width, its own surface, a hairline against the
         // script above it. The earlier version backed only the buttons'
@@ -505,6 +575,29 @@ struct PrompterView: View {
                     .frame(height: 0.5)
             }
             .ignoresSafeArea(edges: .bottom)
+            .allowsHitTesting(false)
+        }
+    }
+
+    /// The landscape form: the same controls stacked against one side, so they
+    /// cost horizontal space (of which there is plenty) instead of vertical
+    /// space (of which there is almost none).
+    private var controlRail: some View {
+        VStack(spacing: 14) {
+            Spacer(minLength: 0)
+            controlButtons
+            Spacer(minLength: 0)
+        }
+        .frame(width: Self.railWidth)
+        .frame(maxHeight: .infinity)
+        .background {
+            ZStack(alignment: railOnLeading ? .trailing : .leading) {
+                Color.black
+                Rectangle()
+                    .fill(.white.opacity(0.10))
+                    .frame(width: 0.5)
+            }
+            .ignoresSafeArea()
             .allowsHitTesting(false)
         }
     }
@@ -589,6 +682,9 @@ private struct ScrollFlow: View {
     /// rather than `UIScreen`, which reports the wrong height in landscape.
     let topInset: CGFloat
     let bottomInset: CGFloat
+    /// Extra side padding so the script clears the landscape control rail.
+    var leadingInset: CGFloat = 0
+    var trailingInset: CGFloat = 0
 
     var body: some View {
         VStack(alignment: state.centerAlign ? .center : .leading, spacing: state.fontSize * 0.35) {
@@ -607,7 +703,8 @@ private struct ScrollFlow: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: state.centerAlign ? .center : .leading)
-        .padding(.horizontal, 26)
+        .padding(.leading, 26 + leadingInset)
+        .padding(.trailing, 26 + trailingInset)
         .padding(.top, topInset)
         .padding(.bottom, bottomInset)
         .onPreferenceChange(WordFramePreferenceKey.self) { wordFrames = $0 }

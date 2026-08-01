@@ -59,4 +59,44 @@ final class PrompterSmokeTests: XCTestCase {
         app.buttons["Exit"].tap()
         XCTAssertTrue(app.buttons["Start prompting →"].waitForExistence(timeout: 5), "Exit should return to the setup screen")
     }
+
+    /// Landscape moves the take controls from a bottom bar to a side rail.
+    /// The failure this guards against is a bar that keeps eating the little
+    /// vertical space landscape has, or controls landing off-screen entirely.
+    func testControlsStayOnScreenInLandscape() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera"]
+        app.launch()
+        app.buttons["Start prompting →"].tap()
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+
+        let listen = app.buttons["Listen"]
+        let restart = app.buttons["Restart"]
+        let manual = app.buttons["Manual"]
+        XCTAssertTrue(listen.waitForExistence(timeout: 5), "Listen must survive rotation")
+        let window = app.windows.firstMatch.frame
+        for control in [listen, restart, manual] {
+            XCTAssertTrue(control.isHittable, "\(control.label) must be tappable in landscape")
+            XCTAssertTrue(window.contains(control.frame), "\(control.label) must be inside the window in landscape")
+        }
+
+        // The rail is a column: the controls share a horizontal band and are
+        // stacked vertically, rather than spread across the bottom.
+        XCTAssertLessThan(
+            abs(listen.frame.midX - restart.frame.midX), 12,
+            "controls should be stacked in a side rail, not spread along the bottom"
+        )
+        XCTAssertGreaterThan(
+            abs(listen.frame.midY - restart.frame.midY), 20,
+            "controls should be separated vertically in the rail"
+        )
+        // And the rail must not be eating the middle of the screen.
+        XCTAssertTrue(
+            listen.frame.midX < window.width * 0.25 || listen.frame.midX > window.width * 0.75,
+            "the rail belongs against a side edge"
+        )
+    }
 }

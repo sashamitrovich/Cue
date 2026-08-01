@@ -18,6 +18,7 @@ Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription a
 - **Keeps your formatting.** Line breaks and blank lines carry over from the editor, so you can leave deliberate gaps as ad-lib room.
 - **Imports scripts** from Files or iCloud Drive (`.txt`, `.md`, `.rtf`).
 - **Manual mode** for dragging through the script by hand when you would rather not be tracked.
+- **Works sideways.** Turn the phone and the take controls move to a rail on the edge they were already on, instead of a bottom bar eating the vertical space landscape can least afford.
 
 ## Requirements
 
