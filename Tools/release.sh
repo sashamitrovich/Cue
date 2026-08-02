@@ -24,6 +24,17 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 xcodegen generate
 
+# Build numbers come from one place: the highest App Store Connect has
+# already accepted, plus one. project.yml and Xcode Cloud's CI_BUILD_NUMBER
+# are separate counters that interleave — a local upload numbered below a
+# cloud build looks like it went backwards, and App Store Connect requires
+# the number to increase for a submission.
+if [ -n "${ASC_KEY_ID:-}" ] && [ -n "${ASC_ISSUER_ID:-}" ]; then
+    NEXT=$(python3 Tools/next_build_number.py) || exit 1
+    echo "Stamping CFBundleVersion $NEXT (next after the highest already uploaded)"
+    plutil -replace CFBundleVersion -string "$NEXT" Cue/Info.plist
+fi
+
 xcodebuild -project Cue.xcodeproj -scheme Cue -configuration Release \
     -destination 'generic/platform=iOS' \
     -archivePath "$OUT/OnCue.xcarchive" \
@@ -61,5 +72,9 @@ if [ "${1:-}" = "--upload" ]; then
         --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
     xcrun altool --upload-app -f "$IPA" -t ios \
         --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
-    echo "Uploaded. Bump CFBundleVersion in project.yml now, not next time."
+    echo "Uploaded as build $(plutil -extract CFBundleVersion raw Cue/Info.plist)."
 fi
+
+# Cue/Info.plist is tracked, and the stamp above edited it. Regenerate so the
+# working tree isn't left dirty with a number that means nothing locally.
+xcodegen generate >/dev/null
