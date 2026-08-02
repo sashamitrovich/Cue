@@ -9,9 +9,16 @@ echo "Installing XcodeGen…"
 brew install xcodegen
 
 cd "$CI_PRIMARY_REPOSITORY_PATH"
+
+# Signing.xcconfig holds the team ID and is gitignored, so it is absent here.
+# The generated project still references it as a base configuration, and
+# xcodebuild fails with "Unable to open base configuration reference file"
+# if it is missing — a stub is enough, since Xcode Cloud injects its own
+# signing settings and an unset DEVELOPMENT_TEAM is what we want in CI.
+if [ ! -f Signing.xcconfig ]; then
+    echo "Creating a stub Signing.xcconfig (Xcode Cloud manages signing)"
+    echo "// Created by ci_post_clone.sh — Xcode Cloud provides signing." > Signing.xcconfig
+fi
+
 echo "Generating Cue.xcodeproj from project.yml…"
 xcodegen generate
-
-# Signing.xcconfig is local-only (it holds the team ID and is gitignored), so
-# it is absent here. project.yml disables the missing-config-file validation
-# for exactly this reason, and Xcode Cloud manages signing itself.

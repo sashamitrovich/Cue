@@ -30,6 +30,8 @@ Bump `CFBundleVersion` in `project.yml` immediately **after** every accepted upl
 
 `Cue.xcodeproj` is not in the repository, so Xcode Cloud fails with *"Project Cue.xcodeproj does not exist at the root of the repository"* unless it generates one first. `ci_scripts/ci_post_clone.sh` installs XcodeGen and runs `xcodegen generate`; Xcode Cloud executes it after cloning and before it looks for the project. The scripts must stay at `ci_scripts/` in the repo root and stay executable (`chmod +x`) — Xcode Cloud silently ignores them otherwise.
 
+It also writes a stub `Signing.xcconfig` when absent: the generated project references it as a base configuration, and xcodebuild fails with *"Unable to open base configuration reference file"* if it is missing. `disabledValidations: [missingConfigFiles]` only silences XcodeGen's own check, not xcodebuild's. The same error hits a fresh local clone that skips the `cp Signing.xcconfig.example` step.
+
 `ci_scripts/ci_pre_xcodebuild.sh` stamps `CFBundleVersion` from `CI_BUILD_NUMBER`, because the static value in `project.yml` would collide on the second upload.
 
 If Apple ever refuses to resolve the workflow at all without a project in the repo, the fallback is to commit `Cue.xcodeproj` — but that gives up the generated-project setup, so try the post-clone script first.
