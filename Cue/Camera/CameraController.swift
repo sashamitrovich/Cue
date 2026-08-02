@@ -91,7 +91,7 @@ final class CameraController: NSObject, ObservableObject {
             // pills describing something the session isn't recording.
             let wideFormat = camera.formats
                 .filter {
-                    let dims = CMVideoFormatDescriptionGetDimensions($0.formatDescription)
+                    guard let dims = Self.dimensions(of: $0) else { return false }
                     return dims.height >= 1080 && Self.isWidescreen(dims)
                 }
                 .max { $0.videoFieldOfView < $1.videoFieldOfView }
@@ -154,8 +154,8 @@ final class CameraController: NSObject, ObservableObject {
 
         var formats: [VideoMode: AVCaptureDevice.Format] = [:]
         for format in device.formats {
-            let dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
-            guard dims.height >= 720, Self.isWidescreen(dims) else { continue }
+            guard let dims = Self.dimensions(of: format),
+                  dims.height >= 720, Self.isWidescreen(dims) else { continue }
 
             for rate in CaptureQualityMenu.offeredFrameRates
             where format.videoSupportedFrameRateRanges.contains(
@@ -184,7 +184,7 @@ final class CameraController: NSObject, ObservableObject {
         // Report the mode the session is already running, rather than applying
         // one — `setup` picked the widest-FOV format deliberately and
         // reconfiguring here would undo that before the preview even appears.
-        let activeHeight = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription).height
+        let activeHeight = Self.dimensions(of: device.activeFormat)?.height ?? 0
         let activeRate = device.activeVideoMinFrameDuration.seconds > 0
             ? 1 / device.activeVideoMinFrameDuration.seconds
             : 30
@@ -201,6 +201,21 @@ final class CameraController: NSObject, ObservableObject {
             if caps.supportsStabilization { self.setStabilization(true) }
             if caps.supportsLowLightBoost { self.setLowLightBoost(true) }
         }
+    }
+
+    /// Dimensions for a format, or nil when it has none worth reading.
+    ///
+    /// `CMVideoFormatDescriptionGetDimensions` logs
+    /// `err=-12710 (kCMFormatDescriptionError_InvalidParameter)` to the console
+    /// when handed a description that isn't a valid video one, and returns
+    /// zeros. Harmless — the size filters discard those anyway — but it's our
+    /// call making the noise, so check the media type first.
+    private static func dimensions(of format: AVCaptureDevice.Format) -> CMVideoDimensions? {
+        let description = format.formatDescription
+        guard CMFormatDescriptionGetMediaType(description) == kCMMediaType_Video else { return nil }
+        let dims = CMVideoFormatDescriptionGetDimensions(description)
+        guard dims.width > 0, dims.height > 0 else { return nil }
+        return dims
     }
 
     /// Video is 16:9. The front camera also publishes 4:3 stills-shaped

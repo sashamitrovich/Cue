@@ -44,6 +44,9 @@ struct PrompterView: View {
     @State private var isDraggingLine = false
 
     static let railWidth: CGFloat = 56
+    /// Breathing room from a screen edge that has no cutout of its own. Where
+    /// the safe-area inset is larger, that is used instead — never both.
+    static let edgeGap: CGFloat = 16
     /// The single accent. Used for the current word, the primary action and
     /// live values — nothing decorative, so it always means something.
     static let accent = Color(red: 1.0, green: 0.72, blue: 0.23)
@@ -275,12 +278,15 @@ struct PrompterView: View {
             wordFrames: $wordFrames,
             topInset: cueY,
             bottomInset: fullHeight(geo: geo, insets: insets) * 0.6,
-            // The frame is full-bleed, so the script has to clear the safe
-            // areas itself — in landscape the notch inset is on one side and
-            // was slicing the ends off lines. The rail's own width includes
-            // the leading inset it is padded by, so both are added here.
-            leadingInset: insets.leading + (isLandscape && railOnLeading ? Self.railWidth : 0),
-            trailingInset: insets.trailing + (isLandscape && !railOnLeading ? Self.railWidth : 0)
+            // The frame is full-bleed, so the script clears the safe areas
+            // itself. The inset *is* the margin — stacking a base padding on
+            // top of it wasted ~26pt a side, which in landscape is a
+            // noticeable slice of the line length. Sides without a cutout
+            // fall back to a small gap instead.
+            leadingInset: max(insets.leading, Self.edgeGap)
+                + (isLandscape && railOnLeading ? Self.railWidth : 0),
+            trailingInset: max(insets.trailing, Self.edgeGap)
+                + (isLandscape && !railOnLeading ? Self.railWidth : 0)
         )
         .coordinateSpace(name: "flow")
         .opacity(state.cameraEnabled ? state.textOpacity : 1.0)
@@ -355,8 +361,8 @@ struct PrompterView: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .padding(.top, cueY)
-        .padding(.leading, insets.leading + (isLandscape && railOnLeading ? Self.railWidth : 0) + 12)
-        .padding(.trailing, insets.trailing + (isLandscape && !railOnLeading ? Self.railWidth : 0) + 12)
+        .padding(.leading, max(insets.leading, Self.edgeGap) + (isLandscape && railOnLeading ? Self.railWidth : 0))
+        .padding(.trailing, max(insets.trailing, Self.edgeGap) + (isLandscape && !railOnLeading ? Self.railWidth : 0))
         .frame(maxHeight: .infinity, alignment: .top)
         .accessibilityIdentifier("readingLine")
     }
@@ -611,8 +617,13 @@ struct PrompterView: View {
             Spacer(minLength: 0)
         }
         .frame(width: Self.railWidth)
-        .padding(.leading, railOnLeading ? insets.leading : 0)
-        .padding(.trailing, railOnLeading ? 0 : insets.trailing)
+        // The real inset where there is one, a small floor where there
+        // isn't: on a phone without a cutout the insets are zero, which put
+        // the buttons ~7pt from the screen edge. Never both, or the rail
+        // floats in a wide black band on notched devices.
+        .padding(.leading, railOnLeading ? max(insets.leading, Self.edgeGap / 2) : 0)
+        .padding(.trailing, railOnLeading ? 0 : max(insets.trailing, Self.edgeGap / 2))
+        .padding(.vertical, 4)
         .padding(.top, chromeTopInset(insets: insets))
         .padding(.bottom, insets.bottom)
         .frame(maxHeight: .infinity)
@@ -881,8 +892,8 @@ private struct ScrollFlow: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: state.centerAlign ? .center : .leading)
-        .padding(.leading, 26 + leadingInset)
-        .padding(.trailing, 26 + trailingInset)
+        .padding(.leading, leadingInset)
+        .padding(.trailing, trailingInset)
         .padding(.top, topInset)
         .padding(.bottom, bottomInset)
         .onPreferenceChange(WordFramePreferenceKey.self) { wordFrames = $0 }
