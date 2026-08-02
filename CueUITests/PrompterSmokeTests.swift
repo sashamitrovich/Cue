@@ -187,4 +187,39 @@ final class PrompterSmokeTests: XCTestCase {
             )
         }
     }
+
+    /// Rotating back and forth must not leave the script out of register.
+    /// Rotation produces transient layouts, and a stale measurement taken
+    /// during one of them used to leave the script floating with the opening
+    /// line scrolled off the top.
+    func testAlignmentSurvivesRepeatedRotation() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera"]
+        app.launch()
+        app.buttons["Start prompting →"].tap()
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+        let sequence: [UIDeviceOrientation] = [.landscapeLeft, .portrait, .landscapeRight, .portrait]
+        for orientation in sequence {
+            XCUIDevice.shared.orientation = orientation
+            XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        }
+        defer { XCUIDevice.shared.orientation = .portrait }
+
+        let line = app.otherElements["readingLine"]
+        let firstWord = app.staticTexts.matching(identifier: "Welcome,").firstMatch
+        XCTAssertTrue(line.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            firstWord.waitForExistence(timeout: 5),
+            "the opening line must still be on screen after rotating back and forth"
+        )
+
+        let window = app.windows.firstMatch.frame
+        XCTAssertTrue(
+            window.contains(firstWord.frame),
+            "opening line at \(firstWord.frame) drifted outside the window \(window)"
+        )
+        let drift = abs(line.frame.midY - firstWord.frame.midY)
+        XCTAssertLessThan(drift, 26, "after rotating back and forth the line is \(Int(drift))pt off the word")
+    }
 }

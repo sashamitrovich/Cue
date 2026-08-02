@@ -43,7 +43,7 @@ struct PrompterView: View {
     /// Grows the handle while it's being dragged, so it's obvious what moved.
     @State private var isDraggingLine = false
 
-    static let railWidth: CGFloat = 68
+    static let railWidth: CGFloat = 56
     /// The single accent. Used for the current word, the primary action and
     /// live values — nothing decorative, so it always means something.
     static let accent = Color(red: 1.0, green: 0.72, blue: 0.23)
@@ -181,6 +181,21 @@ struct PrompterView: View {
                     }
                 }
                 offset += (targetOffset - offset) * 0.12
+
+                // Self-heal: keep the active word on the reading line no
+                // matter what shook the layout. Rotation produces transient
+                // layouts whose measurements can leave a stale offset — the
+                // script would end up floating with the first line off
+                // screen, and no discrete event fired afterwards to fix it.
+                // Safe as a continuous check because these frames are in the
+                // flow's own space and don't move when `offset` does.
+                if !state.manualMode, !isDraggingLine, let frame = wordFrames[state.activeIndex] {
+                    let want = cueY - frame.midY
+                    if abs(want - targetOffset) > 1 {
+                        targetOffset = want
+                        dragStartOffset = want
+                    }
+                }
 
                 if let deadline = countdownDeadline, now >= deadline {
                     startListeningNow()
@@ -590,7 +605,7 @@ struct PrompterView: View {
     /// occupied in portrait, costing horizontal space instead of the vertical
     /// space landscape has none of.
     private func controlRail(insets: EdgeInsets) -> some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             Spacer(minLength: 0)
             controlButtons
             Spacer(minLength: 0)
@@ -641,7 +656,7 @@ struct PrompterView: View {
                                 : (recording ? Color.red : (on ? Self.accent : Color.white))
                         )
                 }
-                .frame(width: isLandscape ? 46 : 52, height: isLandscape ? 46 : 52)
+                .frame(width: isLandscape ? 42 : 52, height: isLandscape ? 42 : 52)
 
                 if !isLandscape {
                     Text(label)
