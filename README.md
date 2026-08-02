@@ -48,6 +48,10 @@ xcodegen generate
 
 Set it there rather than in Xcode's **Signing & Capabilities** pane — the project file is regenerated, so a team picked in the UI is wiped on the next `xcodegen generate`. `Signing.xcconfig` is gitignored.
 
+## Continuous integration
+
+Xcode Cloud generates the project itself: `ci_scripts/ci_post_clone.sh` installs XcodeGen and runs it after cloning, since `Cue.xcodeproj` is not committed. `ci_scripts/ci_pre_xcodebuild.sh` stamps the build number from `CI_BUILD_NUMBER`.
+
 ## Tests
 
 ```sh

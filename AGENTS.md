@@ -26,6 +26,14 @@ Bump `CFBundleVersion` in `project.yml` immediately **after** every accepted upl
 
 `Tools/release.sh [--upload]` runs archive → export → validate → upload, reading the team from `Signing.xcconfig` and the API key id/issuer from `ASC_KEY_ID`/`ASC_ISSUER_ID` (with `AuthKey_<KEYID>.p8` in `~/.appstoreconnect/private_keys/`). **`uploadSymbols` must stay `false`**: with it on, Xcode 26's packaging step fails with the useless `error: exportArchive Copy failed` while copying the dSYM. That message says nothing about symbols — it also appears when there is no local Apple Distribution identity, so check `security find-identity -v -p codesigning` before assuming it's the symbols.
 
+## Xcode Cloud
+
+`Cue.xcodeproj` is not in the repository, so Xcode Cloud fails with *"Project Cue.xcodeproj does not exist at the root of the repository"* unless it generates one first. `ci_scripts/ci_post_clone.sh` installs XcodeGen and runs `xcodegen generate`; Xcode Cloud executes it after cloning and before it looks for the project. The scripts must stay at `ci_scripts/` in the repo root and stay executable (`chmod +x`) — Xcode Cloud silently ignores them otherwise.
+
+`ci_scripts/ci_pre_xcodebuild.sh` stamps `CFBundleVersion` from `CI_BUILD_NUMBER`, because the static value in `project.yml` would collide on the second upload.
+
+If Apple ever refuses to resolve the workflow at all without a project in the repo, the fallback is to commit `Cue.xcodeproj` — but that gives up the generated-project setup, so try the post-clone script first.
+
 ## What you cannot verify here
 
 The simulator has **no microphone and no camera**. Speech recognition and camera capture cannot be exercised locally — do not claim they work based on a green build. Say plainly that they need testing on a physical device, and ask.
