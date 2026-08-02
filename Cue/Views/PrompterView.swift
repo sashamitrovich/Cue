@@ -260,10 +260,12 @@ struct PrompterView: View {
             wordFrames: $wordFrames,
             topInset: cueY,
             bottomInset: fullHeight(geo: geo, insets: insets) * 0.6,
-            // Keep the words clear of the landscape rail, which is
-            // translucent but still busy behind text.
-            leadingInset: isLandscape && railOnLeading ? Self.railWidth : 0,
-            trailingInset: isLandscape && !railOnLeading ? Self.railWidth : 0
+            // The frame is full-bleed, so the script has to clear the safe
+            // areas itself — in landscape the notch inset is on one side and
+            // was slicing the ends off lines. The rail's own width includes
+            // the leading inset it is padded by, so both are added here.
+            leadingInset: insets.leading + (isLandscape && railOnLeading ? Self.railWidth : 0),
+            trailingInset: insets.trailing + (isLandscape && !railOnLeading ? Self.railWidth : 0)
         )
         .coordinateSpace(name: "flow")
         .opacity(state.cameraEnabled ? state.textOpacity : 1.0)
@@ -338,8 +340,8 @@ struct PrompterView: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .padding(.top, cueY)
-        .padding(.leading, (isLandscape && railOnLeading ? Self.railWidth : 0) + insets.leading + 12)
-        .padding(.trailing, (isLandscape && !railOnLeading ? Self.railWidth : 0) + insets.trailing + 12)
+        .padding(.leading, insets.leading + (isLandscape && railOnLeading ? Self.railWidth : 0) + 12)
+        .padding(.trailing, insets.trailing + (isLandscape && !railOnLeading ? Self.railWidth : 0) + 12)
         .frame(maxHeight: .infinity, alignment: .top)
         .accessibilityIdentifier("readingLine")
     }

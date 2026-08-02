@@ -153,4 +153,38 @@ final class PrompterSmokeTests: XCTestCase {
             XCTAssertTrue(control.isHittable, "\(name) must be tappable in landscape")
         }
     }
+
+    /// The script must not run underneath the landscape rail, and must not be
+    /// sliced off by the notch inset on the opposite side. Both happened once
+    /// the prompter went full-bleed and the script stopped padding for the
+    /// safe area itself.
+    func testScriptClearsTheRailAndTheSafeAreaInLandscape() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera"]
+        app.launch()
+        app.buttons["Start prompting →"].tap()
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+        let rail = app.buttons["Listen"].frame
+        let window = app.windows.firstMatch.frame
+
+        // Words that appear exactly once in the default script — a repeated
+        // word makes the query ambiguous rather than the layout wrong.
+        for label in ["Welcome,", "rehearse", "deliver."] {
+            let word = app.staticTexts.matching(identifier: label).firstMatch
+            guard word.exists else { continue }
+            XCTAssertFalse(
+                word.frame.intersects(rail),
+                "\(label) at \(word.frame) overlaps the control rail at \(rail)"
+            )
+            XCTAssertTrue(
+                window.insetBy(dx: -1, dy: -1).contains(word.frame),
+                "\(label) at \(word.frame) runs outside the window \(window)"
+            )
+        }
+    }
 }
