@@ -50,6 +50,8 @@ Set it there rather than in Xcode's **Signing & Capabilities** pane — the proj
 
 ## Continuous integration
 
+Pushing to `main` runs the test suite, archives, and delivers to TestFlight internal testers — that is the only route to a shipped build; `Tools/release.sh` archives locally but does not upload, so one counter issues build numbers.
+
 Xcode Cloud generates the project itself: `ci_scripts/ci_post_clone.sh` installs XcodeGen and runs it after cloning, since `Cue.xcodeproj` is not committed. `ci_scripts/ci_pre_xcodebuild.sh` stamps the build number from `CI_BUILD_NUMBER`.
 
 ## Tests
