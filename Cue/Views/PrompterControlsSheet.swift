@@ -69,7 +69,7 @@ struct PrompterControlsSheet: View {
                 value: $state.sideMargin,
                 range: ScriptMargins.range,
                 step: 4,
-                display: "\(Int(state.sideMargin))",
+                display: state.sideMargin == 0 ? "None" : "+\(Int(state.sideMargin))",
                 icons: ("arrow.right.and.line.vertical.and.arrow.left", "arrow.left.and.line.vertical.and.arrow.right")
             )
             Toggle("Centre text", isOn: $state.centerAlign)
@@ -85,7 +85,7 @@ struct PrompterControlsSheet: View {
             // Adjusted here rather than before starting, because these are the
             // settings whose effect you can only judge by looking at the
             // script — which is visible behind this sheet.
-            Text("Wider side margins give shorter lines, which are easier to read at a glance; the script never intrudes into a notch however narrow you set them. Keep the reading line high on the screen so your eyes stay near the lens. Idle drift creeps the script upward while you're silent — leave it off unless recognition keeps losing you, since it works against deliberate pauses. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
+            Text("Side margins add to whatever the screen already needs, so the script never intrudes into a notch. Wider margins give shorter lines, which are easier to catch at a glance. Keep the reading line high on the screen so your eyes stay near the lens. Idle drift creeps the script upward while you're silent — leave it off unless recognition keeps losing you, since it works against deliberate pauses. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
         }
     }
 
@@ -243,11 +243,14 @@ struct PrompterControlsSheet: View {
                 Image(systemName: icons.0)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if let step {
-                    Slider(value: value, in: range, step: step)
-                } else {
-                    Slider(value: value, in: range)
+                Group {
+                    if let step {
+                        Slider(value: value, in: range, step: step)
+                    } else {
+                        Slider(value: value, in: range)
+                    }
                 }
+                .accessibilityIdentifier(title)
                 Image(systemName: icons.1)
                     .font(.caption)
                     .foregroundStyle(.secondary)

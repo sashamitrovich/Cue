@@ -222,4 +222,51 @@ final class PrompterSmokeTests: XCTestCase {
         let drift = abs(line.frame.midY - firstWord.frame.midY)
         XCTAssertLessThan(drift, 26, "after rotating back and forth the line is \(Int(drift))pt off the word")
     }
+
+    /// Dragging a control must visibly change the script — in BOTH
+    /// orientations. This is the assertion that was missing: the side-margin
+    /// setting was implemented as a floor over the safe-area inset, so in
+    /// landscape, where that inset is ~47pt a side, most of the slider's
+    /// range did nothing at all. Unit tests passed the whole time, because
+    /// they asserted the rule I intended rather than the effect you see.
+    func testSideMarginMovesTheScriptInBothOrientations() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera"]
+        app.launch()
+        app.buttons["Start prompting →"].tap()
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+            let word = app.staticTexts.matching(identifier: "Welcome,").firstMatch
+            XCTAssertTrue(word.waitForExistence(timeout: 5))
+            let narrow = word.frame.minX
+
+            app.buttons["Prompter settings"].tap()
+            let slider = app.sliders["Side margins"]
+            XCTAssertTrue(slider.waitForExistence(timeout: 5), "margin slider must be reachable")
+            // Deliberately a SMALL increase. A first version of this test used
+            // 0.9, which passed even against the broken rule: at that end the
+            // margin exceeds the ~47pt landscape inset and does move the
+            // text. The defect lived in the bottom of the range.
+            slider.adjust(toNormalizedSliderPosition: 0.25)
+            app.buttons["Done"].tap()
+
+            XCTAssertTrue(word.waitForExistence(timeout: 5))
+            let wide = word.frame.minX
+            XCTAssertGreaterThan(
+                wide, narrow + 4,
+                "widening the margin must move the script inward "
+                + "(orientation \(orientation.rawValue): \(narrow) -> \(wide))"
+            )
+
+            // Put it back, so the next orientation starts from a known place.
+            app.buttons["Prompter settings"].tap()
+            app.sliders["Side margins"].adjust(toNormalizedSliderPosition: 0.0)
+            app.buttons["Done"].tap()
+        }
+        XCUIDevice.shared.orientation = .portrait
+    }
 }
