@@ -44,8 +44,7 @@ struct PrompterView: View {
     @State private var isDraggingLine = false
 
     static let railWidth: CGFloat = 56
-    /// Breathing room from a screen edge that has no cutout of its own. Where
-    /// the safe-area inset is larger, that is used instead — never both.
+    /// Breathing room for the rail on a screen edge with no cutout of its own.
     static let edgeGap: CGFloat = 16
     /// The single accent. Used for the current word, the primary action and
     /// live values — nothing decorative, so it always means something.
@@ -122,6 +121,13 @@ struct PrompterView: View {
                 // for the whole prompter, not just while recording — the
                 // screen going dark mid-read is just as bad.
                 UIApplication.shared.isIdleTimerDisabled = true
+                // Screenshot hook: the simulator has no microphone, so the
+                // cursor can only be placed for App Store captures by asking.
+                if let index = ProcessInfo.processInfo.arguments
+                    .drop(while: { $0 != "-uiTestingCursorAt" }).dropFirst().first,
+                   let value = Int(index) {
+                    state.activeIndex = min(max(0, value), max(0, state.words.count - 1))
+                }
                 syncInterfaceOrientation()
                 dragStartOffset = targetOffset
                 recomputeTarget(cueY: cueY)
@@ -279,14 +285,14 @@ struct PrompterView: View {
             topInset: cueY,
             bottomInset: fullHeight(geo: geo, insets: insets) * 0.6,
             // The frame is full-bleed, so the script clears the safe areas
-            // itself. The inset *is* the margin — stacking a base padding on
-            // top of it wasted ~26pt a side, which in landscape is a
-            // noticeable slice of the line length. Sides without a cutout
-            // fall back to a small gap instead.
-            leadingInset: max(insets.leading, Self.edgeGap)
-                + (isLandscape && railOnLeading ? Self.railWidth : 0),
-            trailingInset: max(insets.trailing, Self.edgeGap)
-                + (isLandscape && !railOnLeading ? Self.railWidth : 0)
+            // itself. The reader's margin is a floor over the inset, never
+            // added to it.
+            leadingInset: ScriptMargins.inset(
+                safeArea: insets.leading, margin: state.sideMargin,
+                rail: isLandscape && railOnLeading ? Self.railWidth : 0),
+            trailingInset: ScriptMargins.inset(
+                safeArea: insets.trailing, margin: state.sideMargin,
+                rail: isLandscape && !railOnLeading ? Self.railWidth : 0)
         )
         .coordinateSpace(name: "flow")
         .opacity(state.cameraEnabled ? state.textOpacity : 1.0)
@@ -361,8 +367,13 @@ struct PrompterView: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .padding(.top, cueY)
-        .padding(.leading, max(insets.leading, Self.edgeGap) + (isLandscape && railOnLeading ? Self.railWidth : 0))
-        .padding(.trailing, max(insets.trailing, Self.edgeGap) + (isLandscape && !railOnLeading ? Self.railWidth : 0))
+        // Same rule as the script, so the line starts and ends with the words.
+        .padding(.leading, ScriptMargins.inset(
+            safeArea: insets.leading, margin: state.sideMargin,
+            rail: isLandscape && railOnLeading ? Self.railWidth : 0))
+        .padding(.trailing, ScriptMargins.inset(
+            safeArea: insets.trailing, margin: state.sideMargin,
+            rail: isLandscape && !railOnLeading ? Self.railWidth : 0))
         .frame(maxHeight: .infinity, alignment: .top)
         .accessibilityIdentifier("readingLine")
     }

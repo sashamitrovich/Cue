@@ -15,6 +15,7 @@ Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription a
 - **Counts you in.** An optional 3, 5 or 10 second pre-roll before listening starts, so you can settle and find the lens. Tap anywhere to cancel it.
 - **Adapts to the device.** Zoom, HDR, stabilisation and low-light boost appear as controls only if the connected iPhone's front camera actually supports them. Recording quality is a Camera.app-style pair of toggles — HD or 4K, and the frame rates that size offers (24/25/30/60, as far as the camera supports) — right on the prompter.
 - **Gets out of the way.** Once a take is running the controls fade, leaving the script the whole screen; a tap anywhere brings them back. The recording indicator never hides.
+- **Set to your eyes.** Text size, side margins, alignment and the reading line all adjust from the prompter, where you can see the script change as you drag.
 - **Stays readable over video.** Adjustable text opacity and camera dimming, with per-word contrast shadows so words survive against a bright background.
 - **Keeps your formatting.** Line breaks and blank lines carry over from the editor, so you can leave deliberate gaps as ad-lib room.
 - **Imports scripts** from Files or iCloud Drive (`.txt`, `.md`, `.rtf`).

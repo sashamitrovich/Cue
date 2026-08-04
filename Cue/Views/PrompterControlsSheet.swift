@@ -64,6 +64,14 @@ struct PrompterControlsSheet: View {
                 display: "\(Int(state.fontSize))",
                 icons: ("textformat.size.smaller", "textformat.size.larger")
             )
+            labelledSlider(
+                "Side margins",
+                value: $state.sideMargin,
+                range: ScriptMargins.range,
+                step: 4,
+                display: "\(Int(state.sideMargin))",
+                icons: ("arrow.right.and.line.vertical.and.arrow.left", "arrow.left.and.line.vertical.and.arrow.right")
+            )
             Toggle("Centre text", isOn: $state.centerAlign)
             Toggle("Mirror", isOn: $state.mirror)
             Picker("Idle drift", selection: $state.driftIndex) {
@@ -77,7 +85,7 @@ struct PrompterControlsSheet: View {
             // Adjusted here rather than before starting, because these are the
             // settings whose effect you can only judge by looking at the
             // script — which is visible behind this sheet.
-            Text("Keep the reading line high on the screen so your eyes stay near the lens. Idle drift creeps the script upward while you're silent — leave it off unless recognition keeps losing you, since it works against deliberate pauses. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
+            Text("Wider side margins give shorter lines, which are easier to read at a glance; the script never intrudes into a notch however narrow you set them. Keep the reading line high on the screen so your eyes stay near the lens. Idle drift creeps the script upward while you're silent — leave it off unless recognition keeps losing you, since it works against deliberate pauses. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
         }
     }
 

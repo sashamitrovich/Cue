@@ -48,6 +48,9 @@ final class TeleprompterState: ObservableObject {
     /// by default so the words are close to the front lens and your eyes read
     /// near the camera rather than down the screen.
     @Published var cueLineFraction: Double = 0.18
+    /// How far the script sits from the sides of the screen. A floor, not an
+    /// addition — see `ScriptMargins`.
+    @Published var sideMargin: CGFloat = ScriptMargins.default
     /// How much the camera feed is darkened behind the script. Higher values
     /// buy text contrast at the cost of a dimmer preview.
     @Published var cameraDimming: Double = 0.34
