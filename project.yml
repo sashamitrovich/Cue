@@ -42,15 +42,37 @@ targets:
         NSSpeechRecognitionUsageDescription: "On Cue uses on-device speech recognition to track your place in the script."
         NSCameraUsageDescription: "On Cue uses the front camera to record your take."
         NSPhotoLibraryAddUsageDescription: "On Cue saves finished recordings to your Photos library."
+    dependencies:
+      - target: CueShare
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.cueprompter.Cue
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_ENTITLEMENTS: Cue/Cue.entitlements
         # DEVELOPMENT_TEAM deliberately absent: an empty value here would
         # override the one coming from Signing.xcconfig and reset Team to None.
         CODE_SIGN_STYLE: Automatic
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  CueShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: CueShare
+      - path: Cue/Models/SharedScriptInbox.swift
+      - path: Cue/Models/ScriptImporter.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.cueprompter.Cue.Share
+        PRODUCT_NAME: CueShare
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_FILE: CueShare/Info.plist
+        CODE_SIGN_ENTITLEMENTS: CueShare/CueShare.entitlements
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: YES
+
   CueTests:
     type: bundle.unit-test
     platform: iOS

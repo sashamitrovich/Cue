@@ -30,6 +30,14 @@ Historic note: it used to be necessary to bump `CFBundleVersion` in `project.yml
 
 `Tools/release.sh [--upload]` runs archive → export → validate → upload, reading the team from `Signing.xcconfig` and the API key id/issuer from `ASC_KEY_ID`/`ASC_ISSUER_ID` (with `AuthKey_<KEYID>.p8` in `~/.appstoreconnect/private_keys/`). **`uploadSymbols` must stay `false`**: with it on, Xcode 26's packaging step fails with the useless `error: exportArchive Copy failed` while copying the dSYM. That message says nothing about symbols — it also appears when there is no local Apple Distribution identity, so check `security find-identity -v -p codesigning` before assuming it's the symbols.
 
+## The share extension
+
+`CueShare` is a separate process and cannot touch the app's storage, so the two meet in the App Group `group.app.cueprompter`: the extension writes a script into the container, the app collects it on `scenePhase == .active` and offers it rather than applying it — silently replacing the editor's contents would eventually destroy someone's work.
+
+`SharedScriptInbox` is the contract, and its file is compiled into **both** targets (as is `ScriptImporter`); they must stay in step or a share lands somewhere the app never looks. Its directory is injectable so it can be tested without an App Group, which only exists in a signed, entitled build. `SharedScriptInbox()` returns nil rather than crashing when the container is unavailable.
+
+Both targets carry the App Group entitlement (`Cue/Cue.entitlements`, `CueShare/CueShare.entitlements`). An app extension with an explicit `INFOPLIST_FILE` needs the standard bundle keys spelled out — without `CFBundleIdentifier` = `$(PRODUCT_BUNDLE_IDENTIFIER)` the build fails with the misleading *"Embedded binary's bundle identifier is not prefixed with the parent app's bundle identifier"*, even when the identifiers are correct.
+
 ## Xcode Cloud
 
 `Cue.xcodeproj` is not in the repository, so Xcode Cloud fails with *"Project Cue.xcodeproj does not exist at the root of the repository"* unless it generates one first. `ci_scripts/ci_post_clone.sh` installs XcodeGen and runs `xcodegen generate`; Xcode Cloud executes it after cloning and before it looks for the project. The scripts must stay at `ci_scripts/` in the repo root and stay executable (`chmod +x`) — Xcode Cloud silently ignores them otherwise.

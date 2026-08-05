@@ -18,7 +18,7 @@ Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription a
 - **Set to your eyes.** Text size, side margins, alignment and the reading line all adjust from the prompter, where you can see the script change as you drag.
 - **Stays readable over video.** Adjustable text opacity and camera dimming, with per-word contrast shadows so words survive against a bright background.
 - **Keeps your formatting.** Line breaks and blank lines carry over from the editor, so you can leave deliberate gaps as ad-lib room.
-- **Imports scripts** from Files or iCloud Drive (`.txt`, `.md`, `.rtf`).
+- **Imports scripts** from Files or iCloud Drive (`.txt`, `.md`, `.rtf`), or by sharing text to On Cue from any app — Notes, Mail, Drive. Shared scripts are offered on your next visit rather than overwriting what you were working on.
 - **Manual mode** for dragging through the script by hand when you would rather not be tracked.
 - **Works sideways.** Turn the phone and the take controls move to a rail on the edge they were already on, instead of a bottom bar eating the vertical space landscape can least afford.
 

@@ -12,7 +12,9 @@ struct SetupView: View {
     @State private var showImporter = false
     @State private var showHelp = false
     @State private var importError: String?
+    @State private var sharedScript: (name: String, text: String)?
     @FocusState private var editorFocused: Bool
+    @Environment(\.scenePhase) private var scenePhase
 
     private var importableTypes: [UTType] {
         var types: [UTType] = [.plainText, .text, .rtf]
@@ -67,6 +69,31 @@ struct SetupView: View {
         }
         .sheet(isPresented: $showHelp) {
             HelpSheet()
+        }
+        // A script shared from another app is offered rather than applied:
+        // silently replacing what is in the editor would eventually eat
+        // something the writer cared about.
+        .alert("Use the shared script?", isPresented: Binding(
+            get: { sharedScript != nil },
+            set: { if !$0 { sharedScript = nil } }
+        ), presenting: sharedScript) { shared in
+            Button("Use It") {
+                state.scriptText = shared.text
+                SharedScriptInbox()?.clear()
+                sharedScript = nil
+            }
+            Button("Keep Mine", role: .cancel) {
+                SharedScriptInbox()?.clear()
+                sharedScript = nil
+            }
+        } message: { shared in
+            Text("\"\(shared.name)\" was shared with On Cue. Using it replaces the script you have here.")
+        }
+        .onAppear { collectSharedScript() }
+        .onChange(of: scenePhase) { phase in
+            // Sharing happens while the app is in the background, so the
+            // hand-off is checked on every return to the foreground.
+            if phase == .active { collectSharedScript() }
         }
         .fileImporter(
             isPresented: $showImporter,
@@ -178,6 +205,12 @@ struct SetupView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Picks up anything the share extension left in the App Group container.
+    private func collectSharedScript() {
+        guard sharedScript == nil, let pending = SharedScriptInbox()?.pending() else { return }
+        sharedScript = pending
     }
 
     // MARK: - Import

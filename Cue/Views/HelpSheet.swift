@@ -25,6 +25,7 @@ struct HelpSheet: View {
                 }
 
                 Section("Before you start") {
+                    explain("Share a script to On Cue", "From another app — Notes, Mail, Files, Drive — tap Share and choose On Cue. It waits for you here and asks before replacing the script you already have. A Google Doc shares as a link rather than text, so use \"Send a copy\" and pick plain text or rich text.")
                     explain("Import", "Load a script from Files or iCloud Drive — .txt, .md or .rtf. Line breaks and blank lines carry through, so leave a blank line where you want ad-lib room.")
                     explain("Pace", "Your target words per minute. It's what the run-time estimate is based on until you've spoken enough of a take for On Cue to measure your real pace.")
                     explain("Countdown", "A pre-roll before listening starts, so you can check your framing and settle before you speak. Tap anywhere to cancel it.")
