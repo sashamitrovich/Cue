@@ -27,17 +27,21 @@ fi
 
 # Prefer the documented repository path, fall back to this script's location.
 REPO="${CI_PRIMARY_REPOSITORY_PATH:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}"
-PLIST="$REPO/Cue/Info.plist"
 
-if [ ! -f "$PLIST" ]; then
-    echo "warning: $PLIST not found — skipping the build number stamp."
-    exit 0
-fi
-
-if plutil -replace CFBundleVersion -string "$CI_BUILD_NUMBER" "$PLIST"; then
-    echo "CFBundleVersion set to $CI_BUILD_NUMBER"
-else
-    echo "warning: could not stamp CFBundleVersion — continuing anyway."
-fi
+# Every bundle in the app, not just the app itself: an embedded extension
+# whose CFBundleVersion differs from its parent is rejected at submission
+# ("The CFBundleVersion of an app extension must match that of its containing
+# parent app").
+for PLIST in "$REPO/Cue/Info.plist" "$REPO/CueShare/Info.plist"; do
+    if [ ! -f "$PLIST" ]; then
+        echo "warning: $PLIST not found — skipping it."
+        continue
+    fi
+    if plutil -replace CFBundleVersion -string "$CI_BUILD_NUMBER" "$PLIST"; then
+        echo "CFBundleVersion set to $CI_BUILD_NUMBER in $PLIST"
+    else
+        echo "warning: could not stamp $PLIST — continuing anyway."
+    fi
+done
 
 exit 0
