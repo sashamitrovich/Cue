@@ -223,6 +223,31 @@ final class PrompterSmokeTests: XCTestCase {
         XCTAssertLessThan(drift, 26, "after rotating back and forth the line is \(Int(drift))pt off the word")
     }
 
+    /// Finds a settings slider, scrolling the sheet if the section it lives in
+    /// has been pushed below the fold. Asserting on a fixed position breaks
+    /// every time a setting is added above it — which is exactly what adding
+    /// the "Read text" slider did.
+    @discardableResult
+    private func revealSlider(named name: String, in app: XCUIApplication) -> XCUIElement {
+        let slider = app.sliders[name]
+        // The settings sheet is a SwiftUI Form, which is lazy: a row below the
+        // fold is not merely off-screen, it does not exist in the tree yet.
+        // Swiping the app itself doesn't scroll it — the scrollable element
+        // has to be the one that gets the gesture.
+        let scroller = [app.collectionViews.firstMatch, app.tables.firstMatch, app.scrollViews.firstMatch]
+            .first { $0.exists } ?? app
+        for _ in 0..<10 {
+            if slider.exists && slider.isHittable { return slider }
+            // Short drags, not swipes: a full swipe scrolls straight past the
+            // row. Held near the left edge so the gesture can never land on a
+            // slider thumb and change a value on the way past.
+            let from = scroller.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.72))
+            let to = scroller.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.52))
+            from.press(forDuration: 0.05, thenDragTo: to)
+        }
+        return slider
+    }
+
     /// Dragging a control must visibly change the script — in BOTH
     /// orientations. This is the assertion that was missing: the side-margin
     /// setting was implemented as a floor over the safe-area inset, so in
@@ -245,8 +270,8 @@ final class PrompterSmokeTests: XCTestCase {
             let narrow = word.frame.minX
 
             app.buttons["Prompter settings"].tap()
-            let slider = app.sliders["Side margins"]
-            XCTAssertTrue(slider.waitForExistence(timeout: 5), "margin slider must be reachable")
+            let slider = revealSlider(named: "Side margins", in: app)
+            XCTAssertTrue(slider.exists && slider.isHittable, "margin slider must be reachable")
             // Deliberately a SMALL increase. A first version of this test used
             // 0.9, which passed even against the broken rule: at that end the
             // margin exceeds the ~47pt landscape inset and does move the
@@ -264,7 +289,7 @@ final class PrompterSmokeTests: XCTestCase {
 
             // Put it back, so the next orientation starts from a known place.
             app.buttons["Prompter settings"].tap()
-            app.sliders["Side margins"].adjust(toNormalizedSliderPosition: 0.0)
+            revealSlider(named: "Side margins", in: app).adjust(toNormalizedSliderPosition: 0.0)
             app.buttons["Done"].tap()
         }
         XCUIDevice.shared.orientation = .portrait

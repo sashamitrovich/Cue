@@ -63,6 +63,10 @@ final class TeleprompterState: ObservableObject {
     @Published var countdownSeconds: Int = 3
     /// Whether the timing readout is shown over the prompter.
     @Published var showTiming: Bool = true
+    /// Whether spoken instructions ("scroll up") steer the prompter.
+    @Published var voiceCommandsEnabled: Bool = true
+    /// The dimmest already-read text is drawn — see `ReadTextFade`.
+    @Published var readTextFloor: Double = ReadTextFade.defaultFloor
 
     static let countdownOptions = [0, 3, 5, 10]
 
@@ -125,6 +129,32 @@ final class TeleprompterState: ObservableObject {
         words = flat
         lines = built
         activeIndex = 0
+    }
+
+    /// Moves the cursor by whole lines, for "scroll up" / "scroll down".
+    ///
+    /// Lines rather than words because that is what a reader means by going
+    /// back: the unit you re-read is a line, and landing mid-sentence would be
+    /// worse than not moving. Blank lines are skipped — they are ad-lib space,
+    /// not something to land on.
+    func moveCursor(lines delta: Int) {
+        guard !words.isEmpty, delta != 0 else { return }
+        let populated = lines.filter { !$0.isBlank }
+        guard !populated.isEmpty else { return }
+
+        let current = populated.lastIndex { line in
+            (line.words.first?.id ?? 0) <= activeIndex
+        } ?? 0
+        let target = min(max(current + delta, 0), populated.count - 1)
+        activeIndex = populated[target].words.first?.id ?? 0
+    }
+
+    /// The normalized words at and just after the cursor, so a spoken command
+    /// can be checked against what the script actually says next.
+    func upcomingWords(_ count: Int) -> [String] {
+        guard !words.isEmpty else { return [] }
+        let start = min(max(activeIndex, 0), words.count - 1)
+        return words[start..<min(start + count, words.count)].map(\.norm)
     }
 
     static func normalize(_ s: String) -> String {

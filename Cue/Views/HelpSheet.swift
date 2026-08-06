@@ -32,6 +32,7 @@ struct HelpSheet: View {
                 }
 
                 Section("In the prompter") {
+                    explain("Saying \"scroll up\"", "Steps the script back one line without touching the phone, and moves the cursor with it so the line reads as unread again. Say it twice to go back two. \"Scroll down\" steps forward. The words themselves are never read as part of your script.")
                     explain("Listen / Pause", "Starts and stops voice tracking. Pausing keeps your place and stops the clock.")
                     explain("Restart", "Jumps back to the first word and starts the timing over.")
                     explain("Record", "Records a take from the front camera. The recording is saved to Photos when you stop.")

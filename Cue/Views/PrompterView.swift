@@ -42,6 +42,8 @@ struct PrompterView: View {
     @State private var chromeHideAt: Date?
     /// Grows the handle while it's being dragged, so it's obvious what moved.
     @State private var isDraggingLine = false
+    /// Intercepts spoken commands before the matcher sees the words.
+    @State private var commandDetector = VoiceCommandDetector()
 
     static let railWidth: CGFloat = 56
     /// Breathing room for the rail on a screen edge with no cutout of its own.
@@ -133,7 +135,22 @@ struct PrompterView: View {
                 recomputeTarget(cueY: cueY)
                 speech.onTranscript = { words in
                     lastVoiceTime = Date()
-                    state.ingest(transcriptWords: words)
+                    guard state.voiceCommandsEnabled else {
+                        state.ingest(transcriptWords: words)
+                        return
+                    }
+                    // Commands are pulled out first and their words swallowed:
+                    // matching "scroll up" against the script would drag the
+                    // cursor forward, fighting the jump the command just made.
+                    let heard = commandDetector.process(
+                        words, scriptAhead: state.upcomingWords(4)
+                    )
+                    for command in heard.commands {
+                        state.moveCursor(lines: command.lineOffset)
+                    }
+                    if !heard.passthrough.isEmpty {
+                        state.ingest(transcriptWords: heard.passthrough)
+                    }
                 }
                 if state.cameraEnabled {
                     camera.configureAndStart()
@@ -790,6 +807,7 @@ struct PrompterView: View {
     }
 
     private func pauseTake() {
+        commandDetector.reset()
         countdownDeadline = nil
         state.isListening = false
         clock.pause(at: Date())
@@ -913,12 +931,13 @@ private struct ScrollFlow: View {
     @ViewBuilder
     private func wordView(_ word: ScriptWord) -> some View {
         let wordState = state.state(for: word.id)
+        let wordsBehind = state.activeIndex - word.id
         // System type, not a serif: SF is drawn for screen legibility at a
         // glance, which is the whole job here — you read this in your
         // peripheral vision while looking at a lens.
         Text(word.raw)
             .font(.system(size: state.fontSize, weight: wordState == .spoken ? .semibold : .bold, design: .default))
-            .foregroundStyle(color(for: wordState))
+            .foregroundStyle(color(for: wordState, wordsBehind: wordsBehind))
             // Words sit over live video, so they need their own dark halo — a
             // flat colour alone disappears against faces, windows, and
             // anything else bright behind them.
@@ -934,12 +953,15 @@ private struct ScrollFlow: View {
             )
     }
 
-    private func color(for wordState: WordState) -> Color {
+    private func color(for wordState: WordState, wordsBehind: Int) -> Color {
         switch wordState {
-        // Already-read text drops well back so progress is obvious at a glance,
-        // the current word is picked out in the accent colour, and what's still
-        // to read stays at full brightness because that's what's being read.
-        case .spoken: return Color(white: 0.42)
+        // Read text fades with distance rather than dropping to one flat grey,
+        // so the line just spoken can still be read from across a room; the
+        // current word is picked out in the accent colour, and what's still to
+        // read stays at full brightness because that's what's being read.
+        case .spoken:
+            return Color(white: ReadTextFade.brightness(
+                wordsBehind: wordsBehind, floor: state.readTextFloor))
         case .active: return PrompterView.accent
         case .upcoming: return Color(white: 0.97)
         }

@@ -22,6 +22,7 @@ struct PrompterControlsSheet: View {
             Form {
                 readingSection
                 timingSection
+                voiceSection
                 if state.cameraEnabled {
                     legibilitySection
                     qualitySection
@@ -65,6 +66,13 @@ struct PrompterControlsSheet: View {
                 icons: ("textformat.size.smaller", "textformat.size.larger")
             )
             labelledSlider(
+                "Read text",
+                value: $state.readTextFloor,
+                range: ReadTextFade.floorRange,
+                display: "\(Int(state.readTextFloor * 100))%",
+                icons: ("circle.dotted", "circle.fill")
+            )
+            labelledSlider(
                 "Side margins",
                 value: $state.sideMargin,
                 range: ScriptMargins.range,
@@ -85,7 +93,7 @@ struct PrompterControlsSheet: View {
             // Adjusted here rather than before starting, because these are the
             // settings whose effect you can only judge by looking at the
             // script — which is visible behind this sheet.
-            Text("Side margins add to whatever the screen already needs, so the script never intrudes into a notch. Wider margins give shorter lines, which are easier to catch at a glance. Keep the reading line high on the screen so your eyes stay near the lens. Idle drift creeps the script upward while you're silent — leave it off unless recognition keeps losing you, since it works against deliberate pauses. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
+            Text("Read text fades with distance behind you, so the line you just said stays legible if you want it again — Read text sets how dim the oldest text goes. Side margins add to whatever the screen already needs, so the script never intrudes into a notch. Wider margins give shorter lines, which are easier to catch at a glance. Keep the reading line high on the screen so your eyes stay near the lens. Idle drift creeps the script upward while you're silent — leave it off unless recognition keeps losing you, since it works against deliberate pauses. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
         }
     }
 
@@ -112,6 +120,18 @@ struct PrompterControlsSheet: View {
             Text("Timing")
         } footer: {
             Text("Your target pace drives the estimate until you've read enough of a take for On Cue to measure your real one.")
+        }
+    }
+
+    // MARK: - Voice control
+
+    private var voiceSection: some View {
+        Section {
+            Toggle("Voice commands", isOn: $state.voiceCommandsEnabled)
+        } header: {
+            Text("Voice control")
+        } footer: {
+            Text("Say \"scroll up\" to step back a line, or \"scroll down\" to step forward — repeat to go further. Command words are not read as script. If your script itself says one of these phrases at that point, it is read rather than obeyed; turn this off if it still gets in the way.")
         }
     }
 
