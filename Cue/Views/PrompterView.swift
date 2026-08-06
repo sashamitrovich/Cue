@@ -82,17 +82,12 @@ struct PrompterView: View {
                 cameraLayer
                 scriptLayer(geo: geo, insets: insets, cueY: cueY)
 
-                // Chrome. Everything here fades together during a take.
+                // The status bar is information — where you are, how long is
+                // left, whether it's recording — and stays put through a take.
+                // Only the buttons fade, because only the buttons are in the
+                // way. Hiding the readout meant touching the screen to find
+                // out where you were, which defeats a hands-free prompter.
                 chrome(geo: geo, insets: insets)
-                    .opacity(chromeVisible ? 1 : 0)
-                    .allowsHitTesting(chromeVisible)
-
-                // The one thing that must never hide: proof you're recording.
-                if camera.isRecording && !chromeVisible {
-                    recordingBadge
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .padding(.top, insets.top + 8)
-                }
 
                 if let remaining = countdownRemaining {
                     countdownOverlay(remaining)
@@ -146,7 +141,17 @@ struct PrompterView: View {
                         words, scriptAhead: state.upcomingWords(4)
                     )
                     for command in heard.commands {
-                        state.moveCursor(lines: command.lineOffset)
+                        // Rows as drawn, not lines as typed: a paragraph wraps
+                        // into many rows on screen, and stepping by typed line
+                        // jumped the whole paragraph.
+                        if let target = VisualLines.wordStepping(
+                            command.lineOffset, from: state.activeIndex,
+                            frames: wordFrames, tolerance: state.fontSize * 0.5
+                        ) {
+                            state.activeIndex = target
+                        } else {
+                            state.moveCursor(lines: command.lineOffset)
+                        }
                     }
                     if !heard.passthrough.isEmpty {
                         state.ingest(transcriptWords: heard.passthrough)
@@ -409,6 +414,7 @@ struct PrompterView: View {
                 }
                 if !isLandscape {
                     controlBar(insets: insets)
+                        .modifier(FadingControls(visible: chromeVisible))
                 }
             }
 
@@ -418,6 +424,7 @@ struct PrompterView: View {
                     Spacer(minLength: 0)
                     if !railOnLeading { controlRail(insets: insets) }
                 }
+                .modifier(FadingControls(visible: chromeVisible))
             }
         }
     }
@@ -889,6 +896,18 @@ struct PrompterView: View {
 
     private func timeString(_ seconds: Int) -> String {
         String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+/// Fades a control out of the way during a take, and takes it out of the
+/// hit-testing while hidden so an invisible button can't be tapped.
+private struct FadingControls: ViewModifier {
+    let visible: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(visible ? 1 : 0)
+            .allowsHitTesting(visible)
     }
 }
 

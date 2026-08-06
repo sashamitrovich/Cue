@@ -92,6 +92,12 @@ This is how a scrim that appeared correct in code but rendered at ~30% of intend
 
 ## Invariants that are easy to break
 
+**Voice commands step *drawn* rows, not typed lines.** `lines` groups words as typed, so a paragraph is one line — stepping by it jumped a whole paragraph. `VisualLines` works from the measured word frames instead, which is the only thing that knows where the rows fall on screen; it falls back to typed lines only when nothing has been measured.
+
+**Command matching is deliberately looser than script matching.** A short phrase has no surrounding context to disambiguate it, so recognition of "scroll up" is *harder* than of the script around it — markedly so in an accent, which is how this was found. `VoiceCommandDetector.matches` allows prefixes and an edit distance of two, but only for words of five letters or more: "up" must never fuzzy-match "on". The request also carries `contextualStrings` to bias recognition toward the command phrases.
+
+**The status bar does not auto-hide.** Only the buttons fade during a take. Where you are, how long is left and whether the camera is rolling are needed *while* reading; hiding them meant touching the screen to find out, which defeats a hands-free prompter.
+
 **Never feed the cumulative transcript to the matcher.** `SFSpeechRecognitionResult.bestTranscription.formattedString` repeats everything said so far on every partial result. `TranscriptDeltaTracker` reduces it to newly appended words. Passing the whole transcript makes the cursor lurch forward, because each already-consumed word gets another chance to match ahead.
 
 **Filler words must not match far ahead.** `TeleprompterState.filler` words only match within `fillerReach` of the cursor. Common words recur throughout any script, and letting them match anywhere in the look-ahead window is the other cause of jumping. Distinctive words keep full window reach — that is how the matcher recovers from genuinely missed words.

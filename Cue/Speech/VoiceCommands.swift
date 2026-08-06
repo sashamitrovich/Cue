@@ -31,9 +31,45 @@ enum VoiceCommand: Equatable {
 final class VoiceCommandDetector {
     private static let phrases: [([String], VoiceCommand)] = [
         (["scroll", "up"], .back),
-        (["scroll", "down"], .forward)
+        (["scroll", "back"], .back),
+        (["go", "back"], .back),
+        (["scroll", "down"], .forward),
+        (["go", "on"], .forward)
     ]
     private static let longestPhrase = 2
+
+    /// Command words are matched loosely, like script words are.
+    ///
+    /// Recognition of a short phrase is *harder* than of running speech — it
+    /// has no surrounding context to disambiguate — so requiring an exact
+    /// match made commands the strictest thing in the app, which is backwards.
+    /// "scrawl up" and "scrolled up" should steer the prompter.
+    static func matches(_ heard: String, _ expected: String) -> Bool {
+        if heard == expected { return true }
+        // Same prefix rule the script matcher uses.
+        if expected.count > 3 && (heard.hasPrefix(expected) || expected.hasPrefix(heard)) { return true }
+        // One or two letters out, for longer words only — "up" must not match
+        // "on", or every other word would be a command.
+        guard expected.count >= 5 else { return false }
+        return editDistance(heard, expected) <= 2
+    }
+
+    private static func editDistance(_ a: String, _ b: String) -> Int {
+        let a = Array(a), b = Array(b)
+        if a.isEmpty { return b.count }
+        if b.isEmpty { return a.count }
+        var previous = Array(0...b.count)
+        var current = [Int](repeating: 0, count: b.count + 1)
+        for i in 1...a.count {
+            current[0] = i
+            for j in 1...b.count {
+                let cost = a[i - 1] == b[j - 1] ? 0 : 1
+                current[j] = min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost)
+            }
+            previous = current
+        }
+        return previous[b.count]
+    }
 
     /// Words held back because they might be the start of a command.
     private var held: [String] = []
@@ -52,7 +88,7 @@ final class VoiceCommandDetector {
         held = []
 
         while !buffer.isEmpty {
-            if let (phrase, command) = Self.phrases.first(where: { buffer.starts(with: $0.0) }) {
+            if let (phrase, command) = Self.phrases.first(where: { starts(buffer, with: $0.0) }) {
                 if scriptSays(phrase, scriptAhead: scriptAhead) {
                     // The script really does say this — read it, don't obey it.
                     passthrough.append(buffer.removeFirst())
@@ -64,7 +100,9 @@ final class VoiceCommandDetector {
             }
             // Could this still become a command once more words arrive?
             if buffer.count < Self.longestPhrase,
-               Self.phrases.contains(where: { $0.0.starts(with: buffer) }) {
+               Self.phrases.contains(where: { phrase in
+                   zip(phrase.0, buffer).allSatisfy { Self.matches($1, $0) }
+               }) {
                 held = buffer
                 break
             }
@@ -77,6 +115,11 @@ final class VoiceCommandDetector {
     /// doesn't reappear at the start of the next take.
     func reset() {
         held = []
+    }
+
+    private func starts(_ buffer: [String], with phrase: [String]) -> Bool {
+        guard buffer.count >= phrase.count else { return false }
+        return zip(phrase, buffer).allSatisfy { Self.matches($1, $0) }
     }
 
     private func scriptSays(_ phrase: [String], scriptAhead: [String]) -> Bool {

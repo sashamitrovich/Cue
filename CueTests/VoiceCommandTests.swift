@@ -75,6 +75,32 @@ final class VoiceCommandDetectorTests: XCTestCase {
         XCTAssertEqual(result.commands, [.back])
     }
 
+    func testMisheardCommandsStillWork() {
+        // Recognition of a short phrase is harder than of running speech, and
+        // harder still in an accent — the reason exact matching failed on
+        // device while the script itself matched fine.
+        XCTAssertEqual(VoiceCommandDetector().process(["scrawl", "up"]).commands, [.back],
+                       "a near-miss on the command word should still steer")
+        XCTAssertEqual(VoiceCommandDetector().process(["scrolled", "up"]).commands, [.back])
+        XCTAssertEqual(VoiceCommandDetector().process(["scroll", "back"]).commands, [.back])
+        XCTAssertEqual(VoiceCommandDetector().process(["go", "back"]).commands, [.back])
+    }
+
+    func testOrdinaryWordsAreNotMistakenForCommands() {
+        // The looseness must not turn normal speech into steering.
+        for words in [["so", "on"], ["up", "front"], ["going", "up"], ["scroll"]] {
+            let result = VoiceCommandDetector().process(words + ["afterwards"])
+            XCTAssertTrue(result.commands.isEmpty, "\(words) should not be a command")
+        }
+    }
+
+    func testShortWordsAreMatchedStrictly() {
+        // "up" must not fuzzy-match "on", or every sentence would steer.
+        XCTAssertTrue(VoiceCommandDetector.matches("up", "up"))
+        XCTAssertFalse(VoiceCommandDetector.matches("on", "up"))
+        XCTAssertFalse(VoiceCommandDetector.matches("out", "up"))
+    }
+
     func testResetDropsAnyHeldWord() {
         _ = detector.process(["scroll"])
         detector.reset()

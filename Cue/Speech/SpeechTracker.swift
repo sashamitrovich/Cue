@@ -82,6 +82,10 @@ final class SpeechTracker: NSObject, ObservableObject {
 
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
+        // Tell the recogniser these phrases are expected. Short commands have
+        // no surrounding context to disambiguate them, which is why they come
+        // back less reliably than the script does — especially in an accent.
+        req.contextualStrings = ["scroll up", "scroll down", "scroll back", "go back", "go on"]
         if preferOnDevice && recognizer.supportsOnDeviceRecognition {
             req.requiresOnDeviceRecognition = true
         }
