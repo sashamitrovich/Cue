@@ -31,8 +31,14 @@ struct HelpSheet: View {
                     explain("Countdown", "A pre-roll before listening starts, so you can check your framing and settle before you speak. Tap anywhere to cancel it.")
                 }
 
+                Section("Voice commands") {
+                    explain("\"scroll up\" or \"go back\"", "Steps the script back one line on screen and moves the cursor with it, so that line reads as unread again. Say it again to go back further.")
+                    explain("\"scroll down\" or \"go on\"", "Steps forward one line, the same way.")
+                    explain("They are never read aloud as script", "Command words are taken out before the script is matched, so saying one never moves your place forward by accident. If your script itself says one of these phrases at that point, it is read rather than obeyed.")
+                    explain("If they don't come through", "Say the phrase as one unit, at your normal volume. Recognition of a short command is harder than of running speech, because there is no surrounding sentence to go on. You can switch them off in Prompter settings.")
+                }
+
                 Section("In the prompter") {
-                    explain("Saying \"scroll up\"", "Steps the script back one line on screen without touching the phone, and moves the cursor with it so the line reads as unread again. Say it again to go back further. \"Scroll down\" steps forward, and \"go back\" works too. The words themselves are never read as part of your script.")
                     explain("Listen / Pause", "Starts and stops voice tracking. Pausing keeps your place and stops the clock.")
                     explain("Restart", "Jumps back to the first word and starts the timing over.")
                     explain("Record", "Records a take from the front camera. The recording is saved to Photos when you stop.")

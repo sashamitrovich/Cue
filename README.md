@@ -20,6 +20,19 @@ Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription a
 - **Keeps your formatting.** Line breaks and blank lines carry over from the editor, so you can leave deliberate gaps as ad-lib room.
 - **Imports scripts** from Files or iCloud Drive (`.txt`, `.md`, `.rtf`), or by sharing text to On Cue from any app — Notes, Mail, Drive. Shared scripts are offered on your next visit rather than overwriting what you were working on.
 - **Manual mode** for dragging through the script by hand when you would rather not be tracked.
+
+### Voice commands
+
+Re-read a line without touching the phone. Say:
+
+| Say | What happens |
+| --- | --- |
+| **"scroll up"** or **"go back"** | Steps back one line *as drawn on screen*, and moves the cursor with it so that line counts as unread again |
+| **"scroll down"** or **"go on"** | Steps forward one line the same way |
+
+Repeat a command to go further. The words are removed before the script is matched, so saying one never advances your place by accident — and if your script genuinely says the phrase at that point, it is read rather than obeyed. There's a **Voice commands** toggle in Prompter settings.
+
+Short commands are harder for speech recognition than running speech is, because there's no surrounding sentence for context. On Cue tells the recogniser to expect these phrases and matches them loosely, but if one still gets missed, say it as a single unit at your normal volume.
 - **Works sideways.** Turn the phone and the take controls move to a rail on the edge they were already on, instead of a bottom bar eating the vertical space landscape can least afford.
 
 ## Requirements

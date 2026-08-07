@@ -44,6 +44,10 @@ struct PrompterView: View {
     @State private var isDraggingLine = false
     /// Intercepts spoken commands before the matcher sees the words.
     @State private var commandDetector = VoiceCommandDetector()
+    /// Shown once, the first time a take starts: voice commands are otherwise
+    /// invisible — nothing on screen suggests the prompter takes instructions.
+    @State private var showVoiceTip = false
+    private let tips = FirstRunTips()
 
     static let railWidth: CGFloat = 56
     /// Breathing room for the rail on a screen edge with no cutout of its own.
@@ -89,6 +93,10 @@ struct PrompterView: View {
                 // out where you were, which defeats a hands-free prompter.
                 chrome(geo: geo, insets: insets)
 
+                if showVoiceTip {
+                    voiceCommandTip(insets: insets)
+                }
+
                 if let remaining = countdownRemaining {
                     countdownOverlay(remaining)
                 }
@@ -99,6 +107,7 @@ struct PrompterView: View {
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.28), value: isLandscape)
             .animation(.easeInOut(duration: 0.25), value: chromeVisible)
+            .animation(.easeInOut(duration: 0.3), value: showVoiceTip)
             .contentShape(Rectangle())
             .onTapGesture { revealChrome(toggle: true) }
             .gesture(
@@ -717,6 +726,26 @@ struct PrompterView: View {
         .accessibilityLabel(label)
     }
 
+    /// A one-time hint that the prompter takes spoken instructions. Sits
+    /// under the status bar rather than over the script, and fades on its own.
+    private func voiceCommandTip(insets: EdgeInsets) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "waveform")
+            Text("Say **\"scroll up\"** to go back a line")
+        }
+        .font(.footnote)
+        .foregroundStyle(.white.opacity(0.9))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().stroke(.white.opacity(0.14), lineWidth: 0.5))
+        .padding(.top, insets.top + chromeTopInset(insets: insets) - insets.top + 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .transition(.opacity)
+        .allowsHitTesting(false)
+        .accessibilityLabel("Tip: say scroll up to go back a line")
+    }
+
     /// Pre-roll before a take. Full screen and tap-anywhere-to-cancel, so a
     /// mistimed start doesn't send you hunting for a small button.
     @ViewBuilder
@@ -806,6 +835,11 @@ struct PrompterView: View {
 
     private func startListeningNow() {
         countdownDeadline = nil
+        if tips.shouldShowVoiceCommandTip(commandsEnabled: state.voiceCommandsEnabled) {
+            showVoiceTip = true
+            tips.markVoiceCommandTipSeen()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6) { showVoiceTip = false }
+        }
         state.isListening = true
         lastVoiceTime = Date()
         clock.start(at: Date())
