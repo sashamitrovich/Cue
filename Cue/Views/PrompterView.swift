@@ -1015,6 +1015,11 @@ private struct ScrollFlow: View {
             // anything else bright behind them.
             .shadow(color: .black.opacity(0.9), radius: 2, x: 0, y: 1)
             .shadow(color: .black.opacity(0.6), radius: 8)
+            // Reserve the word's width at its widest (bold) rendering. Without
+            // this, a word narrowing to semibold the moment it's marked spoken
+            // frees up row space, and FlowLayout can pull the next — still
+            // unread — word up onto the row above, mid-take.
+            .frame(width: Self.boldWidth(word.raw, fontSize: state.fontSize), alignment: .leading)
             .background(
                 GeometryReader { g in
                     Color.clear.preference(
@@ -1037,5 +1042,18 @@ private struct ScrollFlow: View {
         case .active: return PrompterView.accent
         case .upcoming: return Color(white: 0.97)
         }
+    }
+
+    /// Per-type so it survives this struct being recreated every render;
+    /// bounded in practice by (unique words) × (font sizes the slider offers).
+    private static var boldWidthCache: [String: CGFloat] = [:]
+
+    private static func boldWidth(_ text: String, fontSize: CGFloat) -> CGFloat {
+        let key = "\(fontSize)_\(text)"
+        if let cached = boldWidthCache[key] { return cached }
+        let font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
+        let width = (text as NSString).size(withAttributes: [.font: font]).width
+        boldWidthCache[key] = width
+        return width
     }
 }
