@@ -119,6 +119,13 @@ struct PrompterView: View {
                     .onEnded { _ in
                         guard state.manualMode else { return }
                         dragStartOffset = targetOffset
+                        // Wherever the drag stopped becomes the reading
+                        // position, so pausing to record a later scene and
+                        // scrolling ahead to it picks tracking back up there
+                        // instead of where it was left off.
+                        if let target = VisualLines.nearestRowStart(toFlowY: cueY - targetOffset, frames: wordFrames) {
+                            state.activeIndex = target
+                        }
                     }
             )
             .onAppear {

@@ -13,6 +13,11 @@ struct SetupView: View {
     @State private var showHelp = false
     @State private var importError: String?
     @State private var sharedScript: (name: String, text: String)?
+    /// The file currently backing the editor, if any — set on Open, cleared
+    /// when the script comes from somewhere else (typed fresh, or a shared
+    /// script). `nil` just means "typed in the app," not an error.
+    @State private var openedFileURL: URL?
+    @State private var pendingSave: DispatchWorkItem?
     @FocusState private var editorFocused: Bool
     @Environment(\.scenePhase) private var scenePhase
 
@@ -29,22 +34,34 @@ struct SetupView: View {
         state.scriptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// `nil` (typed fresh, or a shared script) always counts as editable —
+    /// there's nowhere to fail to save to.
+    private var currentFileIsEditable: Bool {
+        guard let openedFileURL else { return true }
+        return ScriptImporter.isEditable(fileExtension: openedFileURL.pathExtension)
+    }
+
     var body: some View {
         NavigationStack {
-            GeometryReader { geo in
-                ScrollView {
-                    VStack(spacing: 22) {
-                        editorCard(height: min(max(geo.size.height * 0.28, 130), 300))
-                        startButton
-                        cameraNotice
-                        footnote
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 4)
-                    .padding(.bottom, 32)
+            // No outer ScrollView: the editor takes a `maxHeight: .infinity`
+            // slice of whatever's left after the fixed-height controls below
+            // it, so it's as big as the screen allows. While the keyboard is
+            // up those controls would otherwise eat the little room the
+            // keyboard leaves, so they step aside entirely rather than just
+            // shrinking the editor further — editing is the only thing to
+            // do with the keyboard up anyway.
+            VStack(spacing: 22) {
+                editorCard()
+                if !editorFocused {
+                    startButton
+                    cameraNotice
+                    footnote
                 }
-                .scrollDismissesKeyboard(.interactively)
             }
+            .animation(.easeInOut(duration: 0.2), value: editorFocused)
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
+            .padding(.bottom, 12)
             .background(Color(.systemBackground))
             .navigationTitle("On Cue")
             .toolbar {
@@ -78,6 +95,8 @@ struct SetupView: View {
             set: { if !$0 { sharedScript = nil } }
         ), presenting: sharedScript) { shared in
             Button("Use It") {
+                pendingSave?.cancel()
+                openedFileURL = nil
                 state.scriptText = shared.text
                 SharedScriptInbox()?.clear()
                 sharedScript = nil
@@ -95,18 +114,21 @@ struct SetupView: View {
             // hand-off is checked on every return to the foreground.
             if phase == .active { collectSharedScript() }
         }
+        .onChange(of: state.scriptText) { _ in
+            scheduleAutosave()
+        }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: importableTypes,
             allowsMultipleSelection: false
         ) { result in
-            handleImport(result)
+            handleOpen(result)
         }
     }
 
     // MARK: - Script
 
-    private func editorCard(height: CGFloat) -> some View {
+    private func editorCard() -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Script")
@@ -115,20 +137,34 @@ struct SetupView: View {
                 Button {
                     showImporter = true
                 } label: {
-                    Label("Import", systemImage: "square.and.arrow.down")
+                    Label("Open", systemImage: "folder")
                         .font(.subheadline)
                 }
             }
 
-            // Sized from live geometry so the start button lands above the
-            // fold on every phone; the editor scrolls internally.
+            // Fills whatever's left above the start button and the fixed
+            // notices below it, rather than a fraction of the screen — this
+            // is the thing the screen is for.
             TextEditor(text: $state.scriptText)
                 .focused($editorFocused)
                 .font(.body)
                 .scrollContentBackground(.hidden)
                 .padding(10)
-                .frame(height: height)
+                .frame(maxHeight: .infinity)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .disabled(!currentFileIsEditable)
+
+            if let openedFileURL {
+                Label(
+                    currentFileIsEditable
+                        ? "Editing \(openedFileURL.lastPathComponent) — changes save automatically"
+                        : "\(openedFileURL.lastPathComponent) can't be edited here",
+                    systemImage: currentFileIsEditable ? "checkmark.circle" : "lock.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            }
 
             if let importError {
                 Label(importError, systemImage: "exclamationmark.triangle.fill")
@@ -213,9 +249,9 @@ struct SetupView: View {
         sharedScript = pending
     }
 
-    // MARK: - Import
+    // MARK: - Open
 
-    private func handleImport(_ result: Result<[URL], Error>) {
+    private func handleOpen(_ result: Result<[URL], Error>) {
         importError = nil
         switch result {
         case .failure(let error):
@@ -233,10 +269,38 @@ struct SetupView: View {
                     importError = "\(url.lastPathComponent) didn't contain any readable text."
                     return
                 }
+                pendingSave?.cancel()
+                openedFileURL = url
                 state.scriptText = text
             } catch {
                 importError = "Couldn't read \(url.lastPathComponent): \(error.localizedDescription)"
             }
+        }
+    }
+
+    // MARK: - Autosave
+
+    /// Debounced rather than a write per keystroke — a fast typist would
+    /// otherwise hit the disk (through a security-scoped access grant, not a
+    /// free operation) dozens of times a second for no benefit, since only
+    /// the latest text ever matters.
+    private func scheduleAutosave() {
+        pendingSave?.cancel()
+        guard let url = openedFileURL, currentFileIsEditable else { return }
+        let text = state.scriptText
+        let work = DispatchWorkItem { [self] in save(text, to: url) }
+        pendingSave = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+    }
+
+    private func save(_ text: String, to url: URL) {
+        guard let data = ScriptImporter.data(from: text, fileExtension: url.pathExtension) else { return }
+        let needsScope = url.startAccessingSecurityScopedResource()
+        defer { if needsScope { url.stopAccessingSecurityScopedResource() } }
+        do {
+            try data.write(to: url, options: .atomic)
+        } catch {
+            importError = "Couldn't save to \(url.lastPathComponent): \(error.localizedDescription)"
         }
     }
 }

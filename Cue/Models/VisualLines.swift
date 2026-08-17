@@ -53,4 +53,19 @@ enum VisualLines {
         let target = min(max(currentRow + delta, 0), rows.count - 1)
         return rows[target].first
     }
+
+    /// The first word of whichever row sits closest to `flowY` — the row a
+    /// manually-scrolled reading line is now pointing at. Used to pick up
+    /// tracking from wherever the user dragged to, rather than from
+    /// wherever it was left before they went manual.
+    static func nearestRowStart(toFlowY flowY: CGFloat, frames: [Int: CGRect], tolerance: CGFloat = 12) -> Int? {
+        let grouped = rows(from: frames, tolerance: tolerance)
+        guard !grouped.isEmpty else { return nil }
+        func rowMidY(_ row: [Int]) -> CGFloat {
+            let ys = row.compactMap { frames[$0]?.midY }
+            return ys.reduce(0, +) / CGFloat(max(ys.count, 1))
+        }
+        let closest = grouped.min { abs(rowMidY($0) - flowY) < abs(rowMidY($1) - flowY) }
+        return closest?.first
+    }
 }

@@ -15,11 +15,11 @@ Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription a
 - **Counts you in.** An optional 3, 5 or 10 second pre-roll before listening starts, so you can settle and find the lens. Tap anywhere to cancel it.
 - **Adapts to the device.** Zoom, HDR, stabilisation and low-light boost appear as controls only if the connected iPhone's front camera actually supports them. Recording quality is a Camera.app-style pair of toggles — HD or 4K, and the frame rates that size offers (24/25/30/60, as far as the camera supports) — right on the prompter.
 - **Gets out of the way.** Once a take is running the controls fade, leaving the script the whole screen; a tap anywhere brings them back. The recording indicator never hides.
-- **Set to your eyes.** Text size, side margins, alignment and the reading line all adjust from the prompter, where you can see the script change as you drag.
+- **Set to your eyes.** Text size, side margins, left/center/right/justified alignment and the reading line all adjust from the prompter, where you can see the script change as you drag.
 - **Stays readable over video.** Adjustable text opacity and camera dimming, with per-word contrast shadows so words survive against a bright background.
 - **Keeps your formatting.** Line breaks and blank lines carry over from the editor, so you can leave deliberate gaps as ad-lib room.
-- **Imports scripts** from Files or iCloud Drive (`.txt`, `.md`, `.rtf`), or by sharing text to On Cue from any app — Notes, Mail, Drive. Shared scripts are offered on your next visit rather than overwriting what you were working on.
-- **Manual mode** for dragging through the script by hand when you would rather not be tracked.
+- **Opens and edits scripts.** The setup screen's editor fills nearly the whole screen (and steps its controls aside entirely once the keyboard is up), and doubles as a real editor for anything opened from Files or iCloud Drive (`.txt`, `.md`, `.rtf`) — edits save back to the file automatically as you type. Scripts can also arrive by sharing text to On Cue from any app — Notes, Mail, Drive; shared scripts are offered on your next visit rather than overwriting what you were working on.
+- **Manual mode** for dragging through the script by hand when you'd rather not be tracked — release the drag and the cursor snaps to that line, so pausing to scroll ahead to a later scene and resuming picks tracking back up from there instead of wherever it was left off.
 
 ### Voice commands
 
