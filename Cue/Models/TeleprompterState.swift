@@ -48,43 +48,97 @@ final class TeleprompterState: ObservableObject {
     /// The same words grouped as typed, so layout can honour line breaks.
     @Published var lines: [ScriptLine] = []
     @Published var activeIndex: Int = 0
-    @Published var fontSize: CGFloat = 32
-    @Published var driftIndex: Int = 0
-    @Published var mirror: Bool = false
-    @Published var textAlignment: ScriptAlignment = .leading
+    @Published var fontSize: CGFloat = 32 {
+        didSet { if persistsSettings { settings.set(.fontSize, Double(fontSize)) } }
+    }
+    @Published var driftIndex: Int = 0 {
+        didSet { if persistsSettings { settings.set(.driftIndex, driftIndex) } }
+    }
+    @Published var mirror: Bool = false {
+        didSet { if persistsSettings { settings.set(.mirror, mirror) } }
+    }
+    @Published var textAlignment: ScriptAlignment = .leading {
+        didSet { if persistsSettings { settings.set(.textAlignment, textAlignment.rawValue) } }
+    }
     /// Recording yourself is the common case, so the camera starts on and is
     /// turned off from the prompter, where you can see what it does.
     /// UI tests opt out: the simulator has no camera, and the permission
     /// prompt would block the run.
-    @Published var cameraEnabled: Bool = !ProcessInfo.processInfo.arguments.contains("-uiTestingNoCamera")
+    @Published var cameraEnabled: Bool = !ProcessInfo.processInfo.arguments.contains("-uiTestingNoCamera") {
+        didSet { if persistsSettings { settings.set(.cameraEnabled, cameraEnabled) } }
+    }
     @Published var manualMode: Bool = false
     /// How opaque the scrolling script text is, so the camera feed behind it
     /// can show through more or less — 1.0 is fully opaque text, lower
     /// values let more of the live camera preview read through.
-    @Published var textOpacity: Double = 1.0
+    @Published var textOpacity: Double = 1.0 {
+        didSet { if persistsSettings { settings.set(.textOpacity, textOpacity) } }
+    }
     /// Where the reading line sits, as a fraction of screen height. Kept high
     /// by default so the words are close to the front lens and your eyes read
     /// near the camera rather than down the screen.
-    @Published var cueLineFraction: Double = 0.18
+    @Published var cueLineFraction: Double = 0.18 {
+        didSet { if persistsSettings { settings.set(.cueLineFraction, cueLineFraction) } }
+    }
     /// How far the script sits from the sides of the screen. A floor, not an
     /// addition — see `ScriptMargins`.
-    @Published var sideMargin: CGFloat = ScriptMargins.default
+    @Published var sideMargin: CGFloat = ScriptMargins.default {
+        didSet { if persistsSettings { settings.set(.sideMargin, Double(sideMargin)) } }
+    }
     /// How much the camera feed is darkened behind the script. Higher values
     /// buy text contrast at the cost of a dimmer preview.
-    @Published var cameraDimming: Double = 0.34
+    @Published var cameraDimming: Double = 0.34 {
+        didSet { if persistsSettings { settings.set(.cameraDimming, cameraDimming) } }
+    }
     @Published var isListening: Bool = false
     /// The delivery pace used to estimate how long the script runs, until
     /// enough of a take has been spoken to measure the real one.
-    @Published var targetWPM: Double = ReadingPace.defaultWPM
+    @Published var targetWPM: Double = ReadingPace.defaultWPM {
+        didSet { if persistsSettings { settings.set(.targetWPM, targetWPM) } }
+    }
     /// Seconds counted down before listening starts, so there's time to settle
     /// and look at the lens. Zero means start immediately.
-    @Published var countdownSeconds: Int = 3
+    @Published var countdownSeconds: Int = 3 {
+        didSet { if persistsSettings { settings.set(.countdownSeconds, countdownSeconds) } }
+    }
     /// Whether the timing readout is shown over the prompter.
-    @Published var showTiming: Bool = true
+    @Published var showTiming: Bool = true {
+        didSet { if persistsSettings { settings.set(.showTiming, showTiming) } }
+    }
     /// Whether spoken instructions ("scroll up") steer the prompter.
-    @Published var voiceCommandsEnabled: Bool = true
+    @Published var voiceCommandsEnabled: Bool = true {
+        didSet { if persistsSettings { settings.set(.voiceCommandsEnabled, voiceCommandsEnabled) } }
+    }
     /// The dimmest already-read text is drawn — see `ReadTextFade`.
-    @Published var readTextFloor: Double = ReadTextFade.defaultFloor
+    @Published var readTextFloor: Double = ReadTextFade.defaultFloor {
+        didSet { if persistsSettings { settings.set(.readTextFloor, readTextFloor) } }
+    }
+
+    private let settings: PrompterSettingsStore
+    /// Off during UI tests (same flag that keeps the camera off for them) so
+    /// a test run always sees compiled-in defaults, never whatever a
+    /// previous run — test or real — left in this simulator's defaults.
+    private let persistsSettings: Bool
+
+    init(settings: PrompterSettingsStore = PrompterSettingsStore()) {
+        self.settings = settings
+        persistsSettings = !ProcessInfo.processInfo.arguments.contains("-uiTestingNoCamera")
+        guard persistsSettings else { return }
+        fontSize = CGFloat(settings.double(.fontSize, default: Double(fontSize)))
+        driftIndex = settings.int(.driftIndex, default: driftIndex)
+        mirror = settings.bool(.mirror, default: mirror)
+        textAlignment = ScriptAlignment(rawValue: settings.string(.textAlignment, default: textAlignment.rawValue)) ?? textAlignment
+        cameraEnabled = settings.bool(.cameraEnabled, default: cameraEnabled)
+        textOpacity = settings.double(.textOpacity, default: textOpacity)
+        cueLineFraction = settings.double(.cueLineFraction, default: cueLineFraction)
+        sideMargin = CGFloat(settings.double(.sideMargin, default: Double(sideMargin)))
+        cameraDimming = settings.double(.cameraDimming, default: cameraDimming)
+        targetWPM = settings.double(.targetWPM, default: targetWPM)
+        countdownSeconds = settings.int(.countdownSeconds, default: countdownSeconds)
+        showTiming = settings.bool(.showTiming, default: showTiming)
+        voiceCommandsEnabled = settings.bool(.voiceCommandsEnabled, default: voiceCommandsEnabled)
+        readTextFloor = settings.double(.readTextFloor, default: readTextFloor)
+    }
 
     static let countdownOptions = [0, 3, 5, 10]
 

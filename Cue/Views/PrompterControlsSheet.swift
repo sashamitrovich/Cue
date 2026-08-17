@@ -66,7 +66,7 @@ struct PrompterControlsSheet: View {
                 icons: ("textformat.size.smaller", "textformat.size.larger")
             )
             labelledSlider(
-                "Read text",
+                "Already read text dimming",
                 value: $state.readTextFloor,
                 range: ReadTextFade.floorRange,
                 display: "\(Int(state.readTextFloor * 100))%",
@@ -98,7 +98,7 @@ struct PrompterControlsSheet: View {
             // Adjusted here rather than before starting, because these are the
             // settings whose effect you can only judge by looking at the
             // script — which is visible behind this sheet.
-            Text("Read text fades with distance behind you, so the line you just said stays legible if you want it again — Read text sets how dim the oldest text goes. Side margins add to whatever the screen already needs, so the script never intrudes into a notch. Wider margins give shorter lines, which are easier to catch at a glance. Keep the reading line high on the screen so your eyes stay near the lens. Idle drift creeps the script upward while you're silent — leave it off unless recognition keeps losing you, since it works against deliberate pauses. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
+            Text("Already-read text fades with distance behind you, so the line you just said stays legible if you want it again — Already read text dimming sets how dim the oldest text goes. Side margins add to whatever the screen already needs, so the script never intrudes into a notch. Wider margins give shorter lines, which are easier to catch at a glance. Keep the reading line high on the screen so your eyes stay near the lens. Idle drift creeps the script upward while you're silent — leave it off unless recognition keeps losing you, since it works against deliberate pauses. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
         }
     }
 

@@ -42,7 +42,7 @@ struct HelpSheet: View {
                     explain("Listen / Pause", "Starts and stops voice tracking. Pausing keeps your place and stops the clock.")
                     explain("Restart", "Jumps back to the first word and starts the timing over.")
                     explain("Record", "Records a take from the front camera. The recording is saved to Photos when you stop.")
-                    explain("Manual", "Turns off voice tracking so you can drag the script with your finger.")
+                    explain("Manual Scrolling", "Turns off voice tracking so you can drag the script with your finger.")
                     explain("Camera", "Turns the live camera view behind the script on or off.")
                     explain("The controls get out of the way", "Once you start speaking, the buttons fade so the script has the whole screen. Tap anywhere to bring them back. The bar at the top stays: where you are, how long is left and whether the camera is rolling are things you need mid-take, not things in your way.")
                     explain("Turning sideways", "In landscape the controls move to a rail on the edge they were already on, so they stay under the same thumb and stop eating the height you need for the script.")

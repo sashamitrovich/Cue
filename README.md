@@ -19,7 +19,9 @@ Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription a
 - **Stays readable over video.** Adjustable text opacity and camera dimming, with per-word contrast shadows so words survive against a bright background.
 - **Keeps your formatting.** Line breaks and blank lines carry over from the editor, so you can leave deliberate gaps as ad-lib room.
 - **Opens and edits scripts.** The setup screen's editor fills nearly the whole screen (and steps its controls aside entirely once the keyboard is up), and doubles as a real editor for anything opened from Files or iCloud Drive (`.txt`, `.md`, `.rtf`) — edits save back to the file automatically as you type. Scripts can also arrive by sharing text to On Cue from any app — Notes, Mail, Drive; shared scripts are offered on your next visit rather than overwriting what you were working on.
-- **Manual mode** for dragging through the script by hand when you'd rather not be tracked — release the drag and the cursor snaps to that line, so pausing to scroll ahead to a later scene and resuming picks tracking back up from there instead of wherever it was left off.
+- **Manual Scrolling** for dragging through the script by hand when you'd rather not be tracked — release the drag and the cursor snaps to that line, so pausing to scroll ahead to a later scene and resuming picks tracking back up from there instead of wherever it was left off.
+- **Record starts the take.** Tapping Record begins listening (after any pre-roll) and starts the camera together — no separate tap needed. Already rehearsing without the camera? Record just adds the camera in without restarting your place; Stop ends both together.
+- **Remembers your settings.** Text size, alignment, margins, dimming, pace, countdown and the other options in Prompter settings carry over to your next launch — only the script and the current take reset.
 
 ### Voice commands
 

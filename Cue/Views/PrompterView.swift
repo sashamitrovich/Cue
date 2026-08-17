@@ -33,6 +33,10 @@ struct PrompterView: View {
     @State private var displayNow = Date()
     /// When the pre-roll countdown ends, or nil when none is running.
     @State private var countdownDeadline: Date?
+    /// Set when Record is tapped while listening hasn't started yet, so
+    /// recording begins the moment listening actually does (after any
+    /// pre-roll) instead of needing a second tap.
+    @State private var pendingRecordOnListen = false
     /// Drives where the take controls live. Sizes still come from the
     /// `GeometryReader`; this is only used to decide *which* edge, which
     /// geometry can't tell us — both landscapes are the same shape.
@@ -618,6 +622,7 @@ struct PrompterView: View {
             guard !state.manualMode else { return }
             if countdownRemaining != nil {
                 countdownDeadline = nil
+                pendingRecordOnListen = false
             } else if state.isListening {
                 pauseTake()
             } else {
@@ -630,10 +635,18 @@ struct PrompterView: View {
                 label: camera.isRecording ? "Stop" : "Record",
                 recording: camera.isRecording
             ) {
-                if camera.isRecording { camera.stopRecording() } else { camera.startRecording() }
+                if camera.isRecording {
+                    camera.stopRecording()
+                    pauseTake()
+                } else if countdownRemaining != nil {
+                    countdownDeadline = nil
+                    pendingRecordOnListen = false
+                } else {
+                    beginRecordingTake()
+                }
             }
         }
-        takeButton(icon: "hand.raised.fill", label: "Manual", on: state.manualMode) {
+        takeButton(icon: "hand.raised.fill", label: "Manual Scrolling", on: state.manualMode) {
             state.manualMode.toggle()
             if state.manualMode {
                 pauseTake()
@@ -825,7 +838,7 @@ struct PrompterView: View {
 
     private var statusText: String {
         if countdownRemaining != nil { return "Get ready…" }
-        if state.manualMode { return "Manual — drag to scroll" }
+        if state.manualMode { return "Manual Scrolling — drag to scroll" }
         return state.isListening ? "Listening" : "Tap play to begin"
     }
 
@@ -837,6 +850,20 @@ struct PrompterView: View {
             countdownDeadline = Date().addingTimeInterval(Double(state.countdownSeconds))
         } else {
             startListeningNow()
+        }
+    }
+
+    /// Record used to need its own separate tap at Listen — recording without
+    /// the script tracking along was never actually useful, so Record now
+    /// starts the take too. Already listening (rehearsing before deciding to
+    /// record) just adds the camera in, without restarting the take.
+    private func beginRecordingTake() {
+        guard !state.manualMode else { return }
+        if state.isListening {
+            camera.startRecording()
+        } else {
+            pendingRecordOnListen = true
+            beginTake()
         }
     }
 
@@ -852,11 +879,16 @@ struct PrompterView: View {
         clock.start(at: Date())
         speech.begin()
         scheduleChromeHide()
+        if pendingRecordOnListen {
+            pendingRecordOnListen = false
+            camera.startRecording()
+        }
     }
 
     private func pauseTake() {
         commandDetector.reset()
         countdownDeadline = nil
+        pendingRecordOnListen = false
         state.isListening = false
         clock.pause(at: Date())
         speech.end()
