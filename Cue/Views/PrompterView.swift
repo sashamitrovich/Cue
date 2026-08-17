@@ -957,15 +957,34 @@ private struct ScrollFlow: View {
     var leadingInset: CGFloat = 0
     var trailingInset: CGFloat = 0
 
+    /// `VStack`/`.frame` only know leading/center/trailing; a justified
+    /// block still reads left-to-right at the block level, since it's each
+    /// wrapped row inside `FlowLayout` that does the stretching.
+    private var horizontalAlignment: HorizontalAlignment {
+        switch state.textAlignment {
+        case .leading, .justified: .leading
+        case .center: .center
+        case .trailing: .trailing
+        }
+    }
+
+    private var frameAlignment: Alignment {
+        switch state.textAlignment {
+        case .leading, .justified: .leading
+        case .center: .center
+        case .trailing: .trailing
+        }
+    }
+
     var body: some View {
-        VStack(alignment: state.centerAlign ? .center : .leading, spacing: state.fontSize * 0.35) {
+        VStack(alignment: horizontalAlignment, spacing: state.fontSize * 0.35) {
             ForEach(state.lines) { line in
                 if line.isBlank {
                     // A blank line in the editor becomes real space here, so
                     // pauses and ad-lib room survive into the prompter.
                     Color.clear.frame(height: state.fontSize * 0.9)
                 } else {
-                    FlowLayout(spacing: 8, lineSpacing: 6) {
+                    FlowLayout(spacing: 8, lineSpacing: 6, alignment: state.textAlignment) {
                         ForEach(line.words) { word in
                             wordView(word)
                         }
@@ -973,7 +992,7 @@ private struct ScrollFlow: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: state.centerAlign ? .center : .leading)
+        .frame(maxWidth: .infinity, alignment: frameAlignment)
         .padding(.leading, leadingInset)
         .padding(.trailing, trailingInset)
         .padding(.top, topInset)

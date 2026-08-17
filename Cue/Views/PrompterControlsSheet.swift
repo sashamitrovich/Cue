@@ -80,7 +80,12 @@ struct PrompterControlsSheet: View {
                 display: state.sideMargin == 0 ? "None" : "+\(Int(state.sideMargin))",
                 icons: ("arrow.right.and.line.vertical.and.arrow.left", "arrow.left.and.line.vertical.and.arrow.right")
             )
-            Toggle("Centre text", isOn: $state.centerAlign)
+            Picker("Text alignment", selection: $state.textAlignment) {
+                ForEach(ScriptAlignment.allCases) { option in
+                    Image(systemName: option.symbolName).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
             Toggle("Mirror", isOn: $state.mirror)
             Picker("Idle drift", selection: $state.driftIndex) {
                 ForEach(Array(TeleprompterState.driftLabels.enumerated()), id: \.offset) { index, label in

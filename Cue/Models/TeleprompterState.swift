@@ -20,6 +20,24 @@ enum WordState {
     case upcoming, active, spoken
 }
 
+/// How script lines are laid out horizontally. `justified` spreads a
+/// wrapped row's words to fill the width, matching print convention (the
+/// last row of a paragraph is left as-is rather than stretched).
+enum ScriptAlignment: String, CaseIterable, Identifiable {
+    case leading, center, trailing, justified
+
+    var id: String { rawValue }
+
+    var symbolName: String {
+        switch self {
+        case .leading: "text.alignleft"
+        case .center: "text.aligncenter"
+        case .trailing: "text.alignright"
+        case .justified: "text.justify"
+        }
+    }
+}
+
 /// Holds the script, playback settings, and the word-matching cursor.
 /// The matching logic in `ingest(transcriptWords:)` is a direct port of the
 /// sliding-window fuzzy matcher from the original web prototype.
@@ -33,7 +51,7 @@ final class TeleprompterState: ObservableObject {
     @Published var fontSize: CGFloat = 32
     @Published var driftIndex: Int = 0
     @Published var mirror: Bool = false
-    @Published var centerAlign: Bool = false
+    @Published var textAlignment: ScriptAlignment = .leading
     /// Recording yourself is the common case, so the camera starts on and is
     /// turned off from the prompter, where you can see what it does.
     /// UI tests opt out: the simulator has no camera, and the permission
