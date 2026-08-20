@@ -67,7 +67,6 @@ final class TeleprompterState: ObservableObject {
     @Published var cameraEnabled: Bool = !ProcessInfo.processInfo.arguments.contains("-uiTestingNoCamera") {
         didSet { if persistsSettings { settings.set(.cameraEnabled, cameraEnabled) } }
     }
-    @Published var manualMode: Bool = false
     /// How opaque the scrolling script text is, so the camera feed behind it
     /// can show through more or less — 1.0 is fully opaque text, lower
     /// values let more of the live camera preview read through.

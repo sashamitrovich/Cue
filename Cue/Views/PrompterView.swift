@@ -46,6 +46,11 @@ struct PrompterView: View {
     @State private var chromeHideAt: Date?
     /// Grows the handle while it's being dragged, so it's obvious what moved.
     @State private var isDraggingLine = false
+    /// True only while a finger is actively dragging the script. Scrolling
+    /// works at any time — listening or not — rather than needing a mode, so
+    /// this just suppresses the auto-follow logic for the moment of the drag
+    /// itself instead of gating the gesture.
+    @State private var isDraggingScript = false
     /// Intercepts spoken commands before the matcher sees the words.
     @State private var commandDetector = VoiceCommandDetector()
     /// Shown once, the first time a take starts: voice commands are otherwise
@@ -117,19 +122,20 @@ struct PrompterView: View {
             .gesture(
                 DragGesture()
                     .onChanged { value in
-                        guard state.manualMode else { return }
+                        isDraggingScript = true
                         targetOffset = dragStartOffset + value.translation.height
                     }
                     .onEnded { _ in
-                        guard state.manualMode else { return }
                         dragStartOffset = targetOffset
                         // Wherever the drag stopped becomes the reading
                         // position, so pausing to record a later scene and
                         // scrolling ahead to it picks tracking back up there
-                        // instead of where it was left off.
+                        // instead of where it was left off — whether or not
+                        // listening was running while the drag happened.
                         if let target = VisualLines.nearestRowStart(toFlowY: cueY - targetOffset, frames: wordFrames) {
                             state.activeIndex = target
                         }
+                        isDraggingScript = false
                     }
             )
             .onAppear {
@@ -144,6 +150,21 @@ struct PrompterView: View {
                     .drop(while: { $0 != "-uiTestingCursorAt" }).dropFirst().first,
                    let value = Int(index) {
                     state.activeIndex = min(max(0, value), max(0, state.words.count - 1))
+                }
+                // Same idea, for Mirror: driving the Toggle itself through
+                // XCUITest is unreliable inside a scrolled Form, and the
+                // effect is trivial to set directly.
+                if ProcessInfo.processInfo.arguments.contains("-uiTestingMirrorOn") {
+                    state.mirror = true
+                }
+                // Same idea, for the Record badge: the simulator has no
+                // camera, so a capture can't actually be running to
+                // photograph. Faked only for the capture, never a real state
+                // reachable in the shipped app.
+                if ProcessInfo.processInfo.arguments.contains("-uiTestingShowRecording") {
+                    state.cameraEnabled = true
+                    camera.isRecording = true
+                    camera.recordingSeconds = 14
                 }
                 syncInterfaceOrientation()
                 dragStartOffset = targetOffset
@@ -177,7 +198,7 @@ struct PrompterView: View {
                         state.ingest(transcriptWords: heard.passthrough)
                     }
                 }
-                if state.cameraEnabled {
+                if state.cameraEnabled && !ProcessInfo.processInfo.arguments.contains("-uiTestingShowRecording") {
                     camera.configureAndStart()
                 }
             }
@@ -226,7 +247,7 @@ struct PrompterView: View {
             }
             .onReceive(ticker) { _ in
                 let now = Date()
-                if state.isListening && !state.manualMode && state.driftSpeed > 0 {
+                if state.isListening && !isDraggingScript && state.driftSpeed > 0 {
                     if now.timeIntervalSince(lastVoiceTime) > 1.2 {
                         targetOffset -= state.driftSpeed / 60
                     }
@@ -240,7 +261,7 @@ struct PrompterView: View {
                 // screen, and no discrete event fired afterwards to fix it.
                 // Safe as a continuous check because these frames are in the
                 // flow's own space and don't move when `offset` does.
-                if !state.manualMode, !isDraggingLine, let frame = wordFrames[state.activeIndex] {
+                if !isDraggingScript, !isDraggingLine, let frame = wordFrames[state.activeIndex] {
                     let want = cueY - frame.midY
                     if abs(want - targetOffset) > 1 {
                         targetOffset = want
@@ -422,19 +443,37 @@ struct PrompterView: View {
 
     // MARK: - Chrome
 
+    /// A mirrored rig typically needs the phone mounted rotated relative to
+    /// normal handheld use, which puts a bottom control bar on the edge
+    /// that's hardest to reach. Flipping which edge each bar docks to (only
+    /// in portrait — landscape's rail is unaffected) keeps the controls on
+    /// the reachable side without touching how the script itself mirrors.
+    private var chromeFlipped: Bool { state.mirror && !isLandscape }
+
     @ViewBuilder
     private func chrome(geo: GeometryProxy, insets: EdgeInsets) -> some View {
         ZStack {
             VStack(spacing: 0) {
-                statusBar(insets: insets)
-                Spacer(minLength: 0)
-                if let msg = errorMessage {
-                    errorBanner(msg)
-                        .padding(.bottom, 12)
-                }
-                if !isLandscape {
-                    controlBar(insets: insets)
+                if chromeFlipped {
+                    controlBar(insets: insets, dockedAtTop: true)
                         .modifier(FadingControls(visible: chromeVisible))
+                    Spacer(minLength: 0)
+                    if let msg = errorMessage {
+                        errorBanner(msg)
+                            .padding(.top, 12)
+                    }
+                    statusBar(insets: insets, dockedAtTop: false)
+                } else {
+                    statusBar(insets: insets)
+                    Spacer(minLength: 0)
+                    if let msg = errorMessage {
+                        errorBanner(msg)
+                            .padding(.bottom, 12)
+                    }
+                    if !isLandscape {
+                        controlBar(insets: insets)
+                            .modifier(FadingControls(visible: chromeVisible))
+                    }
                 }
             }
 
@@ -452,7 +491,7 @@ struct PrompterView: View {
     /// One bar at the top: state, timing, and the two controls that aren't
     /// part of running a take. Everything is one type size and one weight so
     /// nothing shouts.
-    private func statusBar(insets: EdgeInsets) -> some View {
+    private func statusBar(insets: EdgeInsets, dockedAtTop: Bool = true) -> some View {
         VStack(spacing: 6) {
             HStack(spacing: 10) {
                 HStack(spacing: 7) {
@@ -493,9 +532,19 @@ struct PrompterView: View {
 
             if state.showTiming { timingRow }
         }
+        // Rotated here, before the edge padding below, so the 180° turn
+        // only reorients the content (for a phone mounted rotated in a
+        // rig) without also swapping which edge gets the Dynamic Island
+        // clearance — rotating the padding along with the content undid
+        // its own correctness and let the buttons crowd the island.
+        .rotationEffect(.degrees(chromeFlipped ? 180 : 0))
         .padding(.horizontal, 16)
-        .padding(.top, insets.top + 8)
-        .padding(.bottom, 10)
+        // Which edge gets the safe-area inset follows which edge this bar is
+        // actually docked against — normally the top (under the notch), but
+        // Mirror flips the whole chrome to match a phone mounted rotated in
+        // a teleprompter rig, and this bar can end up at the bottom instead.
+        .padding(.top, dockedAtTop ? insets.top + 8 : 8)
+        .padding(.bottom, dockedAtTop ? 10 : insets.bottom + 10)
         .padding(.leading, insets.leading)
         .padding(.trailing, insets.trailing)
         .background {
@@ -504,7 +553,7 @@ struct PrompterView: View {
             // picture rather than a lid on it.
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .overlay(alignment: .bottom) {
+                .overlay(alignment: dockedAtTop ? .bottom : .top) {
                     Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5)
                 }
                 .allowsHitTesting(false)
@@ -603,8 +652,8 @@ struct PrompterView: View {
 
     // MARK: - Take controls
 
-    /// The same four controls in both orientations, in the same order, at the
-    /// same weight — only the axis changes.
+    /// The same three controls in both orientations, in the same order, at
+    /// the same weight — only the axis changes.
     @ViewBuilder
     private var controlButtons: some View {
         takeButton(icon: "arrow.counterclockwise", label: "Restart") {
@@ -619,7 +668,6 @@ struct PrompterView: View {
             label: countdownRemaining != nil ? "Cancel" : (state.isListening ? "Pause" : "Listen"),
             primary: true
         ) {
-            guard !state.manualMode else { return }
             if countdownRemaining != nil {
                 countdownDeadline = nil
                 pendingRecordOnListen = false
@@ -646,25 +694,22 @@ struct PrompterView: View {
                 }
             }
         }
-        takeButton(icon: "hand.raised.fill", label: "Manual Scrolling", on: state.manualMode) {
-            state.manualMode.toggle()
-            if state.manualMode {
-                pauseTake()
-                dragStartOffset = targetOffset
-            }
-        }
     }
 
-    private func controlBar(insets: EdgeInsets) -> some View {
+    private func controlBar(insets: EdgeInsets, dockedAtTop: Bool = false) -> some View {
         HStack(spacing: 0) { controlButtons }
             .frame(maxWidth: .infinity)
+            // Rotated before the edge padding below, same reasoning as
+            // statusBar: only the content should turn for a rig-mounted
+            // phone, not the padding that clears the Dynamic Island.
+            .rotationEffect(.degrees(chromeFlipped ? 180 : 0))
             .padding(.horizontal, 10)
-            .padding(.top, 12)
-            .padding(.bottom, insets.bottom > 0 ? insets.bottom : 14)
+            .padding(.top, dockedAtTop ? insets.top + 12 : 12)
+            .padding(.bottom, dockedAtTop ? 12 : (insets.bottom > 0 ? insets.bottom : 14))
             .background {
                 Rectangle()
                     .fill(.ultraThinMaterial)
-                    .overlay(alignment: .top) {
+                    .overlay(alignment: dockedAtTop ? .bottom : .top) {
                         Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5)
                     }
                     .allowsHitTesting(false)
@@ -838,13 +883,11 @@ struct PrompterView: View {
 
     private var statusText: String {
         if countdownRemaining != nil { return "Get ready…" }
-        if state.manualMode { return "Manual Scrolling — drag to scroll" }
         return state.isListening ? "Listening" : "Tap play to begin"
     }
 
     /// Starts a take, after the pre-roll if one is configured.
     private func beginTake() {
-        guard !state.manualMode else { return }
         if state.countdownSeconds > 0 {
             displayNow = Date()
             countdownDeadline = Date().addingTimeInterval(Double(state.countdownSeconds))
@@ -858,7 +901,6 @@ struct PrompterView: View {
     /// starts the take too. Already listening (rehearsing before deciding to
     /// record) just adds the camera in, without restarting the take.
     private func beginRecordingTake() {
-        guard !state.manualMode else { return }
         if state.isListening {
             camera.startRecording()
         } else {

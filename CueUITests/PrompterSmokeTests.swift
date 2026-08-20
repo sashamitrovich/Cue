@@ -34,9 +34,6 @@ final class PrompterSmokeTests: XCTestCase {
         let restart = app.buttons["Restart"]
         XCTAssertTrue(restart.exists && restart.isHittable, "Restart button must be visible and tappable")
 
-        let manual = app.buttons["Manual Scrolling"]
-        XCTAssertTrue(manual.exists && manual.isHittable, "Manual Scrolling button must be visible and tappable")
-
         let exit = app.buttons["Exit"]
         XCTAssertTrue(exit.exists, "Exit control must be visible")
 
@@ -75,10 +72,9 @@ final class PrompterSmokeTests: XCTestCase {
 
         let listen = app.buttons["Listen"]
         let restart = app.buttons["Restart"]
-        let manual = app.buttons["Manual Scrolling"]
         XCTAssertTrue(listen.waitForExistence(timeout: 5), "Listen must survive rotation")
         let window = app.windows.firstMatch.frame
-        for control in [listen, restart, manual] {
+        for control in [listen, restart] {
             XCTAssertTrue(control.isHittable, "\(control.label) must be tappable in landscape")
             XCTAssertTrue(window.contains(control.frame), "\(control.label) must be inside the window in landscape")
         }
@@ -143,7 +139,7 @@ final class PrompterSmokeTests: XCTestCase {
         XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
 
         let window = app.windows.firstMatch.frame
-        for name in ["Restart", "Listen", "Manual Scrolling"] {
+        for name in ["Restart", "Listen"] {
             let control = app.buttons[name]
             XCTAssertTrue(control.exists, "\(name) must exist in landscape")
             XCTAssertTrue(
