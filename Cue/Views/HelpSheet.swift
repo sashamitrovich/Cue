@@ -20,7 +20,7 @@ struct HelpSheet: View {
                     )
                     explain(
                         "Where your words go",
-                        "Speech recognition runs on your iPhone. If your phone hasn't downloaded the offline speech model (Settings → General → Keyboard → Dictation), iOS falls back to Apple's speech service, which means audio is sent to Apple to be transcribed — the same thing dictation does. Your script and your recordings never leave the phone: takes are saved straight to your Photos library."
+                        "Speech recognition runs on your device. If it hasn't downloaded the offline speech model (Settings → General → Keyboard → Dictation), iOS falls back to Apple's speech service, which means audio is sent to Apple to be transcribed — the same thing dictation does. Your script and your recordings never leave the device: takes are saved straight to your Photos library."
                     )
                 }
 
@@ -46,10 +46,10 @@ struct HelpSheet: View {
                     explain("Camera", "Turns the live camera view behind the script on or off.")
                     explain("The controls get out of the way", "Once you start speaking, the buttons fade so the script has the whole screen. Tap anywhere to bring them back. The bar at the top stays: where you are, how long is left and whether the camera is rolling are things you need mid-take, not things in your way.")
                     explain("Turning sideways", "In landscape the controls move to a rail on the edge they were already on, so they stay under the same thumb and stop eating the height you need for the script.")
-                    explain("HD / 4K", "Recording size and frame rate, offered only as far as your iPhone's front camera supports. Stop recording to change them.")
+                    explain("HD / 4K", "Recording size and frame rate, offered only as far as your device's front camera supports. Stop recording to change them.")
                     explain("Text size, Text alignment", "How the script is drawn. These live here rather than on the first screen because a number like \"32\" means nothing until you can see the words at that size.")
                     explain("Idle drift", "Creeps the script upward while you're silent. Leave it off unless recognition keeps losing you — it works against deliberate pauses, which On Cue otherwise handles for you.")
-                    explain("Mirror", "Flips the text left-to-right, for teleprompter rigs that bounce the screen off a sheet of glass in front of the lens; the reflection flips it back the right way round. In portrait it also moves the controls to the opposite edge, since a rig usually needs the phone mounted rotated from how you'd hold it normally. Reading straight from the phone? Leave it off.")
+                    explain("Mirror", "Turns the script 180° — not just left-to-right — for teleprompter rigs that mount the phone rotated and bounce the screen off a sheet of glass in front of the lens; the reflection turns it back the right way round. The controls stay exactly where they are and read normally, since you look at them directly rather than through the glass. Reading straight from the phone? Leave it off.")
                     explain("Reading line", "The marked line your eyes read from. Keep it high on the screen so you're looking near the lens rather than down the phone. Adjust it any time from the settings button.")
                     explain("Text and Dim", "Text fades the script so more of the camera shows through; Dim darkens the picture behind it. Between them you can keep the words legible over any background.")
                     explain("Timing", "Elapsed speaking time, an estimate of what's left, and your pace. The estimate is marked with a ~ until On Cue has heard enough of the take to measure how fast you actually talk.")

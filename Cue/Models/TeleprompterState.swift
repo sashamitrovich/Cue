@@ -296,8 +296,14 @@ final class TeleprompterState: ObservableObject {
     }
 
     static let defaultScript = """
-    Welcome, and thank you for being here today. I want to start with a simple idea, one that took me years to understand. The words you rehearse are never the words you deliver.
+    Welcome to On Cue — and this script is actually explaining itself, right now, while you read it.
 
-    Something changes the moment a room is listening. So instead of memorizing every line, learn the shape of your story. Know where it starts, know where it turns, and know exactly how it ends. Everything in between is a conversation. Let's begin.
+    It's scrolling because you're speaking it. Pause, and it waits. Skip ahead, paraphrase, double back — it follows what you say, not a fixed speed you have to chase.
+
+    Say "scroll up" to step back a line without touching the phone. Drag the script with your finger any time you want to move it by hand — listening or not. Tap Record to capture yourself with the front camera while you read, or turn Mirror on if you're using a teleprompter rig with glass.
+
+    Text size, alignment, margins, pace — all of it lives in the settings sheet, and it's remembered the next time you open the app.
+
+    When you're ready, delete this and write your own script, or open one from Files. Either way, On Cue just follows along.
     """
 }

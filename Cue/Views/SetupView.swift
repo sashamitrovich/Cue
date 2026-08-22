@@ -237,7 +237,7 @@ struct SetupView: View {
     }
 
     private var footnote: some View {
-        Text("Speech recognition runs on your iPhone. If it hasn't downloaded the offline speech model, iOS falls back to Apple's speech service and sends audio there to transcribe. Recordings are only ever saved to your own Photos library.")
+        Text("Speech recognition runs on your device. If it hasn't downloaded the offline speech model, iOS falls back to Apple's speech service and sends audio there to transcribe. Recordings are only ever saved to your own Photos library.")
             .font(.caption)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)

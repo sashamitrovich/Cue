@@ -360,7 +360,6 @@ struct PrompterView: View {
         .coordinateSpace(name: "flow")
         .opacity(state.cameraEnabled ? state.textOpacity : 1.0)
         .offset(y: offset)
-        .scaleEffect(x: state.mirror ? -1 : 1, y: 1)
         // Pinned to an explicit frame — the flow is 2-3x taller than the
         // screen and an unpinned ZStack sizes to it, pushing the controls off
         // screen entirely. The frame is the *full* screen, insets included:
@@ -374,13 +373,45 @@ struct PrompterView: View {
             alignment: .top
         )
         .clipped()
+        // A full 180° turn, not just a left-right mirror: a rig applies its
+        // own 180° flip to whatever the app renders, so the script needs to
+        // pre-compensate with the same flip — the chrome stays untouched
+        // and reachable wherever it normally sits, since it's read directly
+        // rather than through the glass.
+        //
+        // Deliberately the *default* (center) anchor, applied last, to the
+        // already fully-scrolled and clipped screen. Normal (unmirrored)
+        // rendering always fills the whole screen already — the small
+        // sliver above the cue line is "already read" text, which is why
+        // there's never a gap in ordinary use. Transforming that always-full
+        // screen around its own true center just repositions it; a
+        // reflection about a box's own center maps the box onto itself
+        // exactly, so a fully-covered screen stays fully covered, just
+        // flipped. Anchoring anywhere off-center (the cue line's position,
+        // say) does *not* have that property — it relocates the whole box
+        // within its parent instead of just reorienting its content, which
+        // is what opened a gap on one edge in an earlier version of this.
+        //
+        // A vertical flip, not a full 180° rotation: confirmed on the
+        // user's actual rig that a 180° turn alone still didn't read
+        // correctly and needed a further horizontal flip on top — the two
+        // horizontal flips cancel out, netting a top-to-bottom flip only.
+        .scaleEffect(x: 1, y: state.mirror ? -1 : 1)
         // Drawn inside the same pinned frame as the script, deliberately: the
         // offset that scrolls the script is measured from this frame's origin,
         // so anchoring the line anywhere else means reconciling two coordinate
         // systems by arithmetic — which is exactly how it ended up 45pt out of
         // register in landscape.
+        //
+        // Rotated the same way as the script and for the same reason: an
+        // `.overlay` is a sibling view aligned to the script's (rotated)
+        // bounds, not content carried along by that rotation — without its
+        // own matching rotation the line stayed at the raw top of the
+        // screen while the active word it's meant to mark moved to the
+        // raw bottom, so the two only lined up before mirroring existed.
         .overlay(alignment: .top) {
             readingLine(cueY: cueY, insets: insets, height: fullHeight(geo: geo, insets: insets))
+                .scaleEffect(x: 1, y: state.mirror ? -1 : 1)
         }
         .overlay(alignment: .top) {
             // A short scrim under the top chrome only. The old full-height
@@ -443,37 +474,33 @@ struct PrompterView: View {
 
     // MARK: - Chrome
 
-    /// A mirrored rig typically needs the phone mounted rotated relative to
-    /// normal handheld use, which puts a bottom control bar on the edge
-    /// that's hardest to reach. Flipping which edge each bar docks to (only
-    /// in portrait — landscape's rail is unaffected) keeps the controls on
-    /// the reachable side without touching how the script itself mirrors.
-    private var chromeFlipped: Bool { state.mirror && !isLandscape }
-
     @ViewBuilder
     private func chrome(geo: GeometryProxy, insets: EdgeInsets) -> some View {
         ZStack {
             VStack(spacing: 0) {
-                if chromeFlipped {
-                    controlBar(insets: insets, dockedAtTop: true)
-                        .modifier(FadingControls(visible: chromeVisible))
-                    Spacer(minLength: 0)
-                    if let msg = errorMessage {
-                        errorBanner(msg)
-                            .padding(.top, 12)
-                    }
-                    statusBar(insets: insets, dockedAtTop: false)
-                } else {
+                if isLandscape {
                     statusBar(insets: insets)
                     Spacer(minLength: 0)
                     if let msg = errorMessage {
                         errorBanner(msg)
                             .padding(.bottom, 12)
                     }
-                    if !isLandscape {
-                        controlBar(insets: insets)
-                            .modifier(FadingControls(visible: chromeVisible))
+                } else {
+                    // Everything reachable lives on one edge: the status
+                    // row and the take controls used to split top and
+                    // bottom, which meant two different places to reach on
+                    // the phone — awkward normally, and worse when the
+                    // phone's mounted somewhere only one edge is close at
+                    // hand. Landscape already puts everything in one rail;
+                    // this is the same idea for portrait.
+                    Spacer(minLength: 0)
+                    if let msg = errorMessage {
+                        errorBanner(msg)
+                            .padding(.bottom, 12)
                     }
+                    statusBar(insets: insets, dockedAtBottom: true)
+                    controlBar(insets: insets)
+                        .modifier(FadingControls(visible: chromeVisible))
                 }
             }
 
@@ -488,10 +515,12 @@ struct PrompterView: View {
         }
     }
 
-    /// One bar at the top: state, timing, and the two controls that aren't
-    /// part of running a take. Everything is one type size and one weight so
-    /// nothing shouts.
-    private func statusBar(insets: EdgeInsets, dockedAtTop: Bool = true) -> some View {
+    /// State, timing, and the two controls that aren't part of running a
+    /// take. Everything is one type size and one weight so nothing shouts.
+    /// Docked at the true top in landscape (needs the Dynamic Island
+    /// clearance there); in portrait it sits directly above the take
+    /// controls instead, so it's no longer touching a screen edge itself.
+    private func statusBar(insets: EdgeInsets, dockedAtBottom: Bool = false) -> some View {
         VStack(spacing: 6) {
             HStack(spacing: 10) {
                 HStack(spacing: 7) {
@@ -532,19 +561,9 @@ struct PrompterView: View {
 
             if state.showTiming { timingRow }
         }
-        // Rotated here, before the edge padding below, so the 180° turn
-        // only reorients the content (for a phone mounted rotated in a
-        // rig) without also swapping which edge gets the Dynamic Island
-        // clearance — rotating the padding along with the content undid
-        // its own correctness and let the buttons crowd the island.
-        .rotationEffect(.degrees(chromeFlipped ? 180 : 0))
         .padding(.horizontal, 16)
-        // Which edge gets the safe-area inset follows which edge this bar is
-        // actually docked against — normally the top (under the notch), but
-        // Mirror flips the whole chrome to match a phone mounted rotated in
-        // a teleprompter rig, and this bar can end up at the bottom instead.
-        .padding(.top, dockedAtTop ? insets.top + 8 : 8)
-        .padding(.bottom, dockedAtTop ? 10 : insets.bottom + 10)
+        .padding(.top, dockedAtBottom ? 8 : insets.top + 8)
+        .padding(.bottom, dockedAtBottom ? 8 : 10)
         .padding(.leading, insets.leading)
         .padding(.trailing, insets.trailing)
         .background {
@@ -553,7 +572,11 @@ struct PrompterView: View {
             // picture rather than a lid on it.
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .overlay(alignment: dockedAtTop ? .bottom : .top) {
+                // Marks the boundary against the script. Docked at the top,
+                // that's this bar's own bottom edge; docked at the bottom
+                // (directly above the take controls, not touching the
+                // script at all) it's this bar's own top edge instead.
+                .overlay(alignment: dockedAtBottom ? .top : .bottom) {
                     Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5)
                 }
                 .allowsHitTesting(false)
@@ -696,20 +719,16 @@ struct PrompterView: View {
         }
     }
 
-    private func controlBar(insets: EdgeInsets, dockedAtTop: Bool = false) -> some View {
+    private func controlBar(insets: EdgeInsets) -> some View {
         HStack(spacing: 0) { controlButtons }
             .frame(maxWidth: .infinity)
-            // Rotated before the edge padding below, same reasoning as
-            // statusBar: only the content should turn for a rig-mounted
-            // phone, not the padding that clears the Dynamic Island.
-            .rotationEffect(.degrees(chromeFlipped ? 180 : 0))
             .padding(.horizontal, 10)
-            .padding(.top, dockedAtTop ? insets.top + 12 : 12)
-            .padding(.bottom, dockedAtTop ? 12 : (insets.bottom > 0 ? insets.bottom : 14))
+            .padding(.top, 12)
+            .padding(.bottom, insets.bottom > 0 ? insets.bottom : 14)
             .background {
                 Rectangle()
                     .fill(.ultraThinMaterial)
-                    .overlay(alignment: dockedAtTop ? .bottom : .top) {
+                    .overlay(alignment: .top) {
                         Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5)
                     }
                     .allowsHitTesting(false)
@@ -792,7 +811,10 @@ struct PrompterView: View {
     }
 
     /// A one-time hint that the prompter takes spoken instructions. Sits
-    /// under the status bar rather than over the script, and fades on its own.
+    /// next to the status bar rather than over the script, and fades on its
+    /// own. In landscape that's under the top bar as always; in portrait
+    /// the status bar now lives at the bottom with the take controls, so
+    /// the hint follows it there instead of floating alone near an empty top.
     private func voiceCommandTip(insets: EdgeInsets) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "waveform")
@@ -804,8 +826,8 @@ struct PrompterView: View {
         .padding(.vertical, 9)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().stroke(.white.opacity(0.14), lineWidth: 0.5))
-        .padding(.top, insets.top + chromeTopInset(insets: insets) - insets.top + 8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(isLandscape ? .top : .bottom, isLandscape ? chromeTopInset(insets: insets) + 8 : 96 + insets.bottom)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isLandscape ? .top : .bottom)
         .transition(.opacity)
         .allowsHitTesting(false)
         .accessibilityLabel("Tip: say scroll up to go back a line")
