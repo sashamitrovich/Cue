@@ -7,27 +7,42 @@ final class ScrollPursuitTests: XCTestCase {
 
     // MARK: - Speed
 
-    func testSpeedFollowsThePaceAndTheLayout() {
-        // 120 wpm is two words a second; 30pt per word is 60pt/s, and the
-        // catch-up multiplier is applied on top.
-        let speed = ScrollPursuit.speed(
-            pointsPerWord: 30, wordsPerMinute: 120, catchUp: 1.3, minimum: 40
+    private func speed(gap: CGFloat, pointsPerWord: CGFloat = 30, wpm: Double = 120) -> CGFloat {
+        ScrollPursuit.speed(
+            gap: gap, pointsPerWord: pointsPerWord, wordsPerMinute: wpm,
+            response: 0.18, maxCatchUp: 4, minimum: 40
         )
-        XCTAssertEqual(speed, 78, accuracy: 0.001)
+    }
+
+    func testSpeedIsCappedAtAMultipleOfTheSpeakingPace() {
+        // 120 wpm at 30pt a word is 60pt/s; the ceiling is 4x that. A large
+        // gap must not be covered instantly — that is the jump this whole
+        // type exists to prevent.
+        XCTAssertEqual(speed(gap: -400), 240, accuracy: 0.001)
+    }
+
+    func testSpeedScalesWithTheGapBelowTheCeiling() {
+        // 20pt over a 0.18s response is 111pt/s, under the 240 ceiling, so
+        // the proportional term governs and the script eases in.
+        XCTAssertEqual(speed(gap: -20), 20 / 0.18, accuracy: 0.001)
+    }
+
+    func testTheGapActuallyCloses() {
+        // The point of the ceiling being well above 1x pace. At 4x, a target
+        // that is behind gains on the reader at 3x pace; at the old 1.3x it
+        // gained at 0.3x, so the script never caught up and the active word
+        // sat permanently below the reading line.
+        let pace: CGFloat = 30 * CGFloat(120.0 / 60)
+        XCTAssertGreaterThan(speed(gap: -400), pace * 2, "must gain on the speaker, not merely keep up")
     }
 
     func testSpeedFallsBackToTheFloorBeforeThereIsAnythingToMeasure() {
-        // The opening words of a take: no measured pace, no usable spacing.
-        XCTAssertEqual(
-            ScrollPursuit.speed(pointsPerWord: 0, wordsPerMinute: 140, catchUp: 1.3, minimum: 40), 40
-        )
-        XCTAssertEqual(
-            ScrollPursuit.speed(pointsPerWord: 30, wordsPerMinute: 0, catchUp: 1.3, minimum: 40), 40
-        )
+        // The opening words of a take: no measured pace, no usable spacing,
+        // and a gap too small for the proportional term to clear the floor.
+        XCTAssertEqual(speed(gap: -1, pointsPerWord: 0), 40)
+        XCTAssertEqual(speed(gap: -1, wpm: 0), 40)
         // A very slow reader must not scroll slower than the floor either.
-        XCTAssertEqual(
-            ScrollPursuit.speed(pointsPerWord: 2, wordsPerMinute: 10, catchUp: 1.3, minimum: 40), 40
-        )
+        XCTAssertEqual(speed(gap: -1, pointsPerWord: 2, wpm: 10), 40)
     }
 
     // MARK: - Stepping
@@ -42,12 +57,10 @@ final class ScrollPursuitTests: XCTestCase {
     }
 
     func testABurstIsSpreadOverRoughlyTheTimeItTookToSay() {
-        // Five words at 120 wpm is 2.5 seconds of speech, and at 30pt a word
-        // the script has 150pt to cover. With a 1.3x catch-up it should take
-        // a bit under that — bounded, continuous, and never instant.
-        let speed = ScrollPursuit.speed(
-            pointsPerWord: 30, wordsPerMinute: 120, catchUp: 1.3, minimum: 40
-        )
+        // Five words at 120 wpm is 2.5 seconds of speech and, at 30pt a word,
+        // 150pt of script. It must be recovered in well under that — the
+        // reader is still talking — but spread over enough frames to read as
+        // movement rather than a jump.
         var target: CGFloat = 0
         var elapsed = 0.0
         let dt = 1.0 / 60
@@ -55,11 +68,17 @@ final class ScrollPursuitTests: XCTestCase {
         // so the target parks just short rather than landing exactly.
         while target > -149.5 && elapsed < 10 {
             target = ScrollPursuit.step(
-                target: target, toward: -150, speed: speed, dt: dt, snapDistance: snap, jumped: false
+                target: target,
+                toward: -150,
+                speed: speed(gap: -150 - target),
+                dt: dt,
+                snapDistance: snap,
+                jumped: false
             )
             elapsed += dt
         }
-        XCTAssertEqual(elapsed, 2.5 / 1.3, accuracy: 0.1)
+        XCTAssertLessThan(elapsed, 2.5, "must gain on the speaker rather than fall further behind")
+        XCTAssertGreaterThan(elapsed, 4 * dt, "must not be covered in a couple of frames")
     }
 
     func testItStopsOnArrivalRatherThanOvershooting() {

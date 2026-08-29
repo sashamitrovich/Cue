@@ -128,13 +128,23 @@ struct PrompterView: View {
     /// edge off a jump (~95% closed in 0.15s) without putting an eighth of a
     /// second between the reader and the script.
     private static let smoothingTau: CGFloat = 0.05
-    /// How much faster than the measured speaking pace the script may travel
-    /// while it is behind. At 1.0 it would match the speaker exactly and
-    /// never close the gap the recogniser's own latency opens; too high and
-    /// the lurch this pacing exists to remove comes back.
-    private static let pursuitCatchUp: CGFloat = 1.3
+    /// Seconds the pursuit would take to close the gap if nothing capped it.
+    /// This is what keeps the active word *on* the reading line rather than
+    /// somewhere below it.
+    private static let pursuitResponse: CGFloat = 0.18
+    /// Ceiling on the pursuit, as a multiple of the speaking pace — what
+    /// stops a burst of recognised words being covered instantly.
+    ///
+    /// It was 1.3, which was far too low to be a ceiling and acted as a flat
+    /// speed instead: the gap closed at only 0.3x pace, so the script never
+    /// actually caught up and the reader's eyes drifted down the screen
+    /// chasing a word that sat permanently below the line. At 4 the gap
+    /// closes at 3x pace when this is the binding constraint, which recovers
+    /// a burst in well under a second while still spreading it over enough
+    /// frames to read as movement rather than a jump.
     /// Floor for the pursuit speed — the opening words of a take, before
     /// there is a measured pace or a usable per-word spacing estimate.
+    private static let pursuitMaxCatchUp: CGFloat = 4
     private static let pursuitMinSpeed: CGFloat = 40
     /// Past this, the cursor didn't advance — it was *moved* (a restart, a
     /// drag, a rotation, a voice command). Travelling that at speaking pace
@@ -1056,23 +1066,15 @@ struct PrompterView: View {
     /// deciding not to write it is nearly free; writing it 60 times a second
     /// for movement too small to see is what made a parked prompter as
     /// expensive as a scrolling one.
-    /// Points per second the target may travel while catching up to the
-    /// cursor: how far the script moves per spoken word, times how many
-    /// words a second the reader is actually saying.
-    private var pursuitSpeed: CGFloat {
+    /// How far the script travels per spoken word, measured from the current
+    /// layout rather than assumed, so it follows the reader's font size and
+    /// the way their text happens to wrap.
+    private var pointsPerWord: CGFloat {
         let ahead = min(state.activeIndex + Self.pursuitLookahead, max(0, state.words.count - 1))
-        var perWord: CGFloat = 0
-        if ahead > state.activeIndex,
-           let here = wordFrames[state.activeIndex],
-           let later = wordFrames[ahead] {
-            perWord = (later.midY - here.midY) / CGFloat(ahead - state.activeIndex)
-        }
-        return ScrollPursuit.speed(
-            pointsPerWord: perWord,
-            wordsPerMinute: effectiveWPM,
-            catchUp: Self.pursuitCatchUp,
-            minimum: Self.pursuitMinSpeed
-        )
+        guard ahead > state.activeIndex,
+              let here = wordFrames[state.activeIndex],
+              let later = wordFrames[ahead] else { return 0 }
+        return (later.midY - here.midY) / CGFloat(ahead - state.activeIndex)
     }
 
     private func tick(now: Date) {
@@ -1119,7 +1121,14 @@ struct PrompterView: View {
             let next = ScrollPursuit.step(
                 target: targetOffset,
                 toward: want,
-                speed: pursuitSpeed,
+                speed: ScrollPursuit.speed(
+                    gap: want - targetOffset,
+                    pointsPerWord: pointsPerWord,
+                    wordsPerMinute: effectiveWPM,
+                    response: Self.pursuitResponse,
+                    maxCatchUp: Self.pursuitMaxCatchUp,
+                    minimum: Self.pursuitMinSpeed
+                ),
                 dt: dt,
                 snapDistance: Self.pursuitSnapDistance,
                 jumped: cursorJumped

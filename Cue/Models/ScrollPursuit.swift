@@ -23,27 +23,51 @@ import Foundation
 ///   long as reading it.
 enum ScrollPursuit {
 
-    /// Points per second the target may travel while it is behind.
+    /// Points per second the target may travel, given how far behind it is.
+    ///
+    /// Proportional, not a flat multiple of the speaking pace. A flat
+    /// multiple sounds reasonable and is wrong: at 1.3x the gap only closes
+    /// at 0.3x pace, so a deficit of a few words takes tens of words to
+    /// recover while the recogniser's own latency keeps re-opening it. The
+    /// result is a *steady-state* offset — the active word sits permanently
+    /// below the reading line and the reader's eyes track down the screen to
+    /// follow it, which defeats the point of a reading line.
+    ///
+    /// So the speed scales with the gap: gentle when it is nearly there,
+    /// quick when it is behind. The ceiling is what keeps that from becoming
+    /// the teleport this type exists to prevent — bursts are still spread
+    /// over a few hundred milliseconds rather than covered instantly.
     ///
     /// - Parameters:
+    ///   - gap: how far the target still has to travel.
     ///   - pointsPerWord: how far the script moves per spoken word, measured
     ///     locally from the current layout so it reflects the reader's font
     ///     size and the current line wrapping.
     ///   - wordsPerMinute: the reader's measured pace, or their target pace
     ///     before enough of the take has been read to measure one.
-    ///   - catchUp: how much faster than that pace the script may travel. At
-    ///     1.0 it would match the speaker exactly and never close the gap the
-    ///     recogniser's own latency opens.
+    ///   - response: seconds the gap would take to close if nothing capped
+    ///     it.
+    ///   - maxCatchUp: ceiling, as a multiple of the speaking pace. Must be
+    ///     comfortably above 1 or the steady-state offset comes back: the
+    ///     gap closes at `(maxCatchUp - 1)x` pace once this is the binding
+    ///     constraint.
     ///   - minimum: floor, for the opening words of a take when the per-word
-    ///     estimate is still degenerate.
+    ///     estimate is still degenerate. `step` never overshoots, so a floor
+    ///     cannot make the target sail past the cursor.
     static func speed(
+        gap: CGFloat,
         pointsPerWord: CGFloat,
         wordsPerMinute: Double,
-        catchUp: CGFloat,
+        response: CGFloat,
+        maxCatchUp: CGFloat,
         minimum: CGFloat
     ) -> CGFloat {
-        guard pointsPerWord > 0, wordsPerMinute > 0 else { return minimum }
-        return max(minimum, pointsPerWord * CGFloat(wordsPerMinute / 60) * catchUp)
+        let proportional = abs(gap) / max(response, 0.001)
+        guard pointsPerWord > 0, wordsPerMinute > 0 else {
+            return max(minimum, proportional)
+        }
+        let pace = pointsPerWord * CGFloat(wordsPerMinute / 60)
+        return max(minimum, min(proportional, pace * maxCatchUp))
     }
 
     /// The target's next position.
