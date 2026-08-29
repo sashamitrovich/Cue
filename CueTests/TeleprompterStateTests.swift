@@ -123,6 +123,89 @@ final class TeleprompterStateTests: XCTestCase {
         XCTAssertEqual(state.activeIndex, 0)
     }
 
+    // MARK: - ingest — adaptive search radius (ad-libbing and skipped passages)
+    //
+    // The reader going off-script is the normal case for this app, not an
+    // edge case: paraphrasing, skipping a sentence, or simply being misheard
+    // all look identical from the matcher's side — words arrive and none of
+    // them are in the window. With a fixed window the cursor stops there and
+    // waits forever for words that will never be said, and the script sits
+    // still while the reader keeps talking.
+
+    /// Script long enough for a skip to land well outside the ordinary
+    /// 12-word window, with distinctive landmark words to re-anchor on.
+    private func makeLongScript() -> TeleprompterState {
+        let filler = (0..<30).map { "padding\($0)" }.joined(separator: " ")
+        return makeState("opening line here \(filler) landmark continues afterwards")
+    }
+
+    func testAFixedWindowWouldStrandTheCursorButTheSearchWidens() {
+        let state = makeLongScript()
+        // "landmark" sits ~33 words ahead — far outside the ordinary window.
+        // The first attempts find nothing, which is what widens the search.
+        for _ in 0..<5 {
+            state.ingest(transcriptWords: ["improvised"])
+        }
+        XCTAssertEqual(state.activeIndex, 0, "unmatched words must not move the cursor")
+
+        state.ingest(transcriptWords: ["landmark"])
+        XCTAssertGreaterThan(
+            state.activeIndex, 30,
+            "after sustained non-matching speech the matcher must re-anchor "
+            + "on a landmark word instead of waiting forever"
+        )
+    }
+
+    func testTheWindowStaysNarrowWhileReadingIsGoingWell() {
+        let state = makeLongScript()
+        // No misses yet, so a far-off word must not be reachable — otherwise
+        // every common word becomes a chance to run away from the reader.
+        state.ingest(transcriptWords: ["landmark"])
+        XCTAssertEqual(state.activeIndex, 0)
+    }
+
+    func testAMatchResetsTheWidening() {
+        let state = makeLongScript()
+        for _ in 0..<5 { state.ingest(transcriptWords: ["improvised"]) }
+        // Reading resumes normally from the top of the script...
+        state.ingest(transcriptWords: ["opening"])
+        XCTAssertEqual(state.activeIndex, 1)
+        // ...so the search must be narrow again, and the distant landmark
+        // out of reach.
+        state.ingest(transcriptWords: ["landmark"])
+        XCTAssertEqual(state.activeIndex, 1, "a successful match must re-narrow the search")
+    }
+
+    func testAShortWordCannotAnchorALongJump() {
+        let filler = (0..<30).map { "padding\($0)" }.joined(separator: " ")
+        let state = makeState("opening line here \(filler) cat continues afterwards")
+        for _ in 0..<5 { state.ingest(transcriptWords: ["improvised"]) }
+        // "cat" is distinctive in this script but only three letters. A long
+        // jump on a short word is how a prompter runs away from its reader.
+        state.ingest(transcriptWords: ["cat"])
+        XCTAssertEqual(state.activeIndex, 0)
+    }
+
+    func testFillerStillCannotAnchorALongJumpEvenWhenLost() {
+        let filler = (0..<30).map { "padding\($0)" }.joined(separator: " ")
+        let state = makeState("opening line here \(filler) their continues afterwards")
+        for _ in 0..<5 { state.ingest(transcriptWords: ["improvised"]) }
+        // "their" is five letters, so it clears the length guard — but it is
+        // filler, and filler may never match beyond `fillerReach`.
+        state.ingest(transcriptWords: ["their"])
+        XCTAssertEqual(state.activeIndex, 0)
+    }
+
+    func testResyncMatcherNarrowsTheSearchAgain() {
+        let state = makeLongScript()
+        for _ in 0..<5 { state.ingest(transcriptWords: ["improvised"]) }
+        // Standing in for a restart, a drag or a voice command: the reader
+        // has just said where they are, so the matcher is no longer lost.
+        state.resyncMatcher()
+        state.ingest(transcriptWords: ["landmark"])
+        XCTAssertEqual(state.activeIndex, 0)
+    }
+
     // MARK: - ingest — prefix matching
 
     func testIngestPrefixMatchHeardWordIsPrefixOfScriptWord() {

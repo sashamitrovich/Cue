@@ -6,8 +6,8 @@ import Combine
 /// Design brief: behave like a first-party capture app. The content is the
 /// script and the speaker's face, so the chrome defers to it — translucent
 /// materials rather than opaque slabs, one accent colour used only where it
-/// carries meaning, and controls that fade away once a take is running and
-/// come back on a tap.
+/// carries meaning, and controls that recede once a take is running and
+/// brighten again on a tap — without ever leaving the screen.
 struct PrompterView: View {
     @ObservedObject var state: TeleprompterState
     @Environment(\.dismiss) private var dismiss
@@ -118,9 +118,16 @@ struct PrompterView: View {
     /// The step used to be a flat `gap * 0.12` per *frame*, which made the
     /// speed a function of the refresh rate — the same scroll ran at one
     /// speed on a 60 Hz panel, twice that on a 120 Hz one, and half of it in
-    /// Low Power Mode. 0.13 reproduces what the old constant did at 60 Hz,
-    /// now on every device.
-    private static let smoothingTau: CGFloat = 0.13
+    /// Low Power Mode. It is now frame-rate independent on every device.
+    ///
+    /// It exists only to animate *jumps* — a restart, a rotation, the end of
+    /// a drag. The paced pursuit already produces continuous motion, so
+    /// filtering its output again was two lag stages stacked: 0.13 was
+    /// inherited from when this was the only smoothing there was, and on top
+    /// of the pursuit nearly all it added was delay. 0.05 still takes the
+    /// edge off a jump (~95% closed in 0.15s) without putting an eighth of a
+    /// second between the reader and the script.
+    private static let smoothingTau: CGFloat = 0.05
     /// How much faster than the measured speaking pace the script may travel
     /// while it is behind. At 1.0 it would match the speaker exactly and
     /// never close the gap the recogniser's own latency opens; too high and
@@ -207,6 +214,7 @@ struct PrompterView: View {
                             state.activeIndex = target
                             // Placed by hand, not reached by reading it.
                             cursorJumped = true
+                            state.resyncMatcher()
                         }
                         isDraggingScript = false
                     }
@@ -268,9 +276,11 @@ struct PrompterView: View {
                         ) {
                             state.activeIndex = target
                             cursorJumped = true
+                            state.resyncMatcher()
                         } else {
                             state.moveCursor(lines: command.lineOffset)
                             cursorJumped = true
+                            state.resyncMatcher()
                         }
                     }
                     if !heard.passthrough.isEmpty {
@@ -859,6 +869,7 @@ struct PrompterView: View {
         takeButton(icon: "arrow.counterclockwise", label: "Restart", compact: compact) {
             state.activeIndex = 0
             cursorJumped = true
+            state.resyncMatcher()
             // A restart is a fresh take, so the timing starts over too.
             clock.reset()
             if state.isListening { clock.start(at: Date()) }

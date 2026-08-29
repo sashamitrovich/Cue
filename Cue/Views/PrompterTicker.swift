@@ -27,6 +27,13 @@ final class PrompterTicker: ObservableObject {
     /// nearly free, often enough that the reading line's self-heal check
     /// still catches a stale layout within a frame or two of it happening.
     static let idleFrameRate: Float = 10
+    /// Ceiling while something is animating. Deliberately 60 rather than the
+    /// panel's maximum: the offset smoothing is time-based, so 120Hz and
+    /// 60Hz produce *identical* motion — the extra frames buy nothing
+    /// visible and cost real work. This runs alongside live speech
+    /// recognition and (usually) 4K capture, and a warm phone throttles both
+    /// the frame rate and the audio buffers that recognition depends on.
+    static let trackingFrameRate: Float = 60
 
     private var link: CADisplayLink?
     private var onTick: ((Date) -> Void)?
@@ -61,9 +68,11 @@ final class PrompterTicker: ObservableObject {
 
     private func apply(active: Bool) {
         guard let link else { return }
-        let maximum = Float(UIScreen.main.maximumFramesPerSecond)
+        // Never ask for more than the panel can give: on a 60Hz device the
+        // ceiling below is already its maximum.
+        let ceiling = min(Float(UIScreen.main.maximumFramesPerSecond), Self.trackingFrameRate)
         link.preferredFrameRateRange = active
-            ? CAFrameRateRange(minimum: 30, maximum: maximum, preferred: maximum)
+            ? CAFrameRateRange(minimum: min(30, ceiling), maximum: ceiling, preferred: ceiling)
             : CAFrameRateRange(minimum: Self.idleFrameRate, maximum: Self.idleFrameRate, preferred: Self.idleFrameRate)
     }
 

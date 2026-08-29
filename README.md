@@ -42,6 +42,8 @@ Repeat a command to go further. Short commands are harder for speech recognition
 
 - **Follows you smoothly.** Speech recognition arrives in bursts of several words at a time, so the script travels at the pace you are actually speaking rather than snapping to each word as it is heard. It never runs ahead of you and never scrolls on its own: stop talking and the script stops, exactly where you left it.
 
+- **Copes with you going off-script.** Skip a sentence, paraphrase a clause, or wander off for a moment, and the prompter widens its search until it finds where you've got to — rather than sitting on the word you abandoned. Say a distinctive phrase from further down and it re-anchors there.
+
 ## Requirements
 
 - iOS 16.0 or later

@@ -196,6 +196,7 @@ final class TeleprompterState: ObservableObject {
         words = flat
         lines = built
         activeIndex = 0
+        unmatchedWords = 0
     }
 
     /// Moves the cursor by whole lines, for "scroll up" / "scroll down".
@@ -250,7 +251,37 @@ final class TeleprompterState: ObservableObject {
 
     /// How far ahead of the cursor a filler word is allowed to match.
     private static let fillerReach = 1
+    /// The ordinary look-ahead, for someone reading roughly what is written.
     private static let window = 12
+    /// The look-ahead once the reader has clearly gone off-script.
+    private static let wideWindow = 60
+    /// Unmatched heard words before the search widens to `wideWindow`. At a
+    /// normal speaking pace this is about two seconds of speech that the
+    /// script cannot account for.
+    private static let missesBeforeWidening = 4
+    /// ...and before it gives up on locality entirely and searches the rest
+    /// of the script.
+    private static let missesBeforeGlobal = 12
+    /// Shortest word allowed to re-anchor the cursor beyond the ordinary
+    /// window. A long jump on a short word is how the prompter runs away.
+    private static let minimumAnchorLength = 4
+
+    /// Heard words that have found nothing since the cursor last moved.
+    ///
+    /// Drives the widening above. Skipping a sentence, paraphrasing a clause
+    /// or being misheard all look the same from here: words arrive and none
+    /// of them are in the window. Without this the cursor simply stops and
+    /// waits forever for words that are never going to be said — the script
+    /// sits still while the reader keeps talking, which is the worst failure
+    /// this app has.
+    private var unmatchedWords = 0
+
+    /// How far ahead to look, given how lost we currently are.
+    private var searchReach: Int {
+        if unmatchedWords >= Self.missesBeforeGlobal { return words.count }
+        if unmatchedWords >= Self.missesBeforeWidening { return Self.wideWindow }
+        return Self.window
+    }
 
     /// Advances `activeIndex` by fuzzy-matching heard words against a window
     /// of upcoming script words, so partial/garbled recognition results still
@@ -262,10 +293,12 @@ final class TeleprompterState: ObservableObject {
     func ingest(transcriptWords heard: [String]) {
         guard !words.isEmpty else { return }
         var cursor = activeIndex
+        var considered = 0
         for rawWord in heard {
             let word = Self.normalize(rawWord)
             guard !word.isEmpty else { continue }
-            let limit = min(words.count, cursor + Self.window)
+            considered += 1
+            let limit = min(words.count, cursor + searchReach)
             var found = -1
             var j = cursor
             while j < limit {
@@ -284,11 +317,29 @@ final class TeleprompterState: ObservableObject {
             if found - cursor > Self.fillerReach && Self.filler.contains(word) {
                 continue
             }
+            // Past the ordinary window this is no longer sequential reading —
+            // it is a re-anchor after a deviation, and it needs a word
+            // distinctive enough to be worth trusting. Anchoring a
+            // fifty-word jump on "slide" or "so" is how a prompter runs away
+            // from its reader.
+            if found - cursor > Self.window, word.count < Self.minimumAnchorLength {
+                continue
+            }
             cursor = found + 1
         }
         if cursor > activeIndex {
             activeIndex = min(cursor, words.count - 1)
+            unmatchedWords = 0
+        } else {
+            unmatchedWords += considered
         }
+    }
+
+    /// Forgets how lost the matcher was. For anything that moves the cursor
+    /// deliberately — a restart, a drag, a voice command — since the reader
+    /// has just said where they are.
+    func resyncMatcher() {
+        unmatchedWords = 0
     }
 
     static let defaultScript = """
