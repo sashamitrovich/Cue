@@ -51,6 +51,7 @@ struct SetupView: View {
             // shrinking the editor further — editing is the only thing to
             // do with the keyboard up anyway.
             VStack(spacing: 22) {
+                if !editorFocused { masthead }
                 editorCard()
                 if !editorFocused {
                     startButton
@@ -64,7 +65,8 @@ struct SetupView: View {
             .padding(.top, 4)
             .padding(.bottom, 12)
             .background(Color(.systemBackground))
-            .navigationTitle("On Cue")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -127,6 +129,31 @@ struct SetupView: View {
         }
     }
 
+    /// The identity, in the prompter's own lettering rather than a system
+    /// navigation title. The square is the cue lamp, unlit until you start.
+    private var masthead: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .bottom, spacing: 10) {
+                Text("On Cue")
+                    .font(ChromeType.label(38, weight: .bold))
+                    .tracking(38 * 0.06)
+                    .textCase(.uppercase)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(PrompterView.accent)
+                    .frame(width: 9, height: 9)
+                    .shadow(color: PrompterView.accent.opacity(0.85), radius: 6)
+                    .padding(.bottom, 5)
+                Spacer(minLength: 0)
+            }
+            LinearGradient(
+                colors: [PrompterView.accent.opacity(0.5), .primary.opacity(0.10), .primary.opacity(0.06)],
+                startPoint: .leading, endPoint: .trailing
+            )
+            .frame(height: 1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     // MARK: - Script
 
     private func editorCard() -> some View {
@@ -146,11 +173,15 @@ struct SetupView: View {
             // Fills whatever's left above the start button and the fixed
             // notices below it, rather than a fraction of the screen — this
             // is the thing the screen is for.
+            // Set larger than `.body`. This is the thing the screen is for,
+            // and at the system body size a script is a wall of small grey
+            // text on a phone — you are reading it, not filling in a form.
             TextEditor(text: $state.scriptText)
                 .focused($editorFocused)
-                .font(.body)
+                .font(.system(size: 19))
+                .lineSpacing(2)
                 .scrollContentBackground(.hidden)
-                .padding(10)
+                .padding(12)
                 .frame(maxHeight: .infinity)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .disabled(!currentFileIsEditable)
@@ -257,16 +288,40 @@ struct SetupView: View {
     /// The thing a first-time user most needs to know before tapping start,
     /// and the only one they can't infer from the screen itself: the front
     /// camera is on, and this will record them.
+    /// Whether to record, as a control rather than a bulletin.
+    ///
+    /// It used to be a passive line: "Camera off — the script will scroll
+    /// without recording." `cameraEnabled` persists, and the only toggle is a
+    /// button inside the prompter — so anyone who turned the camera off during
+    /// a take came back to a setup screen that reported the state and offered
+    /// no way to change it. The "on" wording was no better: it explained how to
+    /// turn the camera *off* and never how to turn it back on.
+    ///
+    /// It belongs here. The setup screen carries pre-start decisions, and
+    /// whether you are recording is decided before you start, not while
+    /// reading. Enabling it here also puts the system permission prompt on a
+    /// stationary screen rather than three seconds into a pre-roll.
+    ///
+    /// Named for what it does — the same words as the prompter's own button —
+    /// rather than for the flag behind it.
     private var cameraNotice: some View {
-        HStack(spacing: 7) {
-            Image(systemName: state.cameraEnabled ? "video.fill" : "video.slash.fill")
-            Text(state.cameraEnabled
-                 ? "Records with the front camera. You can turn it off while prompting."
-                 : "Camera off — the script will scroll without recording.")
-            Spacer(minLength: 0)
+        Toggle(isOn: $state.cameraEnabled) {
+            HStack(spacing: 7) {
+                Image(systemName: state.cameraEnabled ? "video.fill" : "video.slash.fill")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Record with the front camera")
+                    Text(state.cameraEnabled
+                         ? "Saved to your Photos library when you finish."
+                         : "The script still scrolls; nothing is captured.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+        .tint(PrompterView.accent)
     }
 
     private var footnote: some View {
