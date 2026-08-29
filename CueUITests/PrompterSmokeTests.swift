@@ -168,11 +168,23 @@ final class PrompterSmokeTests: XCTestCase {
         let rail = app.buttons["Listen"].frame
         let window = app.windows.firstMatch.frame
 
-        // Words that appear exactly once in the default script — a repeated
-        // word makes the query ambiguous rather than the layout wrong.
-        for label in ["inquired", "didactic,", "beseechingly,"] {
+        // Words from the script's opening sentence, each appearing exactly
+        // once — a repeated word makes the query ambiguous rather than the
+        // layout wrong.
+        //
+        // Being near the top matters as much as being unique. `ScrollFlow`
+        // renders *every* word in the script rather than only the visible
+        // ones, so `exists` is true for words far below the fold, and
+        // XCUITest surfaces those inconsistently — which made this test pass
+        // or fail on timing alone. Asserting that an off-screen word sits
+        // inside the window is meaningless, so only what is actually on
+        // screen is checked, and the count guards against the test quietly
+        // asserting nothing at all.
+        var checked = 0
+        for label in ["expected", "inquired", "sort"] {
             let word = app.staticTexts.matching(identifier: label).firstMatch
-            guard word.exists else { continue }
+            guard word.exists, word.frame.intersects(window) else { continue }
+            checked += 1
             XCTAssertFalse(
                 word.frame.intersects(rail),
                 "\(label) at \(word.frame) overlaps the control rail at \(rail)"
@@ -182,6 +194,7 @@ final class PrompterSmokeTests: XCTestCase {
                 "\(label) at \(word.frame) runs outside the window \(window)"
             )
         }
+        XCTAssertGreaterThan(checked, 0, "no opening word was on screen — this test asserted nothing")
     }
 
     /// Rotating back and forth must not leave the script out of register.

@@ -399,6 +399,15 @@ struct PrompterView: View {
             // listening and isn't. A recording is stopped rather than
             // abandoned, which saves what was captured instead of losing it
             // to an interrupted session.
+            // A recording that ends by any route ends the take with it. The
+            // two deliberate paths (the Stop button, leaving the app) already
+            // paused, but a recording can also stop on its own — a capture
+            // error, or the disk filling — and that left the microphone open
+            // and the script still following a take the reader believed was
+            // over.
+            .onChange(of: camera.isRecording) { recording in
+                if !recording && state.isListening { pauseTake() }
+            }
             .onChange(of: scenePhase) { phase in
                 guard phase != .active else { return }
                 if camera.isRecording { camera.stopRecording() }
@@ -1208,9 +1217,18 @@ struct PrompterView: View {
         return max(1, Int(deadline.timeIntervalSince(displayNow).rounded(.up)))
     }
 
+    /// The status line doubles as the only instruction on screen, so it has to
+    /// describe the way *out* of the state you are in — not the way into the
+    /// one you have left.
+    ///
+    /// It keyed off `isListening` alone, which meant a take whose recognition
+    /// had dropped out (a fatal speech error, iOS taking the microphone) went
+    /// on recording while the status invited you to "tap play to begin"
+    /// something that was demonstrably already running. `takeIsLive` covers
+    /// recording as well, so a live take always reads as live.
     private var statusText: String {
         if countdownRemaining != nil { return "Get ready…" }
-        return state.isListening ? "Listening" : "Tap play to begin"
+        return takeIsLive ? "Tap pause to stop listening" : "Tap play to begin"
     }
 
     /// Starts a take, after the pre-roll if one is configured.
