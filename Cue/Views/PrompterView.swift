@@ -731,7 +731,7 @@ struct PrompterView: View {
                         .fill(state.isListening ? Self.accent : Color.white.opacity(0.45))
                         .frame(width: 7, height: 7)
                     Text(statusText)
-                        .font(.footnote)
+                        .font(ChromeType.body(13))
                         .foregroundStyle(.white.opacity(0.85))
                 }
 
@@ -785,7 +785,7 @@ struct PrompterView: View {
                 Text("\(Int(effectiveWPM.rounded())) wpm")
                     .foregroundStyle(isMeasuringPace ? Self.accent.opacity(0.95) : .white.opacity(0.5))
             }
-            .font(.caption.monospacedDigit())
+            .font(ChromeType.readout(12))
             .foregroundStyle(.white.opacity(0.62))
 
             GeometryReader { bar in
@@ -806,7 +806,7 @@ struct PrompterView: View {
         HStack(spacing: 6) {
             Circle().fill(Color.red).frame(width: 7, height: 7)
             Text(timeString(camera.recordingSeconds))
-                .font(.caption.monospacedDigit())
+                .font(ChromeType.readout(12))
                 .foregroundStyle(.white)
         }
         .padding(.horizontal, 10)
@@ -843,7 +843,7 @@ struct PrompterView: View {
             }
             .disabled(tier.frameRates.count < 2 || camera.isRecording)
         }
-        .font(.caption.weight(.semibold).monospacedDigit())
+        .font(ChromeType.readout(12, weight: .semibold))
         .foregroundStyle(camera.isRecording ? .white.opacity(0.35) : .white.opacity(0.9))
         .buttonStyle(.plain)
         .background(.ultraThinMaterial, in: Capsule())
@@ -872,7 +872,7 @@ struct PrompterView: View {
             Image(systemName: icon)
             Text(msg)
         }
-        .font(.footnote)
+        .font(ChromeType.body(13))
         .foregroundStyle(.white)
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -1007,7 +1007,9 @@ struct PrompterView: View {
 
                 if !isLandscape {
                     Text(label)
-                        .font(.caption2)
+                        .font(ChromeType.label(10))
+                        .tracking(ChromeType.labelTracking(10))
+                        .textCase(.uppercase)
                         .foregroundStyle(on ? Self.accent : .white.opacity(0.65))
                 }
             }
@@ -1028,7 +1030,7 @@ struct PrompterView: View {
             Image(systemName: "waveform")
             Text("Say **\"scroll up\"** to go back a line")
         }
-        .font(.footnote)
+        .font(ChromeType.body(13))
         .foregroundStyle(.white.opacity(0.9))
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
@@ -1059,7 +1061,7 @@ struct PrompterView: View {
                     .shadow(color: .black.opacity(0.5), radius: 3)
                     .contentTransition(.numericText(countsDown: true))
                 Text("Tap anywhere to cancel")
-                    .font(.footnote)
+                    .font(ChromeType.body(13))
                     .foregroundStyle(.white.opacity(0.85))
                     .shadow(color: .black.opacity(0.8), radius: 6)
             }
