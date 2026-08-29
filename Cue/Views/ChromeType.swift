@@ -31,6 +31,12 @@ enum ChromeType {
         .system(size: size, weight: weight).width(.condensed)
     }
 
+    /// The pre-roll numeral. Light and condensed, with tabular figures so the
+    /// count does not shift as it steps down.
+    static func leader(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .light).width(.condensed).monospacedDigit()
+    }
+
     /// Live values — elapsed, remaining, pace, the recording clock. Monospaced
     /// digits so the numbers do not jitter as they count.
     static func readout(_ size: CGFloat = 12, weight: Font.Weight = .regular) -> Font {

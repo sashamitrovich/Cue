@@ -33,6 +33,16 @@ final class MarketingCaptures: XCTestCase {
         attach(XCUIScreen.main.screenshot(), named: "m-mirroring")
     }
 
+    /// The pre-roll leader.
+    func testLeader() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera", "-uiTestingCursorAt", "18", "-uiTestingShowCountdown"]
+        app.launch()
+        app.buttons["Start prompting →"].tap()
+        XCTAssertTrue(app.buttons["Restart"].waitForExistence(timeout: 5))
+        attach(XCUIScreen.main.screenshot(), named: "m-leader")
+    }
+
     /// Records straight from the phone, camera badge and all.
     func testRecording() throws {
         let app = XCUIApplication()

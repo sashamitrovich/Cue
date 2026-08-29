@@ -12,6 +12,13 @@ struct PrompterView: View {
     @ObservedObject var state: TeleprompterState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    /// A leader that sweeps is exactly what this setting exists to suppress.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Drives the leader's sweeping hand. Set once on appear; the animation
+    /// runs on the render server, deliberately not from `tick()` — driving it
+    /// there would pin the display link at full rate and undo the work that
+    /// stopped the prompter animating when nothing moves.
+    @State private var leaderSweeping = false
 
     @StateObject private var speech = SpeechTracker()
     @StateObject private var camera = CameraController()
@@ -255,6 +262,16 @@ struct PrompterView: View {
                 // camera, so a capture can't actually be running to
                 // photograph. Faked only for the capture, never a real state
                 // reachable in the shipped app.
+                // The pre-roll lasts seconds and cannot be paused, so it
+                // cannot be photographed by driving the UI. Faked for capture
+                // only, like the recording state above it.
+                if ProcessInfo.processInfo.arguments.contains("-uiTestingShowCountdown") {
+                    // Deliberately not enabling the camera: the armed state
+                    // needs only a queued recording, and turning the camera on
+                    // puts a permission dialog over the shot.
+                    pendingRecordOnListen = true
+                    countdownDeadline = Date().addingTimeInterval(3.4)
+                }
                 if ProcessInfo.processInfo.arguments.contains("-uiTestingShowRecording") {
                     state.cameraEnabled = true
                     camera.isRecording = true
@@ -496,7 +513,14 @@ struct PrompterView: View {
                 rail: isLandscape && !railOnLeading ? Self.railWidth : 0)
         )
         .coordinateSpace(name: "flow")
-        .opacity(state.cameraEnabled ? state.textOpacity : 1.0)
+        // Dimmed while the pre-roll runs, so the leader can be read without a
+        // scrim. The distinction matters: this fades the *text*, not the
+        // picture — the whole point of a pre-roll is checking your framing and
+        // eyeline, so the camera must stay fully legible underneath. At full
+        // brightness the script ran straight through the numeral and both read
+        // badly.
+        .opacity((state.cameraEnabled ? state.textOpacity : 1.0) * (countdownRemaining != nil ? 0.30 : 1.0))
+        .animation(.easeInOut(duration: 0.25), value: countdownRemaining != nil)
         .offset(y: offset)
         // Pinned to an explicit frame — the flow is 2-3x taller than the
         // screen and an unpinned ZStack sizes to it, pushing the controls off
@@ -819,10 +843,10 @@ struct PrompterView: View {
     /// It is also outside the mirrored layer, so it stays upright on a rig.
     @ViewBuilder
     private func recordingTally(insets: EdgeInsets) -> some View {
-        if !isLandscape, camera.isRecording {
+        if !isLandscape, camera.isRecording || armedForRecording {
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
-                    recordingBadge
+                    if camera.isRecording { recordingBadge } else { armedBadge }
                     Spacer(minLength: 0)
                 }
                 Spacer(minLength: 0)
@@ -831,6 +855,32 @@ struct PrompterView: View {
             .padding(.leading, max(insets.leading, 16))
             .allowsHitTesting(false)
         }
+    }
+
+    /// A recording take is queued behind the pre-roll but has not started.
+    private var armedForRecording: Bool {
+        countdownRemaining != nil && pendingRecordOnListen
+    }
+
+    /// The tally before it is live: a hollow ring, not a filled dot. Broadcast
+    /// convention, and it answers the question the pre-roll otherwise leaves
+    /// open — whether this take is being recorded or only prompted.
+    private var armedBadge: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .strokeBorder(Color.red, lineWidth: 1)
+                .frame(width: 7, height: 7)
+            Text("Armed")
+                .font(ChromeType.label(10))
+                .tracking(ChromeType.labelTracking(10))
+                .textCase(.uppercase)
+                .foregroundStyle(Color(red: 1.0, green: 0.42, blue: 0.38))
+        }
+        .padding(.leading, 9)
+        .padding(.trailing, 11)
+        .padding(.vertical, 6)
+        .background(Color.red.opacity(0.13), in: Capsule())
+        .overlay(Capsule().stroke(Color.red.opacity(0.35), lineWidth: 1))
     }
 
     private var recordingBadge: some View {
@@ -1083,18 +1133,44 @@ struct PrompterView: View {
             // pre-roll is to check your framing, posture and eyeline before
             // you speak, so the picture has to stay legible underneath.
             Color.clear
+
+            // Framing marks, to the frame edges. Not decoration: the centre
+            // of frame is what you line yourself up against, and a pre-roll
+            // is when you do it.
+            crosshair
+
             VStack(spacing: 8) {
-                Text("\(remaining)")
-                    .font(.system(size: 108, weight: .light, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Self.accent)
-                    .shadow(color: .black.opacity(0.85), radius: 14)
-                    .shadow(color: .black.opacity(0.5), radius: 3)
-                    .contentTransition(.numericText(countsDown: true))
-                Text("Tap anywhere to cancel")
-                    .font(ChromeType.body(13))
-                    .foregroundStyle(.white.opacity(0.85))
+                ZStack {
+                    leaderRings
+                    Text("\(remaining)")
+                        .font(ChromeType.leader(132))
+                        .foregroundStyle(Self.accent)
+                        .shadow(color: .black.opacity(0.9), radius: 20)
+                        .shadow(color: Self.accent.opacity(0.25), radius: 30)
+                        .contentTransition(.numericText(countsDown: true))
+                }
+                .frame(width: 200, height: 200)
+
+                // What the pre-roll is *for*. It exists so you can settle and
+                // find the lens, and nothing said so.
+                Text("Find the lens")
+                    .padding(.top, 6)
+                    .font(ChromeType.label(11))
+                    .tracking(ChromeType.labelTracking(11))
+                    .textCase(.uppercase)
+                    .foregroundStyle(.white.opacity(0.55))
                     .shadow(color: .black.opacity(0.8), radius: 6)
+
+                Text("Tap anywhere to cancel")
+                    .font(ChromeType.label(10))
+                    .tracking(ChromeType.labelTracking(10))
+                    .textCase(.uppercase)
+                    // The direction sets this at 0.32, which reads on a blank
+                    // artboard and vanishes over a real script. Lifted until
+                    // it survives the thing it actually sits on.
+                    .foregroundStyle(.white.opacity(0.5))
+                    .shadow(color: .black.opacity(0.9), radius: 8)
+                    .padding(.top, 2)
             }
         }
         .ignoresSafeArea()
@@ -1103,6 +1179,54 @@ struct PrompterView: View {
         .accessibilityLabel("Starting in \(remaining) seconds")
         .transition(.opacity)
         .zIndex(10)
+    }
+
+    /// The Academy leader: two rings and a hand sweeping once a second.
+    private var leaderRings: some View {
+        ZStack {
+            Circle()
+                .stroke(Self.accent.opacity(0.28), lineWidth: 1)
+                .frame(width: 192, height: 192)
+            Circle()
+                .stroke(Self.accent.opacity(0.16), lineWidth: 1)
+                .frame(width: 160, height: 160)
+
+            LeaderHand()
+                .fill(Self.accent.opacity(0.10))
+                .frame(width: 192, height: 192)
+                .overlay(alignment: .top) {
+                    Rectangle()
+                        .fill(Self.accent)
+                        .frame(width: 1.5, height: 96)
+                }
+                .rotationEffect(.degrees(leaderSweeping ? 360 : 0))
+                .animation(
+                    reduceMotion ? nil : .linear(duration: 1).repeatForever(autoreverses: false),
+                    value: leaderSweeping
+                )
+
+            Circle().fill(Self.accent).frame(width: 6, height: 6)
+        }
+        .onAppear { leaderSweeping = true }
+        .onDisappear { leaderSweeping = false }
+    }
+
+    /// Faint amber hairlines running to the frame edges, fading out before
+    /// they reach them so they read as marks rather than as a grid.
+    private var crosshair: some View {
+        let fade = Gradient(stops: [
+            .init(color: Self.accent.opacity(0), location: 0),
+            .init(color: Self.accent.opacity(0.30), location: 0.18),
+            .init(color: Self.accent.opacity(0.30), location: 0.82),
+            .init(color: Self.accent.opacity(0), location: 1)
+        ])
+        return ZStack {
+            LinearGradient(gradient: fade, startPoint: .leading, endPoint: .trailing)
+                .frame(height: 1)
+            LinearGradient(gradient: fade, startPoint: .top, endPoint: .bottom)
+                .frame(width: 1)
+        }
+        .allowsHitTesting(false)
     }
 
     // MARK: - Per-frame work
