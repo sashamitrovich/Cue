@@ -232,7 +232,12 @@ final class PrompterSmokeTests: XCTestCase {
         // has to be the one that gets the gesture.
         let scroller = [app.collectionViews.firstMatch, app.tables.firstMatch, app.scrollViews.firstMatch]
             .first { $0.exists } ?? app
-        for _ in 0..<10 {
+        // Generous, because how many drags this needs depends on how many rows
+        // the sheet shows at once — and Prompter settings is now a partial
+        // sheet (a single ~45% detent, so the script stays visible while you
+        // adjust it), which is about half of what it used to be. At 10 this
+        // helper passed three full runs in four and failed the fourth.
+        for _ in 0..<24 {
             if slider.exists && slider.isHittable { return slider }
             // Short drags, not swipes: a full swipe scrolls straight past the
             // row. Held near the left edge so the gesture can never land on a

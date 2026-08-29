@@ -17,6 +17,21 @@ struct PrompterControlsSheet: View {
             || camera.capabilities.supportsLowLightBoost
     }
 
+    /// Fraction of the screen the sheet is allowed. Deliberately under half:
+    /// the reading line sits high on the screen by design, so what stays
+    /// uncovered is the part being read.
+    static let sheetHeight: CGFloat = 0.45
+
+    /// Landscape is a different problem. 45% of a landscape iPhone is about
+    /// 175pt — roughly one row — and iOS does not offer a partial detent in
+    /// compact height anyway. The script there is behind the sheet rather
+    /// than above it, so there is nothing to preserve by cramping it.
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    private var detents: Set<PresentationDetent> {
+        verticalSizeClass == .compact ? [.large] : [.fraction(Self.sheetHeight)]
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -41,8 +56,17 @@ struct PrompterControlsSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        // One detent, not two. These are the settings whose effect you can
+        // only judge by looking at the script, so the script has to stay on
+        // screen while you change them — and with a `.large` detent in the
+        // set, a drag anywhere in the Form expanded the sheet to full screen
+        // and covered the very thing being adjusted. A single detent has
+        // nothing to expand to, so that same drag scrolls the Form instead.
+        .presentationDetents(detents)
         .presentationDragIndicator(.visible)
+        // Leaves the prompter behind undimmed and still interactive, so the
+        // script reads normally rather than through the sheet's scrim.
+        .modifier(UncoveredPrompter())
         .preferredColorScheme(.dark)
     }
 
@@ -87,18 +111,13 @@ struct PrompterControlsSheet: View {
             }
             .pickerStyle(.segmented)
             Toggle("Mirror", isOn: $state.mirror)
-            Picker("Idle drift", selection: $state.driftIndex) {
-                ForEach(Array(TeleprompterState.driftLabels.enumerated()), id: \.offset) { index, label in
-                    Text(label).tag(index)
-                }
-            }
         } header: {
             Text("Reading")
         } footer: {
             // Adjusted here rather than before starting, because these are the
             // settings whose effect you can only judge by looking at the
             // script — which is visible behind this sheet.
-            Text("Already-read text fades with distance behind you, so the line you just said stays legible if you want it again — Already read text dimming sets how dim the oldest text goes. Side margins add to whatever the screen already needs, so the script never intrudes into a notch. Wider margins give shorter lines, which are easier to catch at a glance. Keep the reading line high on the screen so your eyes stay near the lens. Idle drift creeps the script upward while you're silent — leave it off unless recognition keeps losing you, since it works against deliberate pauses. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
+            Text("Already-read text fades with distance behind you, so the line you just said stays legible if you want it again — Already read text dimming sets how dim the oldest text goes. Side margins add to whatever the screen already needs, so the script never intrudes into a notch. Wider margins give shorter lines, which are easier to catch at a glance. Keep the reading line high on the screen so your eyes stay near the lens. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
         }
     }
 
@@ -291,5 +310,20 @@ struct PrompterControlsSheet: View {
             }
         }
         .padding(.vertical, 2)
+    }
+}
+
+/// `presentationBackgroundInteraction` arrived in iOS 16.4 and the app still
+/// supports 16.0, where the sheet keeps its dimming scrim — the script behind
+/// is visible but dimmed rather than fully live.
+private struct UncoveredPrompter: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) {
+            content.presentationBackgroundInteraction(
+                .enabled(upThrough: .fraction(PrompterControlsSheet.sheetHeight))
+            )
+        } else {
+            content
+        }
     }
 }

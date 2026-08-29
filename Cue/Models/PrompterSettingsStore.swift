@@ -6,7 +6,7 @@ import Foundation
 /// each launch by design; only preferences live here.
 struct PrompterSettingsStore {
     enum Key: String {
-        case fontSize, driftIndex, mirror, textAlignment, cameraEnabled,
+        case fontSize, mirror, textAlignment, cameraEnabled,
              textOpacity, cueLineFraction, sideMargin, cameraDimming,
              targetWPM, countdownSeconds, showTiming, voiceCommandsEnabled,
              readTextFloor, recognitionLocale

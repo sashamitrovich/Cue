@@ -35,6 +35,17 @@ final class SpeechTracker: NSObject, ObservableObject {
     // fails instantly. Fall back to server-based recognition rather than
     // looping silently.
     private var preferOnDevice = true
+    /// `AVAudioSession`'s `setCategory`/`setActive` block, and Apple warns
+    /// that calling them on the main thread while the session is active can
+    /// stall the UI. A long take calls them repeatedly — iOS ends a
+    /// recognition task roughly every minute and the engine restarts — so
+    /// they run here, and only the parts that touch `@Published` state or
+    /// `AVAudioEngine` hop back to main.
+    private let sessionQueue = DispatchQueue(label: "app.oncue.audio-session")
+    /// Bumped by every start and by `end()`, so a session configured on
+    /// `sessionQueue` can tell it has been superseded before it resumes on
+    /// main — a take ended, or restarted, while it was still configuring.
+    private var startGeneration = 0
 
     /// Requests speech-recognition and microphone permission before starting
     /// the engine. Without an explicit SFSpeechRecognizer authorization
@@ -83,10 +94,15 @@ final class SpeechTracker: NSObject, ObservableObject {
         }
         stopEngine()
         isListening = false
+        // Any session configuration still in flight belongs to a take that
+        // no longer exists.
+        startGeneration &+= 1
         // Hand the audio session back. Without this the category stays active
         // after a take and everyone else's audio — music, a podcast — stays
         // ducked or stopped until the app is killed.
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        sessionQueue.async {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 
     /// A call, Siri, or an alarm takes the microphone away mid-take. Before
@@ -143,15 +159,32 @@ final class SpeechTracker: NSObject, ObservableObject {
         }
         stopEngine()
 
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothHFP])
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
-        } catch {
-            errorMessage = "Couldn't configure the audio session: \(error.localizedDescription)"
-            return
+        startGeneration &+= 1
+        let generation = startGeneration
+        sessionQueue.async { [weak self] in
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothHFP])
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+            } catch {
+                DispatchQueue.main.async {
+                    guard let self, self.startGeneration == generation, self.shouldRun else { return }
+                    self.errorMessage = "Couldn't configure the audio session: \(error.localizedDescription)"
+                    self.isListening = false
+                }
+                return
+            }
+            DispatchQueue.main.async {
+                guard let self, self.startGeneration == generation, self.shouldRun else { return }
+                self.startRecognition(recognizer: recognizer)
+            }
         }
+    }
 
+    /// The half of starting a take that must be on main: `AVAudioEngine`, the
+    /// recognition task, and the `@Published` state both of them drive. Only
+    /// ever called from `startEngine` once the session is configured.
+    private func startRecognition(recognizer: SFSpeechRecognizer) {
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
         // Tell the recogniser these phrases are expected. Short commands have

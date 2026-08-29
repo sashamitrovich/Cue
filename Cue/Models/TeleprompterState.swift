@@ -51,9 +51,6 @@ final class TeleprompterState: ObservableObject {
     @Published var fontSize: CGFloat = 32 {
         didSet { if persistsSettings { settings.set(.fontSize, Double(fontSize)) } }
     }
-    @Published var driftIndex: Int = 0 {
-        didSet { if persistsSettings { settings.set(.driftIndex, driftIndex) } }
-    }
     @Published var mirror: Bool = false {
         didSet { if persistsSettings { settings.set(.mirror, mirror) } }
     }
@@ -129,7 +126,6 @@ final class TeleprompterState: ObservableObject {
         persistsSettings = !ProcessInfo.processInfo.arguments.contains("-uiTestingNoCamera")
         guard persistsSettings else { return }
         fontSize = CGFloat(settings.double(.fontSize, default: Double(fontSize)))
-        driftIndex = settings.int(.driftIndex, default: driftIndex)
         mirror = settings.bool(.mirror, default: mirror)
         textAlignment = ScriptAlignment(rawValue: settings.string(.textAlignment, default: textAlignment.rawValue)) ?? textAlignment
         cameraEnabled = settings.bool(.cameraEnabled, default: cameraEnabled)
@@ -146,12 +142,6 @@ final class TeleprompterState: ObservableObject {
     }
 
     static let countdownOptions = [0, 3, 5, 10]
-
-    static let driftSteps: [CGFloat] = [0, 8, 16, 26, 40]
-    static let driftLabels = ["Off", "Slow", "Easy", "Medium", "Fast"]
-
-    var driftSpeed: CGFloat { Self.driftSteps[driftIndex] }
-    var driftLabel: String { Self.driftLabels[driftIndex] }
 
     /// Words still ahead of the cursor. The active word counts as unread —
     /// it's the one being said, not one that's been said.

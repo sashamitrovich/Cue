@@ -14,20 +14,20 @@ final class PrompterSettingsStoreTests: XCTestCase {
 
     func testUnsetValuesFallBackToTheSuppliedDefault() {
         XCTAssertEqual(store.double(.fontSize, default: 32), 32)
-        XCTAssertEqual(store.int(.driftIndex, default: 2), 2)
+        XCTAssertEqual(store.int(.countdownSeconds, default: 2), 2)
         XCTAssertEqual(store.bool(.mirror, default: true), true)
         XCTAssertEqual(store.string(.textAlignment, default: "leading"), "leading")
     }
 
     func testValuesSurviveANewInstanceOfTheStore() {
         store.set(.fontSize, 48.0)
-        store.set(.driftIndex, 3)
+        store.set(.countdownSeconds, 3)
         store.set(.mirror, true)
         store.set(.textAlignment, "justified")
 
         let fresh = PrompterSettingsStore(defaults: defaults)
         XCTAssertEqual(fresh.double(.fontSize, default: 0), 48)
-        XCTAssertEqual(fresh.int(.driftIndex, default: 0), 3)
+        XCTAssertEqual(fresh.int(.countdownSeconds, default: 0), 3)
         XCTAssertEqual(fresh.bool(.mirror, default: false), true)
         XCTAssertEqual(fresh.string(.textAlignment, default: ""), "justified")
     }

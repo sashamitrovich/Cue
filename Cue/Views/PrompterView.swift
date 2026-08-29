@@ -22,7 +22,6 @@ struct PrompterView: View {
     /// The live reading-line position, for the ticker — see the `onChange`
     /// that maintains it.
     @State private var tickCueY: CGFloat = 0
-    @State private var lastVoiceTime = Date.distantPast
     @State private var dragStartOffset: CGFloat = 0
     @State private var errorMessage: String?
     @State private var errorWorkItem: DispatchWorkItem?
@@ -49,6 +48,14 @@ struct PrompterView: View {
     /// `GeometryReader`; this is only used to decide *which* edge, which
     /// geometry can't tell us — both landscapes are the same shape.
     @State private var interfaceOrientation: UIInterfaceOrientation = .portrait
+    /// Landscape vs portrait, read from the layout itself. The scene's
+    /// `interfaceOrientation` is authoritative for *which* landscape but not
+    /// for *when*: `UIDevice.orientationDidChangeNotification` fires before
+    /// the scene has rotated, so reading it there could latch a stale value
+    /// with nothing scheduled to correct it — the chrome then kept its
+    /// landscape rail after a rotation back to portrait, leaving the take
+    /// controls off the screen entirely.
+    @State private var isLandscapeLayout = false
     /// Chrome hides itself during a take and returns on a tap.
     @State private var chromeVisible = true
     @State private var chromeHideAt: Date?
@@ -67,6 +74,15 @@ struct PrompterView: View {
     @State private var voiceTipWorkItem: DispatchWorkItem?
     private let tips = FirstRunTips()
 
+    /// The take controls' circles in portrait, and the width each one claims
+    /// in the shared control row — wide enough for the caption beneath it.
+    static let takeButtonSize: CGFloat = 52
+    static let takeButtonSlot: CGFloat = 64
+    /// The same circles in the landscape rail, which has less room.
+    static let railButtonSize: CGFloat = 42
+    /// Camera / settings / exit.
+    static let glassButtonSize: CGFloat = 34
+
     static let railWidth: CGFloat = 56
     /// Breathing room for the rail on a screen edge with no cutout of its own.
     static let edgeGap: CGFloat = 16
@@ -76,7 +92,7 @@ struct PrompterView: View {
     /// How long the controls linger after the last touch once a take is live.
     private static let chromeLinger: TimeInterval = 4
 
-    private var isLandscape: Bool { interfaceOrientation.isLandscape }
+    private var isLandscape: Bool { isLandscapeLayout }
     /// `landscapeLeft` puts the edge that was the bottom in portrait on the
     /// left of the screen, so the controls follow it there and stay under the
     /// same thumb.
@@ -96,6 +112,41 @@ struct PrompterView: View {
     /// included — 60 times a second, forever, long after the movement had
     /// become invisible. Below this the offset snaps once and goes quiet.
     private static let settleThreshold: CGFloat = 0.05
+    /// Exponential-smoothing time constant, in seconds: the scroll closes
+    /// ~63% of its remaining distance every `smoothingTau`.
+    ///
+    /// The step used to be a flat `gap * 0.12` per *frame*, which made the
+    /// speed a function of the refresh rate — the same scroll ran at one
+    /// speed on a 60 Hz panel, twice that on a 120 Hz one, and half of it in
+    /// Low Power Mode. 0.13 reproduces what the old constant did at 60 Hz,
+    /// now on every device.
+    private static let smoothingTau: CGFloat = 0.13
+    /// How much faster than the measured speaking pace the script may travel
+    /// while it is behind. At 1.0 it would match the speaker exactly and
+    /// never close the gap the recogniser's own latency opens; too high and
+    /// the lurch this pacing exists to remove comes back.
+    private static let pursuitCatchUp: CGFloat = 1.3
+    /// Floor for the pursuit speed — the opening words of a take, before
+    /// there is a measured pace or a usable per-word spacing estimate.
+    private static let pursuitMinSpeed: CGFloat = 40
+    /// Past this, the cursor didn't advance — it was *moved* (a restart, a
+    /// drag, a rotation, a voice command). Travelling that at speaking pace
+    /// would take tens of seconds, so the target goes straight there and the
+    /// smoothing animates it.
+    private static let pursuitSnapDistance: CGFloat = 900
+    /// Words ahead of the cursor used to estimate how far the script travels
+    /// per spoken word. Local rather than global, so it reflects the current
+    /// font size and line wrapping.
+    private static let pursuitLookahead = 8
+    /// Set when the cursor was moved deliberately rather than by recognition,
+    /// so the next tick goes straight there instead of pacing.
+    @State private var cursorJumped = false
+    /// The cursor position the layout re-target handler last saw, so it can
+    /// tell a relayout (same word, new frame) from a cursor move (new word).
+    @State private var lastFrameKeyIndex = 0
+    /// Timestamp of the previous tick, for the elapsed time the smoothing
+    /// above needs. Nil before the first tick of a run.
+    @State private var lastTickTime: Date?
 
     var body: some View {
         GeometryReader { geo in
@@ -154,6 +205,8 @@ struct PrompterView: View {
                         // listening was running while the drag happened.
                         if let target = VisualLines.nearestRowStart(toFlowY: cueY - targetOffset, frames: wordFrames) {
                             state.activeIndex = target
+                            // Placed by hand, not reached by reading it.
+                            cursorJumped = true
                         }
                         isDraggingScript = false
                     }
@@ -164,12 +217,15 @@ struct PrompterView: View {
                 // for the whole prompter, not just while recording — the
                 // screen going dark mid-read is just as bad.
                 UIApplication.shared.isIdleTimerDisabled = true
+                isLandscapeLayout = geo.size.width > geo.size.height
+                syncInterfaceOrientation()
                 // Screenshot hook: the simulator has no microphone, so the
                 // cursor can only be placed for App Store captures by asking.
                 if let index = ProcessInfo.processInfo.arguments
                     .drop(while: { $0 != "-uiTestingCursorAt" }).dropFirst().first,
                    let value = Int(index) {
                     state.activeIndex = min(max(0, value), max(0, state.words.count - 1))
+                    cursorJumped = true
                 }
                 // Same idea, for Mirror: driving the Toggle itself through
                 // XCUITest is unreliable inside a scrolled Form, and the
@@ -192,7 +248,6 @@ struct PrompterView: View {
                 dragStartOffset = targetOffset
                 recomputeTarget(cueY: cueY)
                 speech.onTranscript = { words in
-                    lastVoiceTime = Date()
                     guard state.voiceCommandsEnabled else {
                         state.ingest(transcriptWords: words)
                         return
@@ -212,8 +267,10 @@ struct PrompterView: View {
                             frames: wordFrames, tolerance: state.fontSize * 0.5
                         ) {
                             state.activeIndex = target
+                            cursorJumped = true
                         } else {
                             state.moveCursor(lines: command.lineOffset)
+                            cursorJumped = true
                         }
                     }
                     if !heard.passthrough.isEmpty {
@@ -236,7 +293,12 @@ struct PrompterView: View {
                 camera.stop()
             }
             .onChange(of: state.activeIndex) { _ in
-                recomputeTarget(cueY: cueY)
+                // Deliberately does *not* re-target. Setting the target to
+                // the new word here is what produced the stall-then-jump —
+                // the paced pursuit in `tick` walks it there at speaking
+                // pace instead. All this has to do is make sure there are
+                // frames to walk in.
+                ticker.setActive(true)
             }
             // Keyed on the active word's measured position, not on the word
             // *count*: rotating rewraps every line and moves every frame while
@@ -249,7 +311,15 @@ struct PrompterView: View {
             // enough to keep that cycle running forever, pinning the CPU at
             // 100% and preventing layout from ever settling.
             .onChange(of: wordFrames[state.activeIndex].map { ($0.midY / 4).rounded() }) { _ in
-                recomputeTarget(cueY: cueY, animated: false)
+                // This key also changes when the *cursor* moves, since it
+                // then reads a different word's frame — and that case is the
+                // paced pursuit's business, not an immediate re-target.
+                // Only act when the same word's frame moved underneath us,
+                // which is what a relayout looks like.
+                if state.activeIndex == lastFrameKeyIndex {
+                    recomputeTarget(cueY: cueY, animated: false)
+                }
+                lastFrameKeyIndex = state.activeIndex
             }
             .onChange(of: state.cueLineFraction) { _ in
                 // Same clamp as the layout above, or the script would scroll
@@ -278,8 +348,23 @@ struct PrompterView: View {
             // callback reads live. Still a pure function of geometry, so this
             // is not the measurement-drives-layout cycle `cueY` is kept out of.
             .onChange(of: cueY) { tickCueY = $0 }
-            .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            .onChange(of: geo.size.width > geo.size.height) { landscape in
+                isLandscapeLayout = landscape
+                // The scene has rotated by the time the layout has, so this
+                // is also the reliable moment to re-read which landscape it
+                // is — the rail's edge depends on it.
                 syncInterfaceOrientation()
+                // Rotating is a deliberate act, and the controls move to a
+                // different edge when you do it — coming out of a rotation
+                // to a screen with no buttons on it reads as the app having
+                // lost them, since nothing on screen says a tap brings them
+                // back. Mid-take they still linger away again afterwards.
+                revealChrome()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+                // Still needed for landscapeLeft <-> landscapeRight, where
+                // the geometry above never changes.
+                DispatchQueue.main.async { syncInterfaceOrientation() }
             }
             .onReceive(speech.$errorMessage.compactMap { $0 }) { showError($0) }
             .onReceive(camera.$errorMessage.compactMap { $0 }) { showError($0) }
@@ -500,18 +585,18 @@ struct PrompterView: View {
                     Spacer(minLength: 0)
                     banners
                 } else {
-                    // Everything reachable lives on one edge: the status
-                    // row and the take controls used to split top and
-                    // bottom, which meant two different places to reach on
-                    // the phone — awkward normally, and worse when the
-                    // phone's mounted somewhere only one edge is close at
-                    // hand. Landscape already puts everything in one rail;
-                    // this is the same idea for portrait.
+                    // Everything reachable lives on one edge, in one bar:
+                    // status, timing and the take controls used to be two
+                    // abutting panels with two hairlines, and before that
+                    // they were split between the top and bottom of the
+                    // screen entirely. One panel is one place to look and
+                    // one place to reach — and it leaves no vacated strip
+                    // for the script to show through when the take controls
+                    // dim. Landscape keeps its rail; it has no vertical
+                    // space to spend on a bar this tall.
                     Spacer(minLength: 0)
                     banners
-                    statusBar(insets: insets, dockedAtBottom: true)
-                    controlBar(insets: insets)
-                        .modifier(FadingControls(visible: chromeVisible))
+                    unifiedBar(insets: insets)
                 }
             }
 
@@ -531,9 +616,80 @@ struct PrompterView: View {
     /// Docked at the true top in landscape (needs the Dynamic Island
     /// clearance there); in portrait it sits directly above the take
     /// controls instead, so it's no longer touching a screen edge itself.
-    private func statusBar(insets: EdgeInsets, dockedAtBottom: Bool = false) -> some View {
+    private func statusBar(insets: EdgeInsets) -> some View {
         VStack(spacing: 6) {
-            HStack(spacing: 10) {
+            statusRow(showsUtilities: true)
+
+            if state.showTiming { timingRow }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, insets.top + 8)
+        .padding(.bottom, 10)
+        .padding(.leading, insets.leading)
+        .padding(.trailing, insets.trailing)
+        .background {
+            // Material, not black: the feed stays readable through the bar,
+            // which is what keeps the chrome feeling like a layer over the
+            // picture rather than a lid on it.
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                // Marks the boundary against the script below it.
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5)
+                }
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// Portrait's whole chrome: status, timing and the take controls in a
+    /// single material panel with a single hairline, rather than two panels
+    /// stacked against each other. The take controls dim during a take (see
+    /// `FadingControls`) but never leave, so the panel's height — and the
+    /// amount of script above it — does not change mid-take.
+    private func unifiedBar(insets: EdgeInsets) -> some View {
+        VStack(spacing: 8) {
+            statusRow(showsUtilities: false)
+
+            if state.showTiming { timingRow }
+
+            // Every button on one row: running the take on the left, the
+            // controls that aren't part of it on the right. They used to be
+            // split across two rows — the take controls here and camera,
+            // settings and exit up in the status line — which meant the
+            // buttons were in two places even after the panels were merged.
+            //
+            // Aligned on the circles rather than the row, since the take
+            // buttons carry a caption underneath and the glass ones don't;
+            // centring the row would float the small buttons high.
+            HStack(alignment: .top, spacing: 0) {
+                controlButtons(compact: true)
+                Spacer(minLength: 8)
+                utilityButtons
+                    .padding(.top, (Self.takeButtonSize - Self.glassButtonSize) / 2)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 2)
+            .modifier(FadingControls(visible: chromeVisible))
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, insets.bottom > 0 ? insets.bottom : 14)
+        .padding(.leading, insets.leading)
+        .padding(.trailing, insets.trailing)
+        .background {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5)
+                }
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// State and the two controls that aren't part of running a take.
+    /// Everything is one type size and one weight so nothing shouts.
+    private func statusRow(showsUtilities: Bool) -> some View {
+        HStack(spacing: 10) {
                 HStack(spacing: 7) {
                     Circle()
                         .fill(state.isListening ? Self.accent : Color.white.opacity(0.45))
@@ -551,46 +707,31 @@ struct PrompterView: View {
                     qualityControl(mode: mode, tier: tier)
                 }
 
-                glassButton(
-                    icon: state.cameraEnabled ? "video.fill" : "video.slash.fill",
-                    label: state.cameraEnabled ? "Turn camera off" : "Turn camera on",
-                    tinted: state.cameraEnabled
-                ) { toggleCamera() }
-                .disabled(camera.isRecording)
-
-                glassButton(icon: "slider.horizontal.3", label: "Prompter settings") {
-                    revealChrome()
-                    showSettings = true
-                }
-
-                glassButton(icon: "xmark", label: "Exit") {
-                    pauseTake()
-                    camera.stop()
-                    dismiss()
-                }
-            }
-
-            if state.showTiming { timingRow }
+                if showsUtilities { utilityButtons }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, dockedAtBottom ? 8 : insets.top + 8)
-        .padding(.bottom, dockedAtBottom ? 8 : 10)
-        .padding(.leading, insets.leading)
-        .padding(.trailing, insets.trailing)
-        .background {
-            // Material, not black: the feed stays readable through the bar,
-            // which is what keeps the chrome feeling like a layer over the
-            // picture rather than a lid on it.
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                // Marks the boundary against the script. Docked at the top,
-                // that's this bar's own bottom edge; docked at the bottom
-                // (directly above the take controls, not touching the
-                // script at all) it's this bar's own top edge instead.
-                .overlay(alignment: dockedAtBottom ? .top : .bottom) {
-                    Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5)
-                }
-                .allowsHitTesting(false)
+    }
+
+    /// Camera, settings and exit: the controls that aren't part of running a
+    /// take. In landscape they ride in the status bar at the top; in portrait
+    /// they sit in the one control row with everything else.
+    @ViewBuilder
+    private var utilityButtons: some View {
+        glassButton(
+            icon: state.cameraEnabled ? "video.fill" : "video.slash.fill",
+            label: state.cameraEnabled ? "Turn camera off" : "Turn camera on",
+            tinted: state.cameraEnabled
+        ) { toggleCamera() }
+        .disabled(camera.isRecording)
+
+        glassButton(icon: "slider.horizontal.3", label: "Prompter settings") {
+            revealChrome()
+            showSettings = true
+        }
+
+        glassButton(icon: "xmark", label: "Exit") {
+            pauseTake()
+            camera.stop()
+            dismiss()
         }
     }
 
@@ -713,9 +854,11 @@ struct PrompterView: View {
     /// The same three controls in both orientations, in the same order, at
     /// the same weight — only the axis changes.
     @ViewBuilder
-    private var controlButtons: some View {
-        takeButton(icon: "arrow.counterclockwise", label: "Restart") {
+    private func controlButtons(compact: Bool = false) -> some View {
+        Group {
+        takeButton(icon: "arrow.counterclockwise", label: "Restart", compact: compact) {
             state.activeIndex = 0
+            cursorJumped = true
             // A restart is a fresh take, so the timing starts over too.
             clock.reset()
             if state.isListening { clock.start(at: Date()) }
@@ -724,7 +867,8 @@ struct PrompterView: View {
         takeButton(
             icon: countdownRemaining != nil ? "xmark" : (state.isListening ? "pause.fill" : "play.fill"),
             label: countdownRemaining != nil ? "Cancel" : (state.isListening ? "Pause" : "Listen"),
-            primary: true
+            primary: true,
+            compact: compact
         ) {
             if countdownRemaining != nil {
                 countdownDeadline = nil
@@ -739,7 +883,8 @@ struct PrompterView: View {
             takeButton(
                 icon: camera.isRecording ? "stop.fill" : "circle.fill",
                 label: camera.isRecording ? "Stop" : "Record",
-                recording: camera.isRecording
+                recording: camera.isRecording,
+                compact: compact
             ) {
                 if camera.isRecording {
                     camera.stopRecording()
@@ -752,22 +897,7 @@ struct PrompterView: View {
                 }
             }
         }
-    }
-
-    private func controlBar(insets: EdgeInsets) -> some View {
-        HStack(spacing: 0) { controlButtons }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 10)
-            .padding(.top, 12)
-            .padding(.bottom, insets.bottom > 0 ? insets.bottom : 14)
-            .background {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .overlay(alignment: .top) {
-                        Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5)
-                    }
-                    .allowsHitTesting(false)
-            }
+        }
     }
 
     /// The landscape form: the same controls stacked against the edge they
@@ -776,7 +906,7 @@ struct PrompterView: View {
     private func controlRail(insets: EdgeInsets) -> some View {
         VStack(spacing: 8) {
             Spacer(minLength: 0)
-            controlButtons
+            controlButtons()
             Spacer(minLength: 0)
         }
         .frame(width: Self.railWidth)
@@ -812,6 +942,9 @@ struct PrompterView: View {
         primary: Bool = false,
         on: Bool = false,
         recording: Bool = false,
+        /// Sized to its content rather than spreading, so it can share a row
+        /// with the utility buttons instead of pushing them off the edge.
+        compact: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button {
@@ -830,7 +963,10 @@ struct PrompterView: View {
                                 : (recording ? Color.red : (on ? Self.accent : Color.white))
                         )
                 }
-                .frame(width: isLandscape ? 42 : 52, height: isLandscape ? 42 : 52)
+                .frame(
+                    width: isLandscape ? Self.railButtonSize : Self.takeButtonSize,
+                    height: isLandscape ? Self.railButtonSize : Self.takeButtonSize
+                )
 
                 if !isLandscape {
                     Text(label)
@@ -838,7 +974,7 @@ struct PrompterView: View {
                         .foregroundStyle(on ? Self.accent : .white.opacity(0.65))
                 }
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: compact ? Self.takeButtonSlot : .infinity)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -909,38 +1045,78 @@ struct PrompterView: View {
     /// deciding not to write it is nearly free; writing it 60 times a second
     /// for movement too small to see is what made a parked prompter as
     /// expensive as a scrolling one.
+    /// Points per second the target may travel while catching up to the
+    /// cursor: how far the script moves per spoken word, times how many
+    /// words a second the reader is actually saying.
+    private var pursuitSpeed: CGFloat {
+        let ahead = min(state.activeIndex + Self.pursuitLookahead, max(0, state.words.count - 1))
+        var perWord: CGFloat = 0
+        if ahead > state.activeIndex,
+           let here = wordFrames[state.activeIndex],
+           let later = wordFrames[ahead] {
+            perWord = (later.midY - here.midY) / CGFloat(ahead - state.activeIndex)
+        }
+        return ScrollPursuit.speed(
+            pointsPerWord: perWord,
+            wordsPerMinute: effectiveWPM,
+            catchUp: Self.pursuitCatchUp,
+            minimum: Self.pursuitMinSpeed
+        )
+    }
+
     private func tick(now: Date) {
         let cueY = tickCueY
-
-        if state.isListening && !isDraggingScript && state.driftSpeed > 0 {
-            if now.timeIntervalSince(lastVoiceTime) > 1.2 {
-                targetOffset -= state.driftSpeed / 60
-            }
-        }
 
         // Exponential smoothing towards the target, but only while the step
         // is big enough to see. Once it isn't, land exactly on the target one
         // final time and then leave `offset` alone — that last write is what
         // lets the view stop being invalidated.
+        // Clamped: a tick delayed by a stall, a backgrounding or a slow
+        // frame must not be paid back as one enormous jump.
+        let dt = min(max(now.timeIntervalSince(lastTickTime ?? now), 0), 0.1)
+        lastTickTime = now
+
         let gap = targetOffset - offset
         if abs(gap) > Self.settleThreshold {
-            offset += gap * 0.12
+            offset += gap * (1 - CGFloat(exp(-dt / Double(Self.smoothingTau))))
         } else if offset != targetOffset {
             offset = targetOffset
         }
 
-        // Self-heal: keep the active word on the reading line no matter what
-        // shook the layout. Rotation produces transient layouts whose
-        // measurements can leave a stale offset — the script would end up
-        // floating with the first line off screen, and no discrete event
-        // fired afterwards to fix it. Safe as a continuous check because
-        // these frames are in the flow's own space and don't move when
-        // `offset` does. This is why the ticker idles rather than stopping.
+        // Follow the reading cursor, at the speed the words are being spoken.
+        //
+        // Recognition does not arrive a word at a time: SFSpeechRecognizer
+        // reports partial results every few hundred milliseconds, each of
+        // which can match several words at once. Setting the target straight
+        // to the newly recognised word therefore asked the script to cover
+        // two seconds of speech in a third of a second, and then hold still
+        // until the next result — the stall-then-jump. Moving the target at
+        // the speaking pace instead turns the same bursts into continuous
+        // motion, without the display ever running ahead of what was
+        // actually heard.
+        //
+        // It stops dead when it arrives, so silence is still stillness: with
+        // no new words there is no new target, and nothing moves.
+        //
+        // This also does the old self-heal's job — a rotation or a font
+        // change leaves a stale offset that no discrete event corrects, and
+        // the pursuit walks it back onto the reading line. Safe as a
+        // continuous check because these frames are in the flow's own space
+        // and don't move when `offset` does.
         if !isDraggingScript, !isDraggingLine, let frame = wordFrames[state.activeIndex] {
             let want = cueY - frame.midY
-            if abs(want - targetOffset) > 1 {
-                targetOffset = want
-                dragStartOffset = want
+            let next = ScrollPursuit.step(
+                target: targetOffset,
+                toward: want,
+                speed: pursuitSpeed,
+                dt: dt,
+                snapDistance: Self.pursuitSnapDistance,
+                jumped: cursorJumped
+            )
+            cursorJumped = false
+            if next != targetOffset {
+                targetOffset = next
+                dragStartOffset = next
             }
         }
 
@@ -970,7 +1146,6 @@ struct PrompterView: View {
             || isDraggingScript
             || isDraggingLine
             || countdownDeadline != nil
-            || (state.isListening && state.driftSpeed > 0)
         )
     }
 
@@ -1056,7 +1231,6 @@ struct PrompterView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: item)
         }
         state.isListening = true
-        lastVoiceTime = Date()
         clock.start(at: Date())
         speech.begin(localeIdentifier: state.recognitionLocale)
         scheduleChromeHide()
@@ -1120,11 +1294,25 @@ struct PrompterView: View {
         // A change too small to see is not worth a state write — writing one
         // re-enters layout, which is how the feedback loop starts.
         guard abs(newTarget - targetOffset) > 0.5 || offset == 0 else { return }
+        // Whether the script was at rest *before* this new target arrived.
+        let wasSettled = abs(targetOffset - offset) <= Self.settleThreshold
         targetOffset = newTarget
         dragStartOffset = newTarget
+        // Wake the ticker here rather than letting it discover the new target
+        // on its own next frame. Parked on the reading line it idles at
+        // `PrompterTicker.idleFrameRate`, so that discovery is up to 100ms
+        // away — a delay on *every* word, which is what made following a
+        // speaker feel laggy even though the cursor itself had already moved.
+        ticker.setActive(true)
         // The first layout has nothing to animate from: snap, or the opening
         // line sits below the reading line until the cursor happens to move.
-        if !animated || offset == 0 { offset = newTarget }
+        //
+        // Otherwise a re-measurement (`animated: false`) may only snap when
+        // the script was already at rest. Doing it mid-scroll writes `offset`
+        // out from under an animation in flight, which lands as a teleport —
+        // the script stalls, then jumps. A re-measure during a scroll just
+        // moves the target and lets the smoothing above absorb it.
+        if offset == 0 || (!animated && wasSettled) { offset = newTarget }
     }
 
     private func showError(_ msg: String) {
@@ -1153,7 +1341,7 @@ struct PrompterView: View {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(tinted ? Self.accent : .white.opacity(0.9))
-                .frame(width: 34, height: 34)
+                .frame(width: Self.glassButtonSize, height: Self.glassButtonSize)
                 .background(.ultraThinMaterial, in: Circle())
                 .overlay(Circle().stroke(.white.opacity(0.12), lineWidth: 0.5))
         }
@@ -1168,13 +1356,22 @@ struct PrompterView: View {
 
 /// Fades a control out of the way during a take, and takes it out of the
 /// hit-testing while hidden so an invisible button can't be tapped.
+/// Recedes the take controls during a take without taking them away.
+///
+/// They used to go to `opacity(0)` and stop hit-testing, which read as the
+/// app having lost its buttons: nothing on screen suggested they still
+/// existed, or that a tap would bring them back. Dimmed instead — quiet
+/// enough to stop competing with the script, present enough to be found and
+/// pressed without a preceding tap to reveal them.
 private struct FadingControls: ViewModifier {
     let visible: Bool
 
+    /// Low enough to read as inactive chrome rather than as a live control,
+    /// high enough to stay legible against the material behind it.
+    static let dimmed: Double = 0.28
+
     func body(content: Content) -> some View {
-        content
-            .opacity(visible ? 1 : 0)
-            .allowsHitTesting(visible)
+        content.opacity(visible ? 1 : Self.dimmed)
     }
 }
 
