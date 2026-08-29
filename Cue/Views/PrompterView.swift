@@ -259,6 +259,13 @@ struct PrompterView: View {
                     state.cameraEnabled = true
                     camera.isRecording = true
                     camera.recordingSeconds = 14
+                    // Listening too, because recording without it is not a
+                    // state a real take reaches — `beginRecordingTake` starts
+                    // both. Faking only the recording half produced a
+                    // marketing screenshot that contradicted itself: a red
+                    // tally counting up, next to a play button inviting you
+                    // to start listening.
+                    state.isListening = true
                 }
                 syncInterfaceOrientation()
                 tickCueY = cueY
