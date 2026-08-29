@@ -112,7 +112,7 @@ final class PrompterSmokeTests: XCTestCase {
 
             let line = app.otherElements["readingLine"]
             XCTAssertTrue(line.waitForExistence(timeout: 5), "reading line must exist in \(orientation.rawValue)")
-            let firstWord = app.staticTexts["Welcome"]
+            let firstWord = app.staticTexts["Being"]
             XCTAssertTrue(firstWord.waitForExistence(timeout: 5), "first word must be on screen in \(orientation.rawValue)")
 
             let drift = abs(line.frame.midY - firstWord.frame.midY)
@@ -170,7 +170,7 @@ final class PrompterSmokeTests: XCTestCase {
 
         // Words that appear exactly once in the default script — a repeated
         // word makes the query ambiguous rather than the layout wrong.
-        for label in ["Welcome", "explaining", "itself,"] {
+        for label in ["inquired", "didactic,", "beseechingly,"] {
             let word = app.staticTexts.matching(identifier: label).firstMatch
             guard word.exists else { continue }
             XCTAssertFalse(
@@ -203,7 +203,7 @@ final class PrompterSmokeTests: XCTestCase {
         defer { XCUIDevice.shared.orientation = .portrait }
 
         let line = app.otherElements["readingLine"]
-        let firstWord = app.staticTexts.matching(identifier: "Welcome").firstMatch
+        let firstWord = app.staticTexts.matching(identifier: "Being").firstMatch
         XCTAssertTrue(line.waitForExistence(timeout: 5))
         XCTAssertTrue(
             firstWord.waitForExistence(timeout: 5),
@@ -266,7 +266,7 @@ final class PrompterSmokeTests: XCTestCase {
             XCUIDevice.shared.orientation = orientation
             XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
 
-            let word = app.staticTexts.matching(identifier: "Welcome").firstMatch
+            let word = app.staticTexts.matching(identifier: "Being").firstMatch
             XCTAssertTrue(word.waitForExistence(timeout: 5))
             let narrow = word.frame.minX
 

@@ -342,15 +342,24 @@ final class TeleprompterState: ObservableObject {
         unmatchedWords = 0
     }
 
+    /// Mark Twain, "Advice to Youth" (1882) — a real speech, and one written
+    /// to be *said* rather than read, which is what this app is for. Long
+    /// enough to scroll properly, funny enough that testing it repeatedly is
+    /// no hardship, and firmly in the public domain. It replaced a script
+    /// that explained the app to itself, which demonstrated nothing about
+    /// reading aloud; the "?" guide and the first-run voice-command tip carry
+    /// the onboarding instead.
     static let defaultScript = """
-    Welcome to On Cue — and this script is actually explaining itself, right now, while you read it.
+    Being told I would be expected to talk here, I inquired what sort of a talk I ought to make. They said it should be something suitable to youth — something didactic, instructive, or something in the nature of good advice.
 
-    It's scrolling because you're speaking it. Pause, and it waits. Skip ahead, paraphrase, double back — it follows what you say, not a fixed speed you have to chase.
+    Very well. I have a few things in my mind which I have often longed to say for the instruction of the young; for it is in one's tender early years that such things will best take root and be most enduring and most valuable.
 
-    Say "scroll up" to step back a line without touching the phone. Drag the script with your finger any time you want to move it by hand — listening or not. Tap Record to capture yourself with the front camera while you read, or turn Mirror on if you're using a teleprompter rig with glass.
+    First, then. I will say to you, my young friends — and I say it beseechingly, urgingly —
 
-    Text size, alignment, margins, pace — all of it lives in the settings sheet, and it's remembered the next time you open the app.
+    Always obey your parents, when they are present. This is the best policy in the long run, because if you don't they will make you. Most parents think they know better than you do, and you can generally make more by humoring that superstition than you can by acting on your own better judgment.
 
-    When you're ready, delete this and write your own script, or open one from Files. Either way, On Cue just follows along.
+    Be respectful to your superiors, if you have any, also to strangers, and sometimes to others. If a person offend you, and you are in doubt as to whether it was intentional or not, do not resort to extreme measures; simply watch your chance and hit him with a brick.
+
+    — Mark Twain, "Advice to Youth", 1882
     """
 }
