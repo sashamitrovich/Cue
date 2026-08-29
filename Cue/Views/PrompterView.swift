@@ -636,6 +636,8 @@ struct PrompterView: View {
                 }
             }
 
+            recordingTally(insets: insets)
+
             if isLandscape {
                 HStack(spacing: 0) {
                     if railOnLeading { controlRail(insets: insets) }
@@ -737,7 +739,10 @@ struct PrompterView: View {
 
                 Spacer(minLength: 8)
 
-                if camera.isRecording { recordingBadge }
+                // Landscape only. Its status bar already runs along the top
+                // edge, so the badge is where it belongs; portrait floats it
+                // at the top-left instead — see `recordingTally`.
+                if isLandscape, camera.isRecording { recordingBadge }
 
                 if state.cameraEnabled, let mode = camera.selectedMode, let tier = camera.selectedTier {
                     qualityControl(mode: mode, tier: tier)
@@ -800,6 +805,32 @@ struct PrompterView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Elapsed \(ReadingPace.timeString(elapsed)), about \(ReadingPace.timeString(remainingSeconds)) remaining")
+    }
+
+    /// Recording, at the top-left of the frame.
+    ///
+    /// Portrait only: it used to ride in the bottom bar with everything else,
+    /// but whether the camera is rolling is the one thing you want to catch
+    /// while looking at the lens rather than the screen, and the bottom bar is
+    /// where your hands are, not where your eye is. Landscape keeps it in the
+    /// status bar, which already runs along the top edge.
+    ///
+    /// Deliberately outside `FadingControls`: this never dims and never hides.
+    /// It is also outside the mirrored layer, so it stays upright on a rig.
+    @ViewBuilder
+    private func recordingTally(insets: EdgeInsets) -> some View {
+        if !isLandscape, camera.isRecording {
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    recordingBadge
+                    Spacer(minLength: 0)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.top, insets.top + 10)
+            .padding(.leading, max(insets.leading, 16))
+            .allowsHitTesting(false)
+        }
     }
 
     private var recordingBadge: some View {
