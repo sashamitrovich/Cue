@@ -92,6 +92,8 @@ This is how a scrim that appeared correct in code but rendered at ~30% of intend
 
 ## Invariants that are easy to break
 
+**`FlowLayout` caches its measurements, and the cache key includes `fontSize`.** The `Layout` protocol's cache was declared `inout ()` and unused, so the script was measured three times per pass — in `sizeThatFits`, again in `placeSubviews`, and once more per row inside `place` — for every word, every pass. Word widths are pinned at their bold rendering (`ScrollFlow.boldWidth`) so they don't change when a word changes state; the only thing that invalidates them is the reader changing text size, hence `fontSize` on the layout. If you make a word's width depend on anything else, that thing has to invalidate the cache too.
+
 **Voice commands step *drawn* rows, not typed lines.** `lines` groups words as typed, so a paragraph is one line — stepping by it jumped a whole paragraph. `VisualLines` works from the measured word frames instead, which is the only thing that knows where the rows fall on screen; it falls back to typed lines only when nothing has been measured.
 
 **Command matching is deliberately looser than script matching.** A short phrase has no surrounding context to disambiguate it, so recognition of "scroll up" is *harder* than of the script around it — markedly so in an accent, which is how this was found. `VoiceCommandDetector.matches` allows prefixes and an edit distance of two, but only for words of five letters or more: "up" must never fuzzy-match "on". The request also carries `contextualStrings` to bias recognition toward the command phrases.
@@ -141,6 +143,28 @@ This is how a scrim that appeared correct in code but rendered at ~30% of intend
 **Format-dependent camera properties raise uncatchable exceptions.** `isVideoHDREnabled`, `activeVideoMin/MaxFrameDuration` and `videoZoomFactor` are validated against the **active format**, and an unsupported value raises an Objective-C exception — which Swift cannot catch, so the app dies. Always gate on the format in force (`device.activeFormat.isVideoHDRSupported`, the format's own `videoSupportedFrameRateRanges`, the device's live zoom range), never on a device-wide or cached capability. `capabilities.supportsHDR` describing "some format supports HDR" is what crashed the app when the frame-rate pill switched to a format without HDR. Re-read zoom range and HDR support after every format change.
 
 **Never reconfigure the capture device while recording.** `apply(_:)` refuses, and the on-screen pills hide, because changing `activeFormat` mid-take tears down the file being written.
+
+**A frame that changes nothing must write nothing.** `PrompterTicker` (a `CADisplayLink`, not a `Timer`) calls `PrompterView.tick` once per frame, and every `@State` write in there re-evaluates the whole prompter — which rebuilds *every word view in the script*. The offset smoothing is exponential and so never actually arrives at its target: writing the result unconditionally meant a prompter parked on the reading line, doing nothing, redrawing the entire script sixty times a second forever. It now lands exactly on the target once movement drops below `settleThreshold` and then stops writing. Keep that shape for anything added here — read state, decide, and only write when the result differs.
+
+**The ticker throttles itself.** `setActive` drops the link to `PrompterTicker.idleFrameRate` whenever nothing is animating, which is most of a take. It cannot simply *stop*: the reading line's self-heal check (below) has to keep running to catch a layout that settled wrong, which is why the idle rate is low rather than zero. Anything new that animates must be named in the `setActive` condition at the end of `tick`, or it will run at the idle rate and stutter.
+
+**The ticker's callback is registered once, so it must not close over layout values.** `cueY` is a local computed inside the `GeometryReader`; capturing it in the callback froze it at whatever it was when the prompter appeared, surviving neither rotation nor a drag of the reading-line handle. It is mirrored into `tickCueY` by an `onChange` and read live from there.
+
+**Speech callbacks arrive on an arbitrary queue.** `SFSpeechRecognizer`'s task handler and `AVCaptureFileOutputRecordingDelegate` both call back off the main thread, and everything they touch — the cursor, `@Published` state, `@State` in the view — is main-actor. Both hop to main once at the boundary. Don't add a second hop downstream, and don't remove these.
+
+**An interruption is not an error.** A call, Siri or an alarm ends the recognition task *and* reports an error on the way out. `SpeechTracker` observes `AVAudioSession.interruptionNotification`, sets `interrupted`, and `handleError` returns early while it is set — otherwise a take that is about to resume by itself gets a red banner over it. On `.ended` it restarts only when iOS passes `.shouldResume`, and says so plainly when it doesn't. `PrompterView` follows `speech.$isListening` in **both** directions so a recovered take doesn't read as stopped.
+
+**`end()` deactivates the audio session.** Without it the category stays active after a take and the user's music or podcast stays ducked until the app is killed.
+
+**Recording timers need `.common` run-loop mode.** `CameraController`'s per-second recording clock froze for the duration of any touch on the default mode, so the badge stopped counting the moment a finger touched the script and jumped when it lifted.
+
+**A finished take is deleted from `tmp` only after Photos confirms the copy.** Both halves matter: leaving it accumulated minutes of 4K per take invisibly, and deleting it before the callback would lose the recording outright.
+
+**Haptics are deliberately sparse.** `Haptics` covers take start, take stop, recording start, each pre-roll second, and a saved take — nothing else. The premise of the app is that the reader is looking at the lens rather than the screen, which makes touch the only channel that reaches them during a take; feedback on everything would make it meaningless. Suppressed under `-uiTestingNoCamera`.
+
+**Every script word is its own accessibility element, on purpose.** It reads badly under VoiceOver — one swipe per word — but the reading-line geometry tests locate words through the accessibility tree (`app.staticTexts["Welcome"]`), and those are the tests that caught the line sitting 45pt out of register. Grouping the script needs those assertions given another way to find a word first.
+
+**The recognition locale is a real setting, not `en-US`.** It was hard-coded, which meant the app silently did nothing for anyone reading in another language — the prompter simply never moved, with no error to explain it. `SpeechLocales.preferred` resolves the default (exact match, then same language in another region, then English), and the picker appears in *both* the settings sheet and on the setup screen: it is a pre-start decision, and it's the one setting whose failure mode looks like a broken app rather than a wrong option. `SFSpeechRecognizer` is rebuilt when it changes. Command `contextualStrings` stay English.
 
 **The idle timer stays disabled for the whole prompter screen.** A take is minutes of talking to the lens without touching the screen, so iOS would otherwise dim and lock mid-recording. Set in `PrompterView.onAppear`, cleared in `onDisappear` — don't scope it to `isRecording` only.
 

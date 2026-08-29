@@ -11,6 +11,7 @@ import Combine
 struct PrompterView: View {
     @ObservedObject var state: TeleprompterState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     @StateObject private var speech = SpeechTracker()
     @StateObject private var camera = CameraController()
@@ -18,10 +19,17 @@ struct PrompterView: View {
     @State private var wordFrames: [Int: CGRect] = [:]
     @State private var offset: CGFloat = 0
     @State private var targetOffset: CGFloat = 0
+    /// The live reading-line position, for the ticker — see the `onChange`
+    /// that maintains it.
+    @State private var tickCueY: CGFloat = 0
     @State private var lastVoiceTime = Date.distantPast
     @State private var dragStartOffset: CGFloat = 0
     @State private var errorMessage: String?
     @State private var errorWorkItem: DispatchWorkItem?
+    /// A neutral confirmation — currently only "take saved" — kept separate
+    /// from `errorMessage` so success never renders in the failure colour.
+    @State private var noticeMessage: String?
+    @State private var noticeWorkItem: DispatchWorkItem?
     @State private var showSettings = false
     @State private var pinchStartZoom: CGFloat = 1
     @State private var isPinching = false
@@ -56,6 +64,7 @@ struct PrompterView: View {
     /// Shown once, the first time a take starts: voice commands are otherwise
     /// invisible — nothing on screen suggests the prompter takes instructions.
     @State private var showVoiceTip = false
+    @State private var voiceTipWorkItem: DispatchWorkItem?
     private let tips = FirstRunTips()
 
     static let railWidth: CGFloat = 56
@@ -75,7 +84,18 @@ struct PrompterView: View {
     /// A take is running, so the chrome is allowed to get out of the way.
     private var takeIsLive: Bool { state.isListening || camera.isRecording }
 
-    private let ticker = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+    /// Held in a `@StateObject` rather than built inline: a publisher created
+    /// as a `let` on a `View` struct is re-allocated every time SwiftUI
+    /// re-initialises that struct.
+    @StateObject private var ticker = PrompterTicker()
+
+    /// How close `offset` has to get to its target before it stops being
+    /// worth a state write. The smoothing below is exponential and therefore
+    /// approaches its target without ever arriving; writing the result every
+    /// frame regardless re-evaluated the whole prompter — every word view
+    /// included — 60 times a second, forever, long after the movement had
+    /// become invisible. Below this the offset snaps once and goes quiet.
+    private static let settleThreshold: CGFloat = 0.05
 
     var body: some View {
         GeometryReader { geo in
@@ -167,6 +187,8 @@ struct PrompterView: View {
                     camera.recordingSeconds = 14
                 }
                 syncInterfaceOrientation()
+                tickCueY = cueY
+                ticker.start { tick(now: $0) }
                 dragStartOffset = targetOffset
                 recomputeTarget(cueY: cueY)
                 speech.onTranscript = { words in
@@ -204,6 +226,10 @@ struct PrompterView: View {
             }
             .onDisappear {
                 UIApplication.shared.isIdleTimerDisabled = false
+                ticker.stop()
+                errorWorkItem?.cancel()
+                noticeWorkItem?.cancel()
+                voiceTipWorkItem?.cancel()
                 countdownDeadline = nil
                 clock.pause(at: Date())
                 speech.end()
@@ -245,56 +271,47 @@ struct PrompterView: View {
             .onChange(of: takeIsLive) { live in
                 if live { scheduleChromeHide() } else { revealChrome() }
             }
-            .onReceive(ticker) { _ in
-                let now = Date()
-                if state.isListening && !isDraggingScript && state.driftSpeed > 0 {
-                    if now.timeIntervalSince(lastVoiceTime) > 1.2 {
-                        targetOffset -= state.driftSpeed / 60
-                    }
-                }
-                offset += (targetOffset - offset) * 0.12
-
-                // Self-heal: keep the active word on the reading line no
-                // matter what shook the layout. Rotation produces transient
-                // layouts whose measurements can leave a stale offset — the
-                // script would end up floating with the first line off
-                // screen, and no discrete event fired afterwards to fix it.
-                // Safe as a continuous check because these frames are in the
-                // flow's own space and don't move when `offset` does.
-                if !isDraggingScript, !isDraggingLine, let frame = wordFrames[state.activeIndex] {
-                    let want = cueY - frame.midY
-                    if abs(want - targetOffset) > 1 {
-                        targetOffset = want
-                        dragStartOffset = want
-                    }
-                }
-
-                if let deadline = countdownDeadline, now >= deadline {
-                    startListeningNow()
-                }
-                if let hideAt = chromeHideAt, now >= hideAt {
-                    chromeHideAt = nil
-                    if takeIsLive && !showSettings { chromeVisible = false }
-                }
-                // Only publish a new date when the displayed second changes,
-                // rather than 60 times a second for a readout that can't show it.
-                if Int(now.timeIntervalSince1970) != Int(displayNow.timeIntervalSince1970) {
-                    displayNow = now
-                }
-            }
+            // The ticker's callback is registered once, so it must not close
+            // over `cueY` — that local would freeze at whatever the reading
+            // line was when the prompter appeared and never follow a rotation
+            // or a drag of the handle. Mirrored into state instead, which the
+            // callback reads live. Still a pure function of geometry, so this
+            // is not the measurement-drives-layout cycle `cueY` is kept out of.
+            .onChange(of: cueY) { tickCueY = $0 }
             .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
                 syncInterfaceOrientation()
             }
             .onReceive(speech.$errorMessage.compactMap { $0 }) { showError($0) }
             .onReceive(camera.$errorMessage.compactMap { $0 }) { showError($0) }
+            .onReceive(camera.$savedMessage.compactMap { $0 }) { msg in
+                showNotice(msg)
+                Haptics.success()
+                camera.savedMessage = nil
+            }
+            // Leaving the app mid-take: iOS takes the microphone and the
+            // capture session away regardless, so end the take deliberately
+            // rather than coming back to a prompter that claims to be
+            // listening and isn't. A recording is stopped rather than
+            // abandoned, which saves what was captured instead of losing it
+            // to an interrupted session.
+            .onChange(of: scenePhase) { phase in
+                guard phase != .active else { return }
+                if camera.isRecording { camera.stopRecording() }
+                if state.isListening || countdownDeadline != nil { pauseTake() }
+            }
+            // The tracker is the authority on whether the microphone is
+            // actually running, so the prompter follows it in both
+            // directions: down when it stops itself (a fatal recognition
+            // error, or iOS taking the mic for a call), and back up when it
+            // resumes on its own once the interruption ends. Following it
+            // down alone left a take that recovered showing "Tap play to
+            // begin" while it was in fact listening.
             .onReceive(speech.$isListening) { listening in
-                // If the tracker stops itself (e.g. a fatal recognition
-                // error), reflect that in the play/pause button instead of
-                // leaving it stuck showing "Listening".
-                if !listening && state.isListening {
-                    state.isListening = false
-                    clock.pause(at: Date())
-                }
+                guard listening != state.isListening else { return }
+                state.isListening = listening
+                // The speaking clock excludes anything that isn't talking, so
+                // it tracks this exactly.
+                if listening { clock.start(at: Date()) } else { clock.pause(at: Date()) }
             }
             .sheet(isPresented: $showSettings) {
                 PrompterControlsSheet(camera: camera, state: state)
@@ -481,10 +498,7 @@ struct PrompterView: View {
                 if isLandscape {
                     statusBar(insets: insets)
                     Spacer(minLength: 0)
-                    if let msg = errorMessage {
-                        errorBanner(msg)
-                            .padding(.bottom, 12)
-                    }
+                    banners
                 } else {
                     // Everything reachable lives on one edge: the status
                     // row and the take controls used to split top and
@@ -494,10 +508,7 @@ struct PrompterView: View {
                     // hand. Landscape already puts everything in one rail;
                     // this is the same idea for portrait.
                     Spacer(minLength: 0)
-                    if let msg = errorMessage {
-                        errorBanner(msg)
-                            .padding(.bottom, 12)
-                    }
+                    banners
                     statusBar(insets: insets, dockedAtBottom: true)
                     controlBar(insets: insets)
                         .modifier(FadingControls(visible: chromeVisible))
@@ -663,14 +674,38 @@ struct PrompterView: View {
         .accessibilityLabel("Video quality \(mode.label)")
     }
 
-    private func errorBanner(_ msg: String) -> some View {
-        Text(msg)
-            .font(.footnote)
-            .foregroundStyle(.white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(Color.red.opacity(0.75), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .padding(.horizontal, 18)
+    /// Transient messages, above whichever chrome is nearest to hand. A
+    /// failure and a confirmation can both be pending — a take that saved
+    /// while a recognition error was still on screen, say — so neither
+    /// displaces the other.
+    @ViewBuilder
+    private var banners: some View {
+        if let msg = errorMessage {
+            banner(msg, tint: Color.red.opacity(0.75), icon: "exclamationmark.triangle.fill")
+                .padding(.bottom, 12)
+        }
+        if let msg = noticeMessage {
+            banner(msg, tint: Color.black.opacity(0.6), icon: "checkmark.circle.fill")
+                .padding(.bottom, 12)
+        }
+    }
+
+    private func banner(_ msg: String, tint: Color, icon: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+            Text(msg)
+        }
+        .font(.footnote)
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(tint, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(.white.opacity(0.12), lineWidth: 0.5)
+        )
+        .padding(.horizontal, 18)
+        .transition(.opacity)
     }
 
     // MARK: - Take controls
@@ -864,6 +899,81 @@ struct PrompterView: View {
         .zIndex(10)
     }
 
+    // MARK: - Per-frame work
+
+    /// One frame of the prompter's own animation, called by `PrompterTicker`.
+    ///
+    /// The rule throughout is that a frame which changes nothing must write
+    /// nothing: every `@State` write here re-evaluates the whole prompter,
+    /// which rebuilds every word view in the script. Reading state and
+    /// deciding not to write it is nearly free; writing it 60 times a second
+    /// for movement too small to see is what made a parked prompter as
+    /// expensive as a scrolling one.
+    private func tick(now: Date) {
+        let cueY = tickCueY
+
+        if state.isListening && !isDraggingScript && state.driftSpeed > 0 {
+            if now.timeIntervalSince(lastVoiceTime) > 1.2 {
+                targetOffset -= state.driftSpeed / 60
+            }
+        }
+
+        // Exponential smoothing towards the target, but only while the step
+        // is big enough to see. Once it isn't, land exactly on the target one
+        // final time and then leave `offset` alone — that last write is what
+        // lets the view stop being invalidated.
+        let gap = targetOffset - offset
+        if abs(gap) > Self.settleThreshold {
+            offset += gap * 0.12
+        } else if offset != targetOffset {
+            offset = targetOffset
+        }
+
+        // Self-heal: keep the active word on the reading line no matter what
+        // shook the layout. Rotation produces transient layouts whose
+        // measurements can leave a stale offset — the script would end up
+        // floating with the first line off screen, and no discrete event
+        // fired afterwards to fix it. Safe as a continuous check because
+        // these frames are in the flow's own space and don't move when
+        // `offset` does. This is why the ticker idles rather than stopping.
+        if !isDraggingScript, !isDraggingLine, let frame = wordFrames[state.activeIndex] {
+            let want = cueY - frame.midY
+            if abs(want - targetOffset) > 1 {
+                targetOffset = want
+                dragStartOffset = want
+            }
+        }
+
+        if let deadline = countdownDeadline, now >= deadline {
+            startListeningNow()
+        }
+        if let hideAt = chromeHideAt, now >= hideAt {
+            chromeHideAt = nil
+            if takeIsLive && !showSettings { chromeVisible = false }
+        }
+        // Only publish a new date when the displayed second changes, rather
+        // than every frame for a readout that can't show it.
+        if Int(now.timeIntervalSince1970) != Int(displayNow.timeIntervalSince1970) {
+            displayNow = now
+            // The pre-roll exists so you can settle and find the lens, which
+            // is exactly when you are not looking at the number counting
+            // down. Tapped out instead. `startListeningNow` above has already
+            // cleared the deadline by the final tick, so this doesn't fire on
+            // the beat the take actually starts — that gets its own.
+            if countdownDeadline != nil { Haptics.countdownTick() }
+        }
+
+        // Full refresh rate only while something is actually moving; the rest
+        // of a take runs at the idle rate, which is most of a take.
+        ticker.setActive(
+            abs(targetOffset - offset) > Self.settleThreshold
+            || isDraggingScript
+            || isDraggingLine
+            || countdownDeadline != nil
+            || (state.isListening && state.driftSpeed > 0)
+        )
+    }
+
     // MARK: - Chrome visibility
 
     /// Brings the controls back and restarts the linger timer. Called from
@@ -925,6 +1035,7 @@ struct PrompterView: View {
     private func beginRecordingTake() {
         if state.isListening {
             camera.startRecording()
+            Haptics.recordingStarted()
         } else {
             pendingRecordOnListen = true
             beginTake()
@@ -936,16 +1047,25 @@ struct PrompterView: View {
         if tips.shouldShowVoiceCommandTip(commandsEnabled: state.voiceCommandsEnabled) {
             showVoiceTip = true
             tips.markVoiceCommandTipSeen()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 6) { showVoiceTip = false }
+            // Cancellable, so leaving the prompter inside the six seconds
+            // doesn't leave a timer holding the view alive to write state
+            // into it afterwards.
+            voiceTipWorkItem?.cancel()
+            let item = DispatchWorkItem { showVoiceTip = false }
+            voiceTipWorkItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: item)
         }
         state.isListening = true
         lastVoiceTime = Date()
         clock.start(at: Date())
-        speech.begin()
+        speech.begin(localeIdentifier: state.recognitionLocale)
         scheduleChromeHide()
         if pendingRecordOnListen {
             pendingRecordOnListen = false
             camera.startRecording()
+            Haptics.recordingStarted()
+        } else {
+            Haptics.takeStarted()
         }
     }
 
@@ -953,6 +1073,7 @@ struct PrompterView: View {
         commandDetector.reset()
         countdownDeadline = nil
         pendingRecordOnListen = false
+        if state.isListening { Haptics.takeStopped() }
         state.isListening = false
         clock.pause(at: Date())
         speech.end()
@@ -1013,6 +1134,15 @@ struct PrompterView: View {
         let item = DispatchWorkItem { errorMessage = nil }
         errorWorkItem = item
         DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: item)
+    }
+
+    private func showNotice(_ msg: String) {
+        noticeMessage = msg
+        revealChrome()
+        noticeWorkItem?.cancel()
+        let item = DispatchWorkItem { noticeMessage = nil }
+        noticeWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: item)
     }
 
     /// A small circular control for the things that aren't part of running a
@@ -1087,7 +1217,7 @@ private struct ScrollFlow: View {
                     // pauses and ad-lib room survive into the prompter.
                     Color.clear.frame(height: state.fontSize * 0.9)
                 } else {
-                    FlowLayout(spacing: 8, lineSpacing: 6, alignment: state.textAlignment) {
+                    FlowLayout(spacing: 8, lineSpacing: 6, alignment: state.textAlignment, fontSize: state.fontSize) {
                         ForEach(line.words) { word in
                             wordView(word)
                         }
@@ -1101,6 +1231,14 @@ private struct ScrollFlow: View {
         .padding(.top, topInset)
         .padding(.bottom, bottomInset)
         .onPreferenceChange(WordFramePreferenceKey.self) { wordFrames = $0 }
+        // NOTE: each word is deliberately left as its own accessibility
+        // element. Grouping the script into one element reads far better
+        // under VoiceOver — currently it is one swipe per word — but the
+        // reading-line geometry tests locate words through the accessibility
+        // tree (`app.staticTexts["Welcome"]`), and those are the tests that
+        // caught the line being 45pt out of register. Fixing the VoiceOver
+        // experience means giving those assertions another way to find a
+        // word first.
     }
 
     @ViewBuilder
@@ -1149,14 +1287,18 @@ private struct ScrollFlow: View {
 
     /// Per-type so it survives this struct being recreated every render;
     /// bounded in practice by (unique words) × (font sizes the slider offers).
-    private static var boldWidthCache: [String: CGFloat] = [:]
+    ///
+    /// Nested by size rather than keyed by an interpolated `"\(size)_\(word)"`
+    /// string: this is read once per word per body evaluation, and building a
+    /// throwaway String each time to look up a cache made the cache cost about
+    /// as much as the measurement it was avoiding.
+    private static var boldWidthCache: [CGFloat: [String: CGFloat]] = [:]
 
     private static func boldWidth(_ text: String, fontSize: CGFloat) -> CGFloat {
-        let key = "\(fontSize)_\(text)"
-        if let cached = boldWidthCache[key] { return cached }
+        if let cached = boldWidthCache[fontSize]?[text] { return cached }
         let font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
         let width = (text as NSString).size(withAttributes: [.font: font]).width
-        boldWidthCache[key] = width
+        boldWidthCache[fontSize, default: [:]][text] = width
         return width
     }
 }

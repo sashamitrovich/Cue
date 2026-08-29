@@ -9,6 +9,9 @@ Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription a
 ## What it does
 
 - **Follows your voice.** On-device speech recognition matches what you say against the script and moves the reading line to keep your place. Skip a word, paraphrase, or pause and it stays with you.
+- **Reads your language.** Any language your iPhone can recognise, picked on the setup screen and in Prompter settings. It starts on the one your phone is set to, falling back to English only when the device has no model for it. (Spoken *commands* are English-only whatever the script's language.)
+- **Survives an interruption.** A call, Siri or an alarm mid-take pauses listening and picks it back up when the interruption ends, rather than quietly leaving you talking to a prompter that stopped following. Leaving the app stops a recording rather than losing it.
+- **Confirms your take.** Finishing a recording says so on screen and in your hand, once the video is actually in Photos.
 - **Records while you read.** Front-camera capture with the script overlaid, saved straight to Photos. The camera is on by default and toggles off from the prompter itself, where you can see what it does.
 - **Explains itself.** A "?" on the setup screen opens a plain-language guide to every option — including Mirror, which flips the script top-to-bottom for teleprompter rigs that bounce the screen off a sheet of glass in front of the lens. The controls never move and stay right-way-up, since you look at them directly rather than through the glass.
 - **Times your read.** Word count and estimated run time as you write — pick a relaxed, natural or brisk pace right in the estimate — then elapsed time, time left and a progress bar while you speak. The estimate starts from your target pace and switches to your *measured* pace once there's enough of the take to judge from.
@@ -34,7 +37,7 @@ Re-read a line without touching the phone. Say:
 
 Repeat a command to go further. The words are removed before the script is matched, so saying one never advances your place by accident — and if your script genuinely says the phrase at that point, it is read rather than obeyed. There's a **Voice commands** toggle in Prompter settings.
 
-Short commands are harder for speech recognition than running speech is, because there's no surrounding sentence for context. On Cue tells the recogniser to expect these phrases and matches them loosely, but if one still gets missed, say it as a single unit at your normal volume.
+Repeat a command to go further. Short commands are harder for speech recognition than running speech is, because there's no surrounding sentence for context. On Cue tells the recogniser to expect these phrases and matches them loosely, but if one still gets missed, say it as a single unit at your normal volume. Commands are recognised in English regardless of the script's language.
 - **Works sideways.** Turn the phone and the take controls move to a rail on the edge they were already on, instead of a bottom bar eating the vertical space landscape can least afford.
 
 ## Requirements

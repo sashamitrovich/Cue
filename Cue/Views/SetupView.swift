@@ -54,6 +54,7 @@ struct SetupView: View {
                 editorCard()
                 if !editorFocused {
                     startButton
+                    languageNotice
                     cameraNotice
                     footnote
                 }
@@ -219,6 +220,38 @@ struct SetupView: View {
         .tint(PrompterView.accent)
         .foregroundStyle(.black)
         .disabled(scriptIsEmpty)
+    }
+
+    /// Which language the prompter will listen in, before it matters rather
+    /// than after.
+    ///
+    /// This also lives in the prompter's settings sheet, but it belongs here
+    /// too: it's a pre-start decision, and it's the one setting whose failure
+    /// mode is silent. Getting it wrong doesn't look like a wrong setting, it
+    /// looks like a prompter that doesn't work — and someone who has just
+    /// watched their script sit motionless is not going to go hunting through
+    /// a settings sheet to find out why.
+    private var languageNotice: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "waveform")
+            Text("Listening in")
+            Menu {
+                Picker("Language", selection: $state.recognitionLocale) {
+                    ForEach(SpeechLocales.available(), id: \.identifier) { locale in
+                        Text(SpeechLocales.label(for: locale)).tag(locale.identifier)
+                    }
+                }
+            } label: {
+                HStack(spacing: 2) {
+                    Text(SpeechLocales.label(for: Locale(identifier: state.recognitionLocale)))
+                    Image(systemName: "chevron.down").font(.caption2)
+                }
+            }
+            .accessibilityLabel("Speech recognition language, \(SpeechLocales.label(for: Locale(identifier: state.recognitionLocale)))")
+            Spacer(minLength: 0)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 
     /// The thing a first-time user most needs to know before tapping start,

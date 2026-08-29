@@ -26,6 +26,9 @@ final class CameraController: NSObject, ObservableObject {
     @Published var isRunning = false
     @Published var isRecording = false
     @Published var errorMessage: String?
+    /// Set once a finished take is safely in the Photos library, so the
+    /// prompter can say so. Cleared by whoever displays it.
+    @Published var savedMessage: String?
     @Published var recordingSeconds: Int = 0
 
     @Published var capabilities = CameraCapabilities()
@@ -392,14 +395,22 @@ final class CameraController: NSObject, ObservableObject {
         movieOutput.startRecording(to: url, recordingDelegate: self)
         isRecording = true
         recordingSeconds = 0
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             self?.recordingSeconds += 1
         }
+        // `.common`, not the default mode: on the default run loop this timer
+        // is suspended for the whole of any touch tracking, so the recording
+        // clock visibly froze the moment a finger touched the script and
+        // caught up in a jump when it lifted.
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     func stopRecording() {
         guard isRecording else { return }
         movieOutput.stopRecording()
+        // The timer is also cleared in the delegate callback, which is what
+        // catches a recording that stops without going through here.
         timer?.invalidate()
         timer = nil
     }
@@ -407,11 +418,21 @@ final class CameraController: NSObject, ObservableObject {
 
 extension CameraController: AVCaptureFileOutputRecordingDelegate {
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
-        isRecording = false
+        // AVFoundation calls this on its own queue, and everything below is
+        // `@Published` state the UI observes.
+        DispatchQueue.main.async {
+            self.isRecording = false
+            self.timer?.invalidate()
+            self.timer = nil
+        }
         if let error = error {
-            errorMessage = "Recording error: \(error.localizedDescription)"
+            DispatchQueue.main.async {
+                self.errorMessage = "Recording error: \(error.localizedDescription)"
+            }
+            Self.discard(outputFileURL)
             return
         }
+        let seconds = CMTimeGetSeconds(output.recordedDuration)
         PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
             guard status == .authorized || status == .limited else {
                 DispatchQueue.main.async {
@@ -423,11 +444,34 @@ extension CameraController: AVCaptureFileOutputRecordingDelegate {
                 PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: outputFileURL)
             }) { success, error in
                 DispatchQueue.main.async {
-                    if !success {
+                    if success {
+                        // A take used to finish in total silence: the one
+                        // thing the app is for completed with no
+                        // acknowledgement at all, so the only way to find out
+                        // whether minutes of talking had been kept was to
+                        // leave and open Photos.
+                        self.savedMessage = seconds >= 1
+                            ? "Take saved to Photos · \(Self.durationLabel(seconds))"
+                            : "Take saved to Photos"
+                    } else {
                         self.errorMessage = "Couldn't save to Photos: \(error?.localizedDescription ?? "unknown error")"
                     }
                 }
+                // Photos has its own copy now. Leaving these behind meant
+                // every take of every session accumulating in the container
+                // — minutes of 4K each, invisible to the user and counted
+                // against the app's storage.
+                if success { Self.discard(outputFileURL) }
             }
         }
+    }
+
+    private static func discard(_ url: URL) {
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    private static func durationLabel(_ seconds: Double) -> String {
+        let whole = Int(seconds.rounded())
+        return String(format: "%d:%02d", whole / 60, whole % 60)
     }
 }

@@ -13,13 +13,21 @@ final class SpeechTracker: NSObject, ObservableObject {
 
     var onTranscript: (([String]) -> Void)?
 
-    private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+    /// Rebuilt whenever the reader changes language, so this is a `var` and
+    /// the identifier is supplied at `begin` rather than fixed at init.
+    private var recognizer = SFSpeechRecognizer(locale: Locale(identifier: SpeechLocales.fallback))
+    private var localeIdentifier = SpeechLocales.fallback
     private let audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var shouldRun = false
     private var receivedAnyResult = false
     private var delta = TranscriptDeltaTracker()
+    private var interruptionObserver: NSObjectProtocol?
+    /// Set when iOS takes the microphone away mid-take (a call, Siri, an
+    /// alarm). Listening stops, but the take is not abandoned — the engine
+    /// restarts by itself once the interruption ends.
+    private var interrupted = false
     // Tried first for privacy (audio stays on-device), but a device can
     // report `supportsOnDeviceRecognition == true` without actually having
     // the language model downloaded (Settings > General > Keyboard >
@@ -32,9 +40,17 @@ final class SpeechTracker: NSObject, ObservableObject {
     /// the engine. Without an explicit SFSpeechRecognizer authorization
     /// request the status stays `.notDetermined` and every recognition task
     /// fails immediately and silently — iOS never prompts on its own.
-    func begin() {
+    /// - Parameter localeIdentifier: the language to listen in. Rebuilding
+    ///   the recogniser is cheap and only happens when it actually changes,
+    ///   so this is safe to pass on every start.
+    func begin(localeIdentifier: String = SpeechLocales.fallback) {
+        if localeIdentifier != self.localeIdentifier || recognizer == nil {
+            self.localeIdentifier = localeIdentifier
+            recognizer = SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier))
+        }
         shouldRun = true
         preferOnDevice = true
+        observeInterruptions()
         SFSpeechRecognizer.requestAuthorization { [weak self] status in
             DispatchQueue.main.async {
                 guard let self, self.shouldRun else { return }
@@ -60,13 +76,69 @@ final class SpeechTracker: NSObject, ObservableObject {
 
     func end() {
         shouldRun = false
+        interrupted = false
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+            self.interruptionObserver = nil
+        }
         stopEngine()
         isListening = false
+        // Hand the audio session back. Without this the category stays active
+        // after a take and everyone else's audio — music, a podcast — stays
+        // ducked or stopped until the app is killed.
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    /// A call, Siri, or an alarm takes the microphone away mid-take. Before
+    /// this, recognition simply died: `handleError` surfaced a banner and
+    /// stopped, while the speaker carried on talking to the lens with a
+    /// prompter that had quietly stopped following them. Now the take pauses
+    /// and picks itself back up when iOS says the interruption is over.
+    private func observeInterruptions() {
+        guard interruptionObserver == nil else { return }
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] note in
+            guard let self, self.shouldRun else { return }
+            guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+
+            switch type {
+            case .began:
+                self.interrupted = true
+                self.stopEngine()
+                // Listening genuinely has stopped, and saying so is what
+                // pauses the speaking clock — leaving it running through a
+                // phone call would decay the measured pace.
+                self.isListening = false
+            case .ended:
+                guard self.interrupted else { return }
+                self.interrupted = false
+                let options = (note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt)
+                    .map { AVAudioSession.InterruptionOptions(rawValue: $0) } ?? []
+                if options.contains(.shouldResume) {
+                    self.startEngine()
+                } else {
+                    // iOS is telling us not to resume on our own — say so
+                    // rather than leaving a dead prompter looking live.
+                    self.errorMessage = "Listening stopped when another app took the microphone. Tap play to carry on."
+                }
+            @unknown default:
+                break
+            }
+        }
     }
 
     private func startEngine() {
         guard let recognizer = recognizer, recognizer.isAvailable else {
-            errorMessage = "Speech recognition isn't available right now."
+            // Naming the language matters: the most likely cause is that this
+            // device has no model for the one that was picked, and
+            // "isn't available right now" sends the reader looking for a
+            // network problem instead.
+            let name = SpeechLocales.label(for: Locale(identifier: localeIdentifier))
+            errorMessage = "Speech recognition isn't available for \(name) on this device. Pick another language in the prompter settings."
             return
         }
         stopEngine()
@@ -110,31 +182,42 @@ final class SpeechTracker: NSObject, ObservableObject {
         }
 
         isListening = true
+        // SFSpeechRecognizer does not promise which queue this handler runs
+        // on, and everything it touches is main-actor state: `onTranscript`
+        // drives the prompter's cursor and several `@State` properties, and
+        // `handleError` writes `@Published`. Hop once, here, rather than
+        // leaving every downstream caller to wonder.
         task = recognizer.recognitionTask(with: req) { [weak self] result, error in
-            guard let self = self else { return }
-            if let result = result {
-                self.receivedAnyResult = true
-                let transcript = result.bestTranscription.formattedString
-                    .split(separator: " ")
-                    .map(String.init)
-                let appended = self.delta.newWords(in: transcript)
-                if !appended.isEmpty {
-                    self.onTranscript?(appended)
+            let transcript = result?.bestTranscription.formattedString
+            let isFinal = result?.isFinal == true
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if let transcript {
+                    self.receivedAnyResult = true
+                    let words = transcript.split(separator: " ").map(String.init)
+                    let appended = self.delta.newWords(in: words)
+                    if !appended.isEmpty {
+                        self.onTranscript?(appended)
+                    }
                 }
-            }
-            if let error = error {
-                self.handleError(error)
-                return
-            }
-            if result?.isFinal == true, self.shouldRun {
-                self.stopEngine()
-                self.startEngine()
+                if let error = error {
+                    self.handleError(error)
+                    return
+                }
+                if isFinal, self.shouldRun {
+                    self.stopEngine()
+                    self.startEngine()
+                }
             }
         }
     }
 
     private func handleError(_ error: Error) {
-        guard shouldRun else { return }
+        // An interruption tears the task down and reports an error on the way
+        // out. That is the interruption handler's business, not a failure to
+        // report — surfacing it here would put a red banner over a take that
+        // is about to resume by itself.
+        guard shouldRun, !interrupted else { return }
         if preferOnDevice && !receivedAnyResult {
             // Never got a single result on-device — most likely the
             // on-device model isn't installed. Retry once via server-based

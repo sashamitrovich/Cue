@@ -6,20 +6,56 @@ struct FlowLayout: Layout {
     var spacing: CGFloat = 8
     var lineSpacing: CGFloat = 6
     var alignment: ScriptAlignment = .leading
+    /// Only here to invalidate the measurement cache. A word's width is pinned
+    /// at its bold rendering for a given size (see `ScrollFlow.boldWidth`), so
+    /// the measurements below survive a word changing state and only go stale
+    /// when the reader changes the text size.
+    var fontSize: CGFloat = 0
 
     /// One wrapped row: which subview indices it holds, their natural
     /// (unstretched) width, and the tallest word in it.
-    private struct Row {
+    struct Row {
         var indices: [Int] = []
         var width: CGFloat = 0
         var height: CGFloat = 0
     }
 
-    private func rows(for subviews: Subviews, maxWidth: CGFloat) -> [Row] {
+    /// Measured sizes and the row breaks derived from them.
+    ///
+    /// Without this the script was measured three times over per layout pass —
+    /// once in `sizeThatFits`, again in `placeSubviews`, and a third time per
+    /// row inside `place` — for every word in the script, on every pass. The
+    /// `Layout` protocol offers this cache precisely for that, and it was
+    /// declared as `inout ()` and never used.
+    struct Cache {
+        var maxWidth: CGFloat = -1
+        var fontSize: CGFloat = -1
+        var sizes: [CGSize] = []
+        var rows: [Row] = []
+        var totalHeight: CGFloat = 0
+    }
+
+    func makeCache(subviews: Subviews) -> Cache { Cache() }
+
+    /// Subviews changed identity or count — throw the measurements away.
+    func updateCache(_ cache: inout Cache, subviews: Subviews) {
+        cache.maxWidth = -1
+    }
+
+    /// Measures and wraps, reusing the previous result when nothing that
+    /// affects it has changed.
+    private func resolve(_ cache: inout Cache, subviews: Subviews, maxWidth: CGFloat) {
+        guard cache.maxWidth != maxWidth
+                || cache.fontSize != fontSize
+                || cache.sizes.count != subviews.count else { return }
+
+        var sizes: [CGSize] = []
+        sizes.reserveCapacity(subviews.count)
+        for subview in subviews { sizes.append(subview.sizeThatFits(.unspecified)) }
+
         var rows: [Row] = []
         var current = Row()
-        for (index, subview) in subviews.enumerated() {
-            let size = subview.sizeThatFits(.unspecified)
+        for (index, size) in sizes.enumerated() {
             if current.width + size.width > maxWidth, !current.indices.isEmpty {
                 rows.append(current)
                 current = Row()
@@ -29,31 +65,36 @@ struct FlowLayout: Layout {
             current.height = max(current.height, size.height)
         }
         if !current.indices.isEmpty { rows.append(current) }
-        return rows
+
+        cache.maxWidth = maxWidth
+        cache.fontSize = fontSize
+        cache.sizes = sizes
+        cache.rows = rows
+        cache.totalHeight = rows.reduce(0) { $0 + $1.height }
+            + lineSpacing * CGFloat(max(0, rows.count - 1))
     }
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> CGSize {
         let maxWidth = proposal.width ?? .infinity
-        let computed = rows(for: subviews, maxWidth: maxWidth)
-        let totalHeight = computed.reduce(0) { $0 + $1.height } + lineSpacing * CGFloat(max(0, computed.count - 1))
-        return CGSize(width: maxWidth, height: totalHeight)
+        resolve(&cache, subviews: subviews, maxWidth: maxWidth)
+        return CGSize(width: maxWidth, height: cache.totalHeight)
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let computed = rows(for: subviews, maxWidth: bounds.width)
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) {
+        resolve(&cache, subviews: subviews, maxWidth: bounds.width)
         var y = bounds.minY
-        for (rowIndex, row) in computed.enumerated() {
-            let isLastRow = rowIndex == computed.count - 1
+        for (rowIndex, row) in cache.rows.enumerated() {
+            let isLastRow = rowIndex == cache.rows.count - 1
             // Print convention: a justified block's final row reads as
             // ordinary leading text rather than being stretched thin.
             let effectiveAlignment: ScriptAlignment = (alignment == .justified && isLastRow) ? .leading : alignment
-            place(row: row, subviews: subviews, y: y, bounds: bounds, alignment: effectiveAlignment)
+            place(row: row, sizes: cache.sizes, subviews: subviews, y: y, bounds: bounds, alignment: effectiveAlignment)
             y += row.height + lineSpacing
         }
     }
 
-    private func place(row: Row, subviews: Subviews, y: CGFloat, bounds: CGRect, alignment: ScriptAlignment) {
-        let sizes = row.indices.map { subviews[$0].sizeThatFits(.unspecified) }
+    private func place(row: Row, sizes allSizes: [CGSize], subviews: Subviews, y: CGFloat, bounds: CGRect, alignment: ScriptAlignment) {
+        let sizes = row.indices.map { allSizes[$0] }
         let gap: CGFloat
         let startX: CGFloat
         switch alignment {

@@ -132,11 +132,20 @@ struct PrompterControlsSheet: View {
 
     private var voiceSection: some View {
         Section {
+            Picker("Language", selection: $state.recognitionLocale) {
+                ForEach(SpeechLocales.available(), id: \.identifier) { locale in
+                    Text(SpeechLocales.label(for: locale)).tag(locale.identifier)
+                }
+            }
             Toggle("Voice commands", isOn: $state.voiceCommandsEnabled)
         } header: {
             Text("Voice control")
         } footer: {
-            Text("Say \"scroll up\" to step back a line, or \"scroll down\" to step forward — repeat to go further. Command words are not read as script. If your script itself says one of these phrases at that point, it is read rather than obeyed; turn this off if it still gets in the way.")
+            // The language row comes first because nothing else in this
+            // section — or in the app — works until it is right: the
+            // prompter simply does not move when it is listening for the
+            // wrong one.
+            Text("On Cue follows your script in the language set here; a new take uses it. Say \"scroll up\" to step back a line, or \"scroll down\" to step forward — repeat to go further. Command words are not read as script. If your script itself says one of these phrases at that point, it is read rather than obeyed; turn this off if it still gets in the way. Spoken commands are recognised in English only, whatever language the script is in.")
         }
     }
 

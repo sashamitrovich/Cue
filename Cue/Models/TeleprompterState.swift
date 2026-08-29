@@ -112,6 +112,11 @@ final class TeleprompterState: ObservableObject {
     @Published var readTextFloor: Double = ReadTextFade.defaultFloor {
         didSet { if persistsSettings { settings.set(.readTextFloor, readTextFloor) } }
     }
+    /// The language the prompter listens in. Defaults to the reader's own
+    /// where this device can recognise it — see `SpeechLocales`.
+    @Published var recognitionLocale: String = SpeechLocales.systemDefault() {
+        didSet { if persistsSettings { settings.set(.recognitionLocale, recognitionLocale) } }
+    }
 
     private let settings: PrompterSettingsStore
     /// Off during UI tests (same flag that keeps the camera off for them) so
@@ -137,6 +142,7 @@ final class TeleprompterState: ObservableObject {
         showTiming = settings.bool(.showTiming, default: showTiming)
         voiceCommandsEnabled = settings.bool(.voiceCommandsEnabled, default: voiceCommandsEnabled)
         readTextFloor = settings.double(.readTextFloor, default: readTextFloor)
+        recognitionLocale = settings.string(.recognitionLocale, default: recognitionLocale)
     }
 
     static let countdownOptions = [0, 3, 5, 10]
