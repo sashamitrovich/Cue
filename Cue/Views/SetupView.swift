@@ -64,7 +64,11 @@ struct SetupView: View {
             .padding(.horizontal, 20)
             .padding(.top, 4)
             .padding(.bottom, 12)
-            .background(Color(.systemBackground))
+            // The same ground as the prompter, so the app does not change
+            // colour underneath you when you tap Start. Safe as a fixed value
+            // because the app forces `.preferredColorScheme(.dark)` at the
+            // root — light mode never applies.
+            .background(PrompterView.ground)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

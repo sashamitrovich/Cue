@@ -96,6 +96,16 @@ struct PrompterView: View {
     /// The single accent. Used for the current word, the primary action and
     /// live values — nothing decorative, so it always means something.
     static let accent = Color(red: 1.0, green: 0.72, blue: 0.23)
+    /// The ground the whole app sits on. A barely-cool near-black rather than
+    /// pure black, so the amber reads as light being emitted rather than as a
+    /// brand colour laid on top of nothing.
+    ///
+    /// It is a real trade, not a free one. Pure black on OLED is *off pixels*:
+    /// deeper contrast for reading in peripheral vision, and less light thrown
+    /// onto the speaker's face in a dark room — which matters for an app you
+    /// point a camera at yourself with. Judge any change here on a device in
+    /// the dark, never on a screenshot.
+    static let ground = Color(red: 0x07 / 255, green: 0x09 / 255, blue: 0x0C / 255)
     /// How long the controls linger after the last touch once a take is live.
     private static let chromeLinger: TimeInterval = 4
 
@@ -186,7 +196,7 @@ struct PrompterView: View {
                 * min(0.6, max(isLandscape ? 0.34 : 0.16, state.cueLineFraction))
 
             ZStack {
-                Color.black
+                Self.ground
                 cameraLayer
                 scriptLayer(geo: geo, insets: insets, cueY: cueY)
 
