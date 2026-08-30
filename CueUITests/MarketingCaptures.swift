@@ -26,7 +26,7 @@ final class MarketingCaptures: XCTestCase {
     /// Mirrors for a teleprompter rig.
     func testMirroring() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTestingNoCamera", "-uiTestingCursorAt", "18", "-uiTestingMirrorOn"]
+        app.launchArguments = ["-uiTestingNoCamera", "-uiTestingCursorAt", "58", "-uiTestingMirrorOn"]
         app.launch()
         app.buttons["Start prompting →"].tap()
         XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
@@ -46,7 +46,9 @@ final class MarketingCaptures: XCTestCase {
     /// Records straight from the phone, camera badge and all.
     func testRecording() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTestingNoCamera", "-uiTestingCursorAt", "18", "-uiTestingShowRecording"]
+        // A different point in the script from the listening shot: two frames
+        // of the same paragraph read as a duplicate in the App Store set.
+        app.launchArguments = ["-uiTestingNoCamera", "-uiTestingCursorAt", "96", "-uiTestingShowRecording"]
         app.launch()
         app.buttons["Start prompting →"].tap()
         XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout: 5))
