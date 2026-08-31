@@ -194,6 +194,15 @@ final class SpeechTracker: NSObject, ObservableObject {
         if preferOnDevice && recognizer.supportsOnDeviceRecognition {
             req.requiresOnDeviceRecognition = true
         }
+        #if DEBUG
+        // Which path a take actually runs on is invisible otherwise, and the
+        // two differ by an order of magnitude in latency (roughly 30-50ms
+        // on-device against 300-800ms server-based). A take that silently
+        // fell back reads as "the scrolling got laggy" with nothing in the
+        // UI to say why.
+        print("[speech] path=\(req.requiresOnDeviceRecognition ? "on-device" : "server") " +
+              "supportsOnDevice=\(recognizer.supportsOnDeviceRecognition) preferOnDevice=\(preferOnDevice)")
+        #endif
         request = req
         receivedAnyResult = false
         // A fresh task means a fresh cumulative transcript.
@@ -256,6 +265,9 @@ final class SpeechTracker: NSObject, ObservableObject {
             // on-device model isn't installed. Retry once via server-based
             // recognition instead of retrying on-device forever.
             preferOnDevice = false
+            #if DEBUG
+            print("[speech] on-device produced no result, falling back to server: \((error as NSError).localizedDescription)")
+            #endif
             stopEngine()
             startEngine()
             return

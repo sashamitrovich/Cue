@@ -149,4 +149,75 @@ final class ScrollPursuitTests: XCTestCase {
         )
         XCTAssertEqual(next, -100 + 1.3, accuracy: 0.001)
     }
+
+    // MARK: - How long a recogniser burst takes to land
+
+    /// Seconds for the target to get within `within` of `gap`, at 60fps.
+    ///
+    /// Deliberately not "to arrive": the last stretch is the proportional
+    /// term's exponential tail, which takes as long again as the whole
+    /// ceiling-bound run and is invisible on screen. What the reader feels is
+    /// the script coming back under the reading line, so the threshold
+    /// defaults to one word.
+    private func secondsToClose(
+        gap: CGFloat, within: CGFloat = 30, pointsPerWord: CGFloat = 30, wpm: Double = 120
+    ) -> Double {
+        var target: CGFloat = 0
+        var elapsed: Double = 0
+        let dt = 1.0 / 60
+        while abs(gap - target) > within, elapsed < 10 {
+            target = ScrollPursuit.step(
+                target: target,
+                toward: gap,
+                speed: speed(gap: gap - target, pointsPerWord: pointsPerWord, wpm: wpm),
+                dt: dt,
+                snapDistance: snap,
+                jumped: false
+            )
+            elapsed += dt
+        }
+        return elapsed
+    }
+
+    func testTheCeilingIsWhatSetsBurstRecoveryTime() {
+        // Recognition arrives in bursts of several words, so this is the
+        // number the reader actually feels: how long the script stays behind
+        // after one partial result lands.
+        //
+        // 120 wpm at 30pt a word is 60pt/s, so the ceiling is 240pt/s. A
+        // five-word burst is 150pt and the proportional term would ask for
+        // 833pt/s — the ceiling binds for essentially the whole recovery,
+        // which is why the time is gap/ceiling rather than anything to do
+        // with `response`.
+        // Ceiling-bound from 150pt down to 43.2pt (where the proportional
+        // term drops below it), then the tail: about half a second before
+        // the script is back within a word of the cursor.
+        let fiveWords = secondsToClose(gap: 150)
+        XCTAssertEqual(fiveWords, 0.51, accuracy: 0.05)
+    }
+
+    func testRecoveryTimeDegradesWhenTheMeasuredPaceFalls() {
+        // The regression this branch exists to prove. The ceiling is a
+        // multiple of a *pace*, so feeding it a pace that decays — as a
+        // whole-take average does across pauses and ad-libs — slows catch-up
+        // by the same proportion. At the 60 wpm floor the identical burst
+        // takes twice as long as at 120, with nothing about the reader's
+        // actual speed at that moment having changed.
+        let atPace = secondsToClose(gap: 150, wpm: 120)
+        let atFloor = secondsToClose(gap: 150, wpm: 60)
+        XCTAssertEqual(atFloor / atPace, 2, accuracy: 0.1)
+    }
+
+    func testTheCeilingBindsWithinAWordOrTwo() {
+        // Where the ceiling takes over from the proportional term, in words.
+        // It is `response * maxCatchUp * wpm/60` and independent of font
+        // size — 1.44 words at 120 wpm. So the ceiling is not an outlier
+        // guard: it governs ordinary reading.
+        let pointsPerWord: CGFloat = 30
+        let crossover = 0.18 * 4 * CGFloat(120.0 / 60)
+        let justUnder = speed(gap: (crossover - 0.3) * pointsPerWord)
+        let justOver = speed(gap: (crossover + 0.3) * pointsPerWord)
+        XCTAssertLessThan(justUnder, 240, "below the crossover the gap still sets the speed")
+        XCTAssertEqual(justOver, 240, accuracy: 0.001, "above it, the ceiling is all that matters")
+    }
 }

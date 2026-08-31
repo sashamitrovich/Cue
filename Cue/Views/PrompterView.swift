@@ -26,6 +26,9 @@ struct PrompterView: View {
     @State private var wordFrames: [Int: CGRect] = [:]
     @State private var offset: CGFloat = 0
     @State private var targetOffset: CGFloat = 0
+    #if DEBUG
+    @State private var pursuitDiagnostics = PursuitDiagnostics()
+    #endif
     /// The live reading-line position, for the ticker — see the `onChange`
     /// that maintains it.
     @State private var tickCueY: CGFloat = 0
@@ -1301,13 +1304,24 @@ struct PrompterView: View {
         // and don't move when `offset` does.
         if !isDraggingScript, !isDraggingLine, let frame = wordFrames[state.activeIndex] {
             let want = cueY - frame.midY
+            #if DEBUG
+            pursuitDiagnostics.record(
+                now: now,
+                gap: want - targetOffset,
+                pointsPerWord: pointsPerWord,
+                effectiveWPM: effectiveWPM,
+                targetWPM: pursuitWPM,
+                response: Self.pursuitResponse,
+                maxCatchUp: Self.pursuitMaxCatchUp
+            )
+            #endif
             let next = ScrollPursuit.step(
                 target: targetOffset,
                 toward: want,
                 speed: ScrollPursuit.speed(
                     gap: want - targetOffset,
                     pointsPerWord: pointsPerWord,
-                    wordsPerMinute: effectiveWPM,
+                    wordsPerMinute: pursuitWPM,
                     response: Self.pursuitResponse,
                     maxCatchUp: Self.pursuitMaxCatchUp,
                     minimum: Self.pursuitMinSpeed
@@ -1491,6 +1505,18 @@ struct PrompterView: View {
             elapsed: elapsed
         )
     }
+
+    /// The pace the **pursuit ceiling** is measured against.
+    ///
+    /// Deliberately the configured target, not `effectiveWPM`. `effectiveWPM`
+    /// is a whole-take average (`wordsRead / elapsed`), and `wordsRead` is the
+    /// cursor — so every pause taken without hitting Pause drags it down, and
+    /// ad-libbing tanks it outright: the cursor stalls while the clock runs.
+    /// Feeding that to the ceiling made catch-up *slower the longer a take
+    /// ran*, and slowest exactly when the matcher had the most ground to make
+    /// up. The estimates and the readout still use the measured average —
+    /// that is what it is for. The ceiling needs a stable number.
+    private var pursuitWPM: Double { state.targetWPM }
 
     private var remainingSeconds: Double {
         ReadingPace.seconds(forWords: state.wordsRemaining, wpm: effectiveWPM)
