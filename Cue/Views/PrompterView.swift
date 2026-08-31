@@ -151,6 +151,10 @@ struct PrompterView: View {
     /// Seconds the pursuit would take to close the gap if nothing capped it.
     /// This is what keeps the active word *on* the reading line rather than
     /// somewhere below it.
+    /// 1.3's smoothing, for the A/B toggle. It ran `offset += gap * 0.12`
+    /// once a frame at 60Hz, which is an exponential with this time
+    /// constant — taken from the tag rather than from memory.
+    private static let legacySmoothingTau: CGFloat = 0.13
     private static let pursuitResponse: CGFloat = 0.18
     /// Ceiling on the pursuit, in **lines of script a second** — what stops a
     /// burst of recognised words being covered instantly.
@@ -1273,6 +1277,15 @@ struct PrompterView: View {
     ///
     /// Zero until the first layout pass has measured a word, which
     /// `ScrollPursuit.speed` handles by falling back to its floor.
+    /// Whether to scroll the way 1.3 did. Always false in a release build.
+    private var usesLegacyScrolling: Bool {
+        #if DEBUG
+        return state.legacyScrolling
+        #else
+        return false
+        #endif
+    }
+
     private var lineHeight: CGFloat {
         guard let frame = wordFrames[state.activeIndex] else { return 0 }
         return frame.height + Self.scriptLineSpacing
@@ -1291,8 +1304,9 @@ struct PrompterView: View {
         lastTickTime = now
 
         let gap = targetOffset - offset
+        let tau = usesLegacyScrolling ? Self.legacySmoothingTau : Self.smoothingTau
         if abs(gap) > Self.settleThreshold {
-            offset += gap * (1 - CGFloat(exp(-dt / Double(Self.smoothingTau))))
+            offset += gap * (1 - CGFloat(exp(-dt / Double(tau))))
         } else if offset != targetOffset {
             offset = targetOffset
         }
@@ -1328,20 +1342,28 @@ struct PrompterView: View {
                 response: Self.pursuitResponse
             )
             #endif
-            let next = ScrollPursuit.step(
-                target: targetOffset,
-                toward: want,
-                speed: ScrollPursuit.speed(
-                    gap: want - targetOffset,
-                    lineHeight: lineHeight,
-                    maxLinesPerSecond: Self.pursuitMaxLinesPerSecond,
-                    response: Self.pursuitResponse,
-                    minimum: Self.pursuitMinSpeed
-                ),
-                dt: dt,
-                snapDistance: Self.pursuitSnapDistance,
-                jumped: cursorJumped
-            )
+            // 1.3 set the target straight to the recognised word and let the
+            // smoothing chase it — no pacing, no ceiling. That is the whole
+            // difference being compared.
+            let next: CGFloat
+            if usesLegacyScrolling {
+                next = want
+            } else {
+                next = ScrollPursuit.step(
+                    target: targetOffset,
+                    toward: want,
+                    speed: ScrollPursuit.speed(
+                        gap: want - targetOffset,
+                        lineHeight: lineHeight,
+                        maxLinesPerSecond: Self.pursuitMaxLinesPerSecond,
+                        response: Self.pursuitResponse,
+                        minimum: Self.pursuitMinSpeed
+                    ),
+                    dt: dt,
+                    snapDistance: Self.pursuitSnapDistance,
+                    jumped: cursorJumped
+                )
+            }
             cursorJumped = false
             if next != targetOffset {
                 targetOffset = next

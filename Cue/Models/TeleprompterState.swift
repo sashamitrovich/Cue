@@ -89,6 +89,15 @@ final class TeleprompterState: ObservableObject {
     @Published var isListening: Bool = false
     /// The delivery pace used to estimate how long the script runs, until
     /// enough of a take has been spoken to measure the real one.
+    #if DEBUG
+    /// Reverts the scroll to how 1.3 did it, for A/B comparison inside one
+    /// take. Not persisted and not in a release build — it exists because
+    /// "1.3 felt smoother" is a claim about *feel*, and the only way to
+    /// settle that is to put both behaviours behind one switch instead of
+    /// asking someone to compare against a memory of an old build.
+    @Published var legacyScrolling = false
+    #endif
+
     @Published var targetWPM: Double = ReadingPace.defaultWPM {
         didSet { if persistsSettings { settings.set(.targetWPM, targetWPM) } }
     }

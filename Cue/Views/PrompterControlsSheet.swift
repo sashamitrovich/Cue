@@ -35,6 +35,9 @@ struct PrompterControlsSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                #if DEBUG
+                comparisonSection
+                #endif
                 readingSection
                 timingSection
                 voiceSection
@@ -71,6 +74,19 @@ struct PrompterControlsSheet: View {
     }
 
     // MARK: - Reading
+
+    #if DEBUG
+    /// A/B for "1.3 felt smoother". Both behaviours in one build so they can
+    /// be compared inside a single take rather than against a memory of an
+    /// older release. Debug builds only.
+    private var comparisonSection: some View {
+        Section {
+            Toggle("Scroll like 1.3", isOn: $state.legacyScrolling)
+        } footer: {
+            Text("Debug only. On: the script heads straight for the word you just said, as 1.3 did. Off: it travels there at a bounded speed.")
+        }
+    }
+    #endif
 
     private var readingSection: some View {
         Section {
