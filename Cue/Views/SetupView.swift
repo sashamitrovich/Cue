@@ -64,8 +64,28 @@ struct SetupView: View {
             .padding(.top, 4)
             .padding(.bottom, 12)
             .background(Color(.systemBackground))
-            .navigationTitle("On Cue")
+            .navigationTitle("")
+            // Pinned, not a large title. A large title is coupled by iOS to
+            // the nearest scroll view — here the script editor — so scrolling
+            // the script dragged the app's own name up and bounced it back.
+            // The title has nothing to do with where you are in the script.
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 7) {
+                        Text("On Cue")
+                            .font(ChromeType.label(17, weight: .bold))
+                            .tracking(17 * 0.08)
+                            .textCase(.uppercase)
+                            .foregroundStyle(.primary)
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(PrompterView.accent)
+                            .frame(width: 6, height: 6)
+                            .shadow(color: PrompterView.accent.opacity(0.8), radius: 4)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("On Cue")
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showHelp = true
