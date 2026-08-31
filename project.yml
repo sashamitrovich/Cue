@@ -12,6 +12,15 @@ options:
 configFiles:
   Debug: Signing.xcconfig
   Release: Signing.xcconfig
+# The single source of the release version. Both the app and the share
+# extension read it through `$(MARKETING_VERSION)` rather than each carrying a
+# literal: App Store Connect rejects an upload whose extension and app
+# disagree, and 1.5.2 was rejected exactly that way after only the app's
+# number was bumped here. The same class of bug already forced
+# ci_pre_xcodebuild.sh to stamp CFBundleVersion into both bundles.
+settings:
+  base:
+    MARKETING_VERSION: "1.5.2"
 targets:
   Cue:
     type: application
@@ -28,7 +37,7 @@ targets:
         CFBundleDisplayName: "On Cue"
         # Bump CFBundleVersion for every TestFlight upload — App Store Connect
         # rejects a build number it has already seen.
-        CFBundleShortVersionString: "1.5.2"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "4"
         # Cue makes no network connections and uses no encryption beyond
         # what the OS provides, so this answers the export-compliance
