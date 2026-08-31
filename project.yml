@@ -28,7 +28,7 @@ targets:
         CFBundleDisplayName: "On Cue"
         # Bump CFBundleVersion for every TestFlight upload — App Store Connect
         # rejects a build number it has already seen.
-        CFBundleShortVersionString: "1.5"
+        CFBundleShortVersionString: "1.5.1"
         CFBundleVersion: "4"
         # Cue makes no network connections and uses no encryption beyond
         # what the OS provides, so this answers the export-compliance
