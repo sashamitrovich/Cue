@@ -51,7 +51,6 @@ struct SetupView: View {
             // shrinking the editor further — editing is the only thing to
             // do with the keyboard up anyway.
             VStack(spacing: 22) {
-                if !editorFocused { masthead }
                 editorCard()
                 if !editorFocused {
                     startButton
@@ -64,13 +63,8 @@ struct SetupView: View {
             .padding(.horizontal, 20)
             .padding(.top, 4)
             .padding(.bottom, 12)
-            // The same ground as the prompter, so the app does not change
-            // colour underneath you when you tap Start. Safe as a fixed value
-            // because the app forces `.preferredColorScheme(.dark)` at the
-            // root — light mode never applies.
-            .background(PrompterView.ground)
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
+            .background(Color(.systemBackground))
+            .navigationTitle("On Cue")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -79,10 +73,6 @@ struct SetupView: View {
                         Image(systemName: "questionmark.circle")
                     }
                     .accessibilityLabel("How On Cue works")
-                }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { editorFocused = false }
                 }
             }
         }
@@ -133,31 +123,6 @@ struct SetupView: View {
         }
     }
 
-    /// The identity, in the prompter's own lettering rather than a system
-    /// navigation title. The square is the cue lamp, unlit until you start.
-    private var masthead: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(alignment: .bottom, spacing: 10) {
-                Text("On Cue")
-                    .font(ChromeType.label(38, weight: .bold))
-                    .tracking(38 * 0.06)
-                    .textCase(.uppercase)
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(PrompterView.accent)
-                    .frame(width: 9, height: 9)
-                    .shadow(color: PrompterView.accent.opacity(0.85), radius: 6)
-                    .padding(.bottom, 5)
-                Spacer(minLength: 0)
-            }
-            LinearGradient(
-                colors: [PrompterView.accent.opacity(0.5), .primary.opacity(0.10), .primary.opacity(0.06)],
-                startPoint: .leading, endPoint: .trailing
-            )
-            .frame(height: 1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     // MARK: - Script
 
     private func editorCard() -> some View {
@@ -166,29 +131,44 @@ struct SetupView: View {
                 Text("Script")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
+                // One button, two jobs — deliberately not an `if`. While
+                // editing this is the way out; otherwise it opens a file.
+                //
+                // Editing needs an exit that cannot go missing. The keyboard
+                // toolbar's Done vanished on the second edit and was never
+                // reliable: `ToolbarItemGroup(placement: .keyboard)` depends
+                // on the keyboard being re-offered a placement, which does not
+                // survive the keyboard going down and coming back. This sits
+                // in the card header, above the editor and well clear of the
+                // keyboard, and is always on screen.
                 Button {
-                    showImporter = true
+                    if editorFocused {
+                        editorFocused = false
+                    } else {
+                        showImporter = true
+                    }
                 } label: {
-                    Label("Open", systemImage: "folder")
-                        .font(.subheadline)
+                    Label(
+                        editorFocused ? "Done" : "Open",
+                        systemImage: editorFocused ? "checkmark" : "folder"
+                    )
+                    .font(.subheadline.weight(editorFocused ? .semibold : .regular))
                 }
+                .accessibilityLabel(editorFocused ? "Done editing" : "Open a script file")
             }
 
             // Fills whatever's left above the start button and the fixed
             // notices below it, rather than a fraction of the screen — this
             // is the thing the screen is for.
-            // Set larger than `.body`. This is the thing the screen is for,
-            // and at the system body size a script is a wall of small grey
-            // text on a phone — you are reading it, not filling in a form.
             TextEditor(text: $state.scriptText)
                 .focused($editorFocused)
-                .font(.system(size: 19))
-                .lineSpacing(2)
+                .font(.body)
                 .scrollContentBackground(.hidden)
-                .padding(12)
+                .padding(10)
                 .frame(maxHeight: .infinity)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .disabled(!currentFileIsEditable)
+
 
             if let openedFileURL {
                 Label(

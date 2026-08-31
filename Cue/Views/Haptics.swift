@@ -1,3 +1,4 @@
+import CoreHaptics
 import UIKit
 
 /// Touch feedback for the moments you can't be looking at the screen.
@@ -12,10 +13,26 @@ import UIKit
 /// this covers starting, stopping, the last seconds of a pre-roll, and a take
 /// safely stored — and nothing else.
 enum Haptics {
-    /// Silent during UI tests, and on any device without a Taptic Engine
-    /// (`UIFeedbackGenerator` no-ops there rather than failing).
+    /// Whether this hardware can produce haptics at all, asked once.
+    ///
+    /// `UIFeedbackGenerator` does not fail on hardware without a Taptic
+    /// Engine, but neither is it silent: CoreHaptics logs
+    /// `Failed to read pattern library data … hapticpatternlibrary.plist`
+    /// every time, because it goes looking for a library that is not there.
+    /// That is every haptic call on an **iPad** — a device this app supports —
+    /// as well as in the Simulator. Asking the hardware first means the call
+    /// is never made rather than made and quietly discarded.
+    private static let hardwareSupportsHaptics = CHHapticEngine.capabilitiesForHardware().supportsHaptics
+
+    /// Silent during UI tests, and on anything that cannot vibrate.
+    ///
+    /// The UI-test check is its own flag rather than the camera's: a run that
+    /// wants no camera has nothing to say about haptics, and reusing that flag
+    /// tied two unrelated things together.
     private static var enabled: Bool {
-        !ProcessInfo.processInfo.arguments.contains("-uiTestingNoCamera")
+        hardwareSupportsHaptics
+            && !ProcessInfo.processInfo.arguments.contains("-uiTestingNoHaptics")
+            && !ProcessInfo.processInfo.arguments.contains("-uiTestingNoCamera")
     }
 
     /// A take begins.
