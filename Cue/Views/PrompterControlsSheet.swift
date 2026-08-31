@@ -35,9 +35,6 @@ struct PrompterControlsSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                #if DEBUG
-                comparisonSection
-                #endif
                 readingSection
                 timingSection
                 voiceSection
@@ -49,6 +46,13 @@ struct PrompterControlsSheet: View {
                     }
                     if hasAdjustableCapture { captureSection }
                 }
+                // Last, deliberately: the UI tests scroll this Form counting
+                // drags to reach a row, so a debug-only section above the
+                // real ones would shift every one of them in exactly the
+                // build the tests run against.
+                #if DEBUG
+                comparisonSection
+                #endif
             }
             .tint(PrompterView.accent)
             .navigationTitle("Prompter")
