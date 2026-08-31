@@ -200,7 +200,13 @@ final class SpeechTracker: NSObject, ObservableObject {
         // on-device against 300-800ms server-based). A take that silently
         // fell back reads as "the scrolling got laggy" with nothing in the
         // UI to say why.
-        print("[speech] path=\(req.requiresOnDeviceRecognition ? "on-device" : "server") " +
+        #if targetEnvironment(simulator)
+        let host = "SIMULATOR — on-device recognition is not available here, so a server fallback says nothing about a phone"
+        #else
+        let host = "device"
+        #endif
+        print("[speech] host=\(host) locale=\(localeIdentifier) " +
+              "path=\(req.requiresOnDeviceRecognition ? "on-device" : "server") " +
               "supportsOnDevice=\(recognizer.supportsOnDeviceRecognition) preferOnDevice=\(preferOnDevice)")
         #endif
         request = req
