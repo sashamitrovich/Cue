@@ -28,13 +28,39 @@ final class SpeechTracker: NSObject, ObservableObject {
     /// alarm). Listening stops, but the take is not abandoned — the engine
     /// restarts by itself once the interruption ends.
     private var interrupted = false
-    // Tried first for privacy (audio stays on-device), but a device can
-    // report `supportsOnDeviceRecognition == true` without actually having
-    // the language model downloaded (Settings > General > Keyboard >
-    // Dictation, or Siri setup) — in that case every on-device attempt
-    // fails instantly. Fall back to server-based recognition rather than
-    // looping silently.
-    private var preferOnDevice = true
+    /// How the next recognition request will be configured.
+    ///
+    /// On-device is tried first because it keeps the audio on the phone and
+    /// is an order of magnitude quicker — roughly 30-50ms against 300-800ms.
+    /// But `supportsOnDeviceRecognition` can return `true` on a device that
+    /// then refuses every on-device request, so a single flag was not enough:
+    /// it latched to server-based for the whole session after one failure,
+    /// and a phone whose on-device dictation demonstrably works (Notes, in
+    /// Airplane Mode) spent every take on the slow path.
+    ///
+    /// So the failure path is a ladder rather than a latch. Each rung drops
+    /// one thing that might be the obstacle, and the last is the old
+    /// behaviour. `contextualStrings` is second because it is the request's
+    /// only unusual ingredient and the likeliest thing an on-device model
+    /// refuses.
+    enum Stage: String {
+        case onDeviceWithContext
+        case onDeviceNoContext
+        case server
+
+        var next: Stage? {
+            switch self {
+            case .onDeviceWithContext: return .onDeviceNoContext
+            case .onDeviceNoContext: return .server
+            case .server: return nil
+            }
+        }
+
+        var isOnDevice: Bool { self != .server }
+        var usesContextualStrings: Bool { self != .onDeviceNoContext }
+    }
+
+    private var stage: Stage = .onDeviceWithContext
     /// `AVAudioSession`'s `setCategory`/`setActive` block, and Apple warns
     /// that calling them on the main thread while the session is active can
     /// stall the UI. A long take calls them repeatedly — iOS ends a
@@ -60,7 +86,7 @@ final class SpeechTracker: NSObject, ObservableObject {
             recognizer = SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier))
         }
         shouldRun = true
-        preferOnDevice = true
+        stage = .onDeviceWithContext
         observeInterruptions()
         SFSpeechRecognizer.requestAuthorization { [weak self] status in
             DispatchQueue.main.async {
@@ -190,8 +216,10 @@ final class SpeechTracker: NSObject, ObservableObject {
         // Tell the recogniser these phrases are expected. Short commands have
         // no surrounding context to disambiguate them, which is why they come
         // back less reliably than the script does — especially in an accent.
-        req.contextualStrings = ["scroll up", "scroll down", "scroll back", "go back", "go on"]
-        if preferOnDevice && recognizer.supportsOnDeviceRecognition {
+        if stage.usesContextualStrings {
+            req.contextualStrings = ["scroll up", "scroll down", "scroll back", "go back", "go on"]
+        }
+        if stage.isOnDevice && recognizer.supportsOnDeviceRecognition {
             req.requiresOnDeviceRecognition = true
         }
         #if DEBUG
@@ -205,9 +233,10 @@ final class SpeechTracker: NSObject, ObservableObject {
         #else
         let host = "device"
         #endif
-        print("[speech] host=\(host) locale=\(localeIdentifier) " +
+        print("[speech] host=\(host) locale=\(localeIdentifier) stage=\(stage.rawValue) " +
               "path=\(req.requiresOnDeviceRecognition ? "on-device" : "server") " +
-              "supportsOnDevice=\(recognizer.supportsOnDeviceRecognition) preferOnDevice=\(preferOnDevice)")
+              "contextualStrings=\(stage.usesContextualStrings) " +
+              "supportsOnDevice=\(recognizer.supportsOnDeviceRecognition)")
         #endif
         request = req
         receivedAnyResult = false
@@ -241,6 +270,11 @@ final class SpeechTracker: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if let transcript {
+                    #if DEBUG
+                    if !self.receivedAnyResult {
+                        print("[speech] first result on stage=\(self.stage.rawValue) — this is the rung that works")
+                    }
+                    #endif
                     self.receivedAnyResult = true
                     let words = transcript.split(separator: " ").map(String.init)
                     let appended = self.delta.newWords(in: words)
@@ -266,23 +300,18 @@ final class SpeechTracker: NSObject, ObservableObject {
         // report — surfacing it here would put a red banner over a take that
         // is about to resume by itself.
         guard shouldRun, !interrupted else { return }
-        if preferOnDevice && !receivedAnyResult {
-            // Never got a single result on-device — most likely the
-            // on-device model isn't installed. Retry once via server-based
-            // recognition instead of retrying on-device forever.
-            preferOnDevice = false
+        if !receivedAnyResult, let nextStage = stage.next {
+            // Not one result at this rung. Drop to the next rather than
+            // giving up on on-device for the rest of the session: a phone can
+            // refuse one form of request and accept another, and latching to
+            // server-based after a single failure is what kept takes on the
+            // slow path on hardware that can do it.
             #if DEBUG
-        // Apple's message here is generic — "Siri and Dictation are disabled"
-        // appears for several distinct causes, and `supportsOnDeviceRecognition`
-        // returns true right up until the attempt fails. The domain and code
-        // are the only things that might name the real reason.
-        do {
             let ns = error as NSError
-            print("[speech] on-device produced no result, falling back to server: " +
-                  "domain=\(ns.domain) code=\(ns.code) \(ns.localizedDescription)")
-            if !ns.userInfo.isEmpty { print("[speech]   userInfo=\(ns.userInfo)") }
-        }
+            print("[speech] \(stage.rawValue) produced no result: " +
+                  "domain=\(ns.domain) code=\(ns.code) \(ns.localizedDescription) — trying \(nextStage.rawValue)")
             #endif
+            stage = nextStage
             stopEngine()
             startEngine()
             return
