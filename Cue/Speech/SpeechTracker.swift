@@ -272,7 +272,16 @@ final class SpeechTracker: NSObject, ObservableObject {
             // recognition instead of retrying on-device forever.
             preferOnDevice = false
             #if DEBUG
-            print("[speech] on-device produced no result, falling back to server: \((error as NSError).localizedDescription)")
+        // Apple's message here is generic — "Siri and Dictation are disabled"
+        // appears for several distinct causes, and `supportsOnDeviceRecognition`
+        // returns true right up until the attempt fails. The domain and code
+        // are the only things that might name the real reason.
+        do {
+            let ns = error as NSError
+            print("[speech] on-device produced no result, falling back to server: " +
+                  "domain=\(ns.domain) code=\(ns.code) \(ns.localizedDescription)")
+            if !ns.userInfo.isEmpty { print("[speech]   userInfo=\(ns.userInfo)") }
+        }
             #endif
             stopEngine()
             startEngine()

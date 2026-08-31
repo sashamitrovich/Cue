@@ -7,42 +7,62 @@ final class ScrollPursuitTests: XCTestCase {
 
     // MARK: - Speed
 
-    private func speed(gap: CGFloat, pointsPerWord: CGFloat = 30, wpm: Double = 120) -> CGFloat {
+    /// The defaults stand in for a real script: a 44pt row pitch, which is
+    /// what a 16e measured at the shipping type size, and a ceiling of four
+    /// lines a second.
+    private func speed(gap: CGFloat, lineHeight: CGFloat = 44, linesPerSecond: CGFloat = 4) -> CGFloat {
         ScrollPursuit.speed(
-            gap: gap, pointsPerWord: pointsPerWord, wordsPerMinute: wpm,
-            response: 0.18, maxCatchUp: 4, minimum: 40
+            gap: gap, lineHeight: lineHeight, maxLinesPerSecond: linesPerSecond,
+            response: 0.18, minimum: 40
         )
     }
 
-    func testSpeedIsCappedAtAMultipleOfTheSpeakingPace() {
-        // 120 wpm at 30pt a word is 60pt/s; the ceiling is 4x that. A large
-        // gap must not be covered instantly — that is the jump this whole
-        // type exists to prevent.
-        XCTAssertEqual(speed(gap: -400), 240, accuracy: 0.001)
+    func testSpeedIsCappedAtSoManyLinesASecond() {
+        // A 44pt row at four lines a second is 176pt/s. A large gap must not
+        // be covered instantly — that is the jump this whole type exists to
+        // prevent.
+        XCTAssertEqual(speed(gap: -400), 176, accuracy: 0.001)
+    }
+
+    func testTheCeilingDependsOnTypeSizeAndNothingElse() {
+        // The reason the ceiling is expressed in lines: it must follow the
+        // reader's type size, and must not move for any other reason. Double
+        // the row pitch, double the ceiling — and nothing about the speaking
+        // pace, the text's wrapping or how long the take has run appears in
+        // it at all, which is what the previous `pointsPerWord * wpm/60` form
+        // could not promise.
+        XCTAssertEqual(speed(gap: -400, lineHeight: 88), 352, accuracy: 0.001)
+        XCTAssertEqual(speed(gap: -400, lineHeight: 22), 88, accuracy: 0.001)
     }
 
     func testSpeedScalesWithTheGapBelowTheCeiling() {
-        // 20pt over a 0.18s response is 111pt/s, under the 240 ceiling, so
+        // 20pt over a 0.18s response is 111pt/s, under the 176 ceiling, so
         // the proportional term governs and the script eases in.
         XCTAssertEqual(speed(gap: -20), 20 / 0.18, accuracy: 0.001)
     }
 
     func testTheGapActuallyCloses() {
-        // The point of the ceiling being well above 1x pace. At 4x, a target
-        // that is behind gains on the reader at 3x pace; at the old 1.3x it
-        // gained at 0.3x, so the script never caught up and the active word
-        // sat permanently below the reading line.
-        let pace: CGFloat = 30 * CGFloat(120.0 / 60)
-        XCTAssertGreaterThan(speed(gap: -400), pace * 2, "must gain on the speaker, not merely keep up")
+        // The ceiling has to sit well above the rate a reader generates new
+        // script, or the target never catches up and the active word sits
+        // permanently below the reading line. A brisk 200 wpm over a 44pt row
+        // holding four words is about 3.8 lines... but the reader is not the
+        // constraint here: what matters is that catching up outruns falling
+        // behind, so the ceiling must beat the pace at which gap accumulates.
+        let generatedLinesPerSecond: CGFloat = 200.0 / 60 / 4     // 200 wpm, 4 words a line
+        XCTAssertGreaterThan(
+            speed(gap: -400), generatedLinesPerSecond * 44 * 2,
+            "must gain on the speaker, not merely keep up"
+        )
     }
 
     func testSpeedFallsBackToTheFloorBeforeThereIsAnythingToMeasure() {
-        // The opening words of a take: no measured pace, no usable spacing,
-        // and a gap too small for the proportional term to clear the floor.
-        XCTAssertEqual(speed(gap: -1, pointsPerWord: 0), 40)
-        XCTAssertEqual(speed(gap: -1, wpm: 0), 40)
-        // A very slow reader must not scroll slower than the floor either.
-        XCTAssertEqual(speed(gap: -1, pointsPerWord: 2, wpm: 10), 40)
+        // The opening frames of a take: the layout has not been measured, so
+        // there is no line height yet, and the gap is too small for the
+        // proportional term to clear the floor.
+        XCTAssertEqual(speed(gap: -1, lineHeight: 0), 40)
+        XCTAssertEqual(speed(gap: -1, linesPerSecond: 0), 40)
+        // A tiny type size must not scroll slower than the floor either.
+        XCTAssertEqual(speed(gap: -1, lineHeight: 2, linesPerSecond: 1), 40)
     }
 
     // MARK: - Stepping
@@ -57,10 +77,10 @@ final class ScrollPursuitTests: XCTestCase {
     }
 
     func testABurstIsSpreadOverRoughlyTheTimeItTookToSay() {
-        // Five words at 120 wpm is 2.5 seconds of speech and, at 30pt a word,
-        // 150pt of script. It must be recovered in well under that — the
-        // reader is still talking — but spread over enough frames to read as
-        // movement rather than a jump.
+        // A burst of recognition landed about three and a half rows ahead —
+        // roughly two seconds of speech. It must be recovered in well under
+        // that — the reader is still talking — but spread over enough frames
+        // to read as movement rather than a jump.
         var target: CGFloat = 0
         var elapsed = 0.0
         let dt = 1.0 / 60
@@ -160,7 +180,7 @@ final class ScrollPursuitTests: XCTestCase {
     /// the script coming back under the reading line, so the threshold
     /// defaults to one word.
     private func secondsToClose(
-        gap: CGFloat, within: CGFloat = 30, pointsPerWord: CGFloat = 30, wpm: Double = 120
+        gap: CGFloat, within: CGFloat = 44, lineHeight: CGFloat = 44, linesPerSecond: CGFloat = 4
     ) -> Double {
         var target: CGFloat = 0
         var elapsed: Double = 0
@@ -169,7 +189,7 @@ final class ScrollPursuitTests: XCTestCase {
             target = ScrollPursuit.step(
                 target: target,
                 toward: gap,
-                speed: speed(gap: gap - target, pointsPerWord: pointsPerWord, wpm: wpm),
+                speed: speed(gap: gap - target, lineHeight: lineHeight, linesPerSecond: linesPerSecond),
                 dt: dt,
                 snapDistance: snap,
                 jumped: false
@@ -184,40 +204,44 @@ final class ScrollPursuitTests: XCTestCase {
         // number the reader actually feels: how long the script stays behind
         // after one partial result lands.
         //
-        // 120 wpm at 30pt a word is 60pt/s, so the ceiling is 240pt/s. A
-        // five-word burst is 150pt and the proportional term would ask for
-        // 833pt/s — the ceiling binds for essentially the whole recovery,
-        // which is why the time is gap/ceiling rather than anything to do
-        // with `response`.
-        // Ceiling-bound from 150pt down to 43.2pt (where the proportional
-        // term drops below it), then the tail: about half a second before
-        // the script is back within a word of the cursor.
-        let fiveWords = secondsToClose(gap: 150)
-        XCTAssertEqual(fiveWords, 0.51, accuracy: 0.05)
+        // A 44pt row at four lines a second is 176pt/s. A 150pt burst — a
+        // little over three rows — is entirely ceiling-bound until the last
+        // row, because the proportional term would ask for 833pt/s. So the
+        // time is gap over ceiling, and nothing to do with `response`.
+        let threeRows = secondsToClose(gap: 150)
+        XCTAssertEqual(threeRows, (150 - 44) / 176, accuracy: 0.03)
     }
 
-    func testRecoveryTimeDegradesWhenTheMeasuredPaceFalls() {
-        // The regression this branch exists to prove. The ceiling is a
-        // multiple of a *pace*, so feeding it a pace that decays — as a
-        // whole-take average does across pauses and ad-libs — slows catch-up
-        // by the same proportion. At the 60 wpm floor the identical burst
-        // takes twice as long as at 120, with nothing about the reader's
-        // actual speed at that moment having changed.
-        let atPace = secondsToClose(gap: 150, wpm: 120)
-        let atFloor = secondsToClose(gap: 150, wpm: 60)
-        XCTAssertEqual(atFloor / atPace, 2, accuracy: 0.1)
+    func testRecoveryTimeIsTheSameNumberOfLinesAtAnyTypeSize() {
+        // What the previous form could not do, and the reason for the change.
+        // The ceiling used to be a multiple of a *measured pace*, so a pace
+        // that decayed — as a whole-take average does across a pause, or
+        // while the reader ad-libs and the cursor stalls — slowed catch-up by
+        // the same proportion. A take got laggier the longer it ran.
+        //
+        // Now the only input is the row pitch, so the same gap *measured in
+        // rows* recovers in the same time whatever the type size: at double
+        // the pitch, a burst twice as tall takes exactly as long.
+        let small = secondsToClose(gap: 150, within: 44, lineHeight: 44)
+        let large = secondsToClose(gap: 300, within: 88, lineHeight: 88)
+        XCTAssertEqual(small, large, accuracy: 0.02)
     }
 
-    func testTheCeilingBindsWithinAWordOrTwo() {
-        // Where the ceiling takes over from the proportional term, in words.
-        // It is `response * maxCatchUp * wpm/60` and independent of font
-        // size — 1.44 words at 120 wpm. So the ceiling is not an outlier
-        // guard: it governs ordinary reading.
-        let pointsPerWord: CGFloat = 30
-        let crossover = 0.18 * 4 * CGFloat(120.0 / 60)
-        let justUnder = speed(gap: (crossover - 0.3) * pointsPerWord)
-        let justOver = speed(gap: (crossover + 0.3) * pointsPerWord)
-        XCTAssertLessThan(justUnder, 240, "below the crossover the gap still sets the speed")
-        XCTAssertEqual(justOver, 240, accuracy: 0.001, "above it, the ceiling is all that matters")
+    func testTheCeilingTakesOverBeforeASingleLine() {
+        // Where the ceiling takes over from the proportional term, in rows:
+        // `response * linesPerSecond`, which is 0.72 of a row. Anything
+        // further behind than three quarters of a line is travelling at the
+        // ceiling — so this is not an outlier guard, it is what sets the
+        // speed during ordinary reading. Instrumented on a device it was the
+        // binding constraint on 20-84% of frames.
+        //
+        // Worth keeping in view when the constant is tuned: raising it moves
+        // this crossover out proportionally.
+        let lineHeight: CGFloat = 44
+        let crossover: CGFloat = 0.18 * 4
+        let justUnder = speed(gap: (crossover - 0.2) * lineHeight)
+        let justOver = speed(gap: (crossover + 0.2) * lineHeight)
+        XCTAssertLessThan(justUnder, 176, "below the crossover the gap still sets the speed")
+        XCTAssertEqual(justOver, 176, accuracy: 0.001, "above it, the ceiling is all that matters")
     }
 }

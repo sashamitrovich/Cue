@@ -152,29 +152,39 @@ struct PrompterView: View {
     /// This is what keeps the active word *on* the reading line rather than
     /// somewhere below it.
     private static let pursuitResponse: CGFloat = 0.18
-    /// Ceiling on the pursuit, as a multiple of the speaking pace — what
-    /// stops a burst of recognised words being covered instantly.
+    /// Ceiling on the pursuit, in **lines of script a second** — what stops a
+    /// burst of recognised words being covered instantly.
     ///
-    /// It was 1.3, which was far too low to be a ceiling and acted as a flat
-    /// speed instead: the gap closed at only 0.3x pace, so the script never
-    /// actually caught up and the reader's eyes drifted down the screen
-    /// chasing a word that sat permanently below the line. At 4 the gap
-    /// closes at 3x pace when this is the binding constraint, which recovers
-    /// a burst in well under a second while still spreading it over enough
-    /// frames to read as movement rather than a jump.
-    /// Floor for the pursuit speed — the opening words of a take, before
-    /// there is a measured pace or a usable per-word spacing estimate.
-    private static let pursuitMaxCatchUp: CGFloat = 4
+    /// Measured against lines rather than against the speaking pace, because
+    /// what this protects is the reader's eye: how much text may sweep past
+    /// before they lose their place. That is perceptual, and a line is the
+    /// unit the eye tracks in. The previous form, `pointsPerWord * wpm/60 *
+    /// 4`, depended on two measured quantities that both moved about on their
+    /// own — a whole-take average pace that collapses during a pause, and a
+    /// per-word spacing estimate that was really counting line breaks in a
+    /// lookahead window. Instrumented on a 16e over one take, the resulting
+    /// speed limit ranged from 1.2 to 4.7 lines a second while nothing about
+    /// the reading had changed.
+    ///
+    /// 4 is a starting point taken from the middle of that observed range and
+    /// wants re-measuring, not defending: `PursuitDiagnostics` reports how
+    /// often this is the binding constraint, and on the run that motivated
+    /// the change it was binding on 20-84% of frames — a ceiling that is
+    /// active most of the time is setting the speed rather than guarding it.
+    private static let pursuitMaxLinesPerSecond: CGFloat = 4
+    /// Floor for the pursuit speed — the opening frames of a take, before the
+    /// layout has been measured and there is a line height to work from.
     private static let pursuitMinSpeed: CGFloat = 40
+    /// The gap between rows of script, shared by the layout that draws them
+    /// and the `lineHeight` the pursuit ceiling is measured in. One constant
+    /// deliberately: if these two drift apart the ceiling is quietly wrong,
+    /// and nothing on screen would say so.
+    static let scriptLineSpacing: CGFloat = 6
     /// Past this, the cursor didn't advance — it was *moved* (a restart, a
     /// drag, a rotation, a voice command). Travelling that at speaking pace
     /// would take tens of seconds, so the target goes straight there and the
     /// smoothing animates it.
     private static let pursuitSnapDistance: CGFloat = 900
-    /// Words ahead of the cursor used to estimate how far the script travels
-    /// per spoken word. Local rather than global, so it reflects the current
-    /// font size and line wrapping.
-    private static let pursuitLookahead = 8
     /// Set when the cursor was moved deliberately rather than by recognition,
     /// so the next tick goes straight there instead of pacing.
     @State private var cursorJumped = false
@@ -1252,15 +1262,20 @@ struct PrompterView: View {
     /// deciding not to write it is nearly free; writing it 60 times a second
     /// for movement too small to see is what made a parked prompter as
     /// expensive as a scrolling one.
-    /// How far the script travels per spoken word, measured from the current
-    /// layout rather than assumed, so it follows the reader's font size and
-    /// the way their text happens to wrap.
-    private var pointsPerWord: CGFloat {
-        let ahead = min(state.activeIndex + Self.pursuitLookahead, max(0, state.words.count - 1))
-        guard ahead > state.activeIndex,
-              let here = wordFrames[state.activeIndex],
-              let later = wordFrames[ahead] else { return 0 }
-        return (later.midY - here.midY) / CGFloat(ahead - state.activeIndex)
+    /// The script's row pitch: one line of text plus the gap to the next.
+    ///
+    /// Taken from the active word's own measured frame, which is a row's
+    /// height, plus `FlowLayout`'s line spacing — so it follows the reader's
+    /// type size without depending on how the text wraps. That independence
+    /// is the point: the estimate it replaced divided a lookahead window's
+    /// height by a word count, so it really counted line breaks and swung
+    /// fourfold as the cursor crossed them.
+    ///
+    /// Zero until the first layout pass has measured a word, which
+    /// `ScrollPursuit.speed` handles by falling back to its floor.
+    private var lineHeight: CGFloat {
+        guard let frame = wordFrames[state.activeIndex] else { return 0 }
+        return frame.height + Self.scriptLineSpacing
     }
 
     private func tick(now: Date) {
@@ -1308,11 +1323,9 @@ struct PrompterView: View {
             pursuitDiagnostics.record(
                 now: now,
                 gap: want - targetOffset,
-                pointsPerWord: pointsPerWord,
-                effectiveWPM: effectiveWPM,
-                targetWPM: pursuitWPM,
-                response: Self.pursuitResponse,
-                maxCatchUp: Self.pursuitMaxCatchUp
+                lineHeight: lineHeight,
+                maxLinesPerSecond: Self.pursuitMaxLinesPerSecond,
+                response: Self.pursuitResponse
             )
             #endif
             let next = ScrollPursuit.step(
@@ -1320,10 +1333,9 @@ struct PrompterView: View {
                 toward: want,
                 speed: ScrollPursuit.speed(
                     gap: want - targetOffset,
-                    pointsPerWord: pointsPerWord,
-                    wordsPerMinute: pursuitWPM,
+                    lineHeight: lineHeight,
+                    maxLinesPerSecond: Self.pursuitMaxLinesPerSecond,
                     response: Self.pursuitResponse,
-                    maxCatchUp: Self.pursuitMaxCatchUp,
                     minimum: Self.pursuitMinSpeed
                 ),
                 dt: dt,
@@ -1506,18 +1518,6 @@ struct PrompterView: View {
         )
     }
 
-    /// The pace the **pursuit ceiling** is measured against.
-    ///
-    /// Deliberately the configured target, not `effectiveWPM`. `effectiveWPM`
-    /// is a whole-take average (`wordsRead / elapsed`), and `wordsRead` is the
-    /// cursor — so every pause taken without hitting Pause drags it down, and
-    /// ad-libbing tanks it outright: the cursor stalls while the clock runs.
-    /// Feeding that to the ceiling made catch-up *slower the longer a take
-    /// ran*, and slowest exactly when the matcher had the most ground to make
-    /// up. The estimates and the readout still use the measured average —
-    /// that is what it is for. The ceiling needs a stable number.
-    private var pursuitWPM: Double { state.targetWPM }
-
     private var remainingSeconds: Double {
         ReadingPace.seconds(forWords: state.wordsRemaining, wpm: effectiveWPM)
     }
@@ -1652,7 +1652,7 @@ private struct ScrollFlow: View {
                     // pauses and ad-lib room survive into the prompter.
                     Color.clear.frame(height: state.fontSize * 0.9)
                 } else {
-                    FlowLayout(spacing: 8, lineSpacing: 6, alignment: state.textAlignment, fontSize: state.fontSize) {
+                    FlowLayout(spacing: 8, lineSpacing: PrompterView.scriptLineSpacing, alignment: state.textAlignment, fontSize: state.fontSize) {
                         ForEach(line.words) { word in
                             wordView(word)
                         }

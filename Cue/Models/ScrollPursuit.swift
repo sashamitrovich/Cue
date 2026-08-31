@@ -11,7 +11,7 @@ import Foundation
 /// and then hold still until the next result — read as a stall followed by a
 /// jump.
 ///
-/// Instead the target travels at the pace the words are being spoken, which
+/// Instead the target travels toward the cursor at a bounded speed, which
 /// turns the same bursts into continuous motion. Two properties matter and
 /// are covered by the tests:
 ///
@@ -25,49 +25,55 @@ enum ScrollPursuit {
 
     /// Points per second the target may travel, given how far behind it is.
     ///
-    /// Proportional, not a flat multiple of the speaking pace. A flat
-    /// multiple sounds reasonable and is wrong: at 1.3x the gap only closes
-    /// at 0.3x pace, so a deficit of a few words takes tens of words to
-    /// recover while the recogniser's own latency keeps re-opening it. The
-    /// result is a *steady-state* offset — the active word sits permanently
-    /// below the reading line and the reader's eyes track down the screen to
-    /// follow it, which defeats the point of a reading line.
+    /// Proportional, not a flat multiple of anything. A flat multiple sounds
+    /// reasonable and is wrong: at 1.3x the gap only closes at 0.3x pace, so
+    /// a deficit of a few words takes tens of words to recover while the
+    /// recogniser's own latency keeps re-opening it. The result is a
+    /// *steady-state* offset — the active word sits permanently below the
+    /// reading line and the reader's eyes track down the screen to follow it,
+    /// which defeats the point of a reading line.
     ///
-    /// So the speed scales with the gap: gentle when it is nearly there,
-    /// quick when it is behind. The ceiling is what keeps that from becoming
-    /// the teleport this type exists to prevent — bursts are still spread
-    /// over a few hundred milliseconds rather than covered instantly.
+    /// So the speed scales with the gap, and the ceiling only stops that
+    /// becoming the teleport this type exists to prevent.
+    ///
+    /// **The ceiling is measured in lines per second, deliberately.** It used
+    /// to be a multiple of the speaking pace, `pointsPerWord * wpm/60`, and
+    /// both of those were measured and unstable: the pace came from a
+    /// whole-take average that collapses during a pause and lags a change of
+    /// speed, and `pointsPerWord` was really counting line breaks inside a
+    /// lookahead window, so it quantised and swung about fourfold with where
+    /// the text happened to wrap. Between them the speed limit ranged from
+    /// 1.2 to 4.7 lines a second on one device during one take.
+    ///
+    /// What the ceiling is actually protecting is the reader's eye — how much
+    /// text may sweep past before they lose their place — and that is a
+    /// perceptual limit with nothing to do with words per minute. A line is
+    /// also the unit the eye tracks in. So the ceiling is a number of lines a
+    /// second, and the only measured input is the line height, which is
+    /// stable because it comes from the type size rather than from the text.
     ///
     /// - Parameters:
     ///   - gap: how far the target still has to travel.
-    ///   - pointsPerWord: how far the script moves per spoken word, measured
-    ///     locally from the current layout so it reflects the reader's font
-    ///     size and the current line wrapping.
-    ///   - wordsPerMinute: the reader's measured pace, or their target pace
-    ///     before enough of the take has been read to measure one.
+    ///   - lineHeight: the script's row pitch, measured from the current
+    ///     layout so it follows the reader's type size.
+    ///   - maxLinesPerSecond: ceiling, in lines of script a second.
     ///   - response: seconds the gap would take to close if nothing capped
     ///     it.
-    ///   - maxCatchUp: ceiling, as a multiple of the speaking pace. Must be
-    ///     comfortably above 1 or the steady-state offset comes back: the
-    ///     gap closes at `(maxCatchUp - 1)x` pace once this is the binding
-    ///     constraint.
-    ///   - minimum: floor, for the opening words of a take when the per-word
-    ///     estimate is still degenerate. `step` never overshoots, so a floor
-    ///     cannot make the target sail past the cursor.
+    ///   - minimum: floor, for the opening frames of a take before the layout
+    ///     has been measured. `step` never overshoots, so a floor cannot make
+    ///     the target sail past the cursor.
     static func speed(
         gap: CGFloat,
-        pointsPerWord: CGFloat,
-        wordsPerMinute: Double,
+        lineHeight: CGFloat,
+        maxLinesPerSecond: CGFloat,
         response: CGFloat,
-        maxCatchUp: CGFloat,
         minimum: CGFloat
     ) -> CGFloat {
         let proportional = abs(gap) / max(response, 0.001)
-        guard pointsPerWord > 0, wordsPerMinute > 0 else {
+        guard lineHeight > 0, maxLinesPerSecond > 0 else {
             return max(minimum, proportional)
         }
-        let pace = pointsPerWord * CGFloat(wordsPerMinute / 60)
-        return max(minimum, min(proportional, pace * maxCatchUp))
+        return max(minimum, min(proportional, lineHeight * maxLinesPerSecond))
     }
 
     /// The target's next position.

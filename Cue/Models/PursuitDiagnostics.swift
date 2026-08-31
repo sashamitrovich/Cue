@@ -24,35 +24,40 @@ struct PursuitDiagnostics {
     private var frames = 0
     private var ceilingBoundFrames = 0
     private var maxGap: CGFloat = 0
+    private var lastLineHeight: CGFloat = 0
     private var lastEmit: Date?
 
-    /// Records one frame. `proportional` and `ceiling` are the two candidates
-    /// `ScrollPursuit.speed` chooses between, recomputed here rather than
-    /// returned from it — keeping the pure type free of diagnostic plumbing.
+    /// Records one frame. The proportional term and the ceiling are the two
+    /// candidates `ScrollPursuit.speed` chooses between, recomputed here
+    /// rather than returned from it — keeping the pure type free of
+    /// diagnostic plumbing.
+    ///
+    /// `lineHeight` is printed so a device log can be checked against the
+    /// script's actual row pitch: if the derived value and the spacing
+    /// between rows on screen disagree, the ceiling is wrong.
     mutating func record(
         now: Date,
         gap: CGFloat,
-        pointsPerWord: CGFloat,
-        effectiveWPM: Double,
-        targetWPM: Double,
-        response: CGFloat,
-        maxCatchUp: CGFloat
+        lineHeight: CGFloat,
+        maxLinesPerSecond: CGFloat,
+        response: CGFloat
     ) {
         frames += 1
         maxGap = max(maxGap, abs(gap))
         let proportional = abs(gap) / max(response, 0.001)
-        let pace = pointsPerWord * CGFloat(effectiveWPM / 60)
-        if pace > 0, pace * maxCatchUp < proportional { ceilingBoundFrames += 1 }
+        let ceiling = lineHeight * maxLinesPerSecond
+        if ceiling > 0, ceiling < proportional { ceilingBoundFrames += 1 }
+        lastLineHeight = lineHeight
 
         guard let last = lastEmit else { lastEmit = now; return }
         guard now.timeIntervalSince(last) >= 1 else { return }
         lastEmit = now
 
         let bound = frames > 0 ? 100 * Double(ceilingBoundFrames) / Double(frames) : 0
-        let gapWords = pointsPerWord > 0 ? maxGap / pointsPerWord : 0
+        let gapLines = lastLineHeight > 0 ? maxGap / lastLineHeight : 0
         print(String(
-            format: "[pursuit] ceiling-bound %3.0f%% of %d frames | maxGap %5.1fpt (%.1f words) | effWPM %5.1f | targetWPM %5.1f | pt/word %5.1f",
-            bound, frames, maxGap, gapWords, effectiveWPM, targetWPM, pointsPerWord
+            format: "[pursuit] ceiling-bound %3.0f%% of %d frames | maxGap %5.1fpt (%.1f lines) | lineHeight %5.1fpt | ceiling %.1f lines/s",
+            bound, frames, maxGap, gapLines, lastLineHeight, Double(maxLinesPerSecond)
         ))
         frames = 0
         ceilingBoundFrames = 0
