@@ -14,7 +14,11 @@ FRAMES = [
     ("m-mirroring", "04-rigs",    "On Cue · Mirror",    "Built\nfor rigs.",
      "Flips for teleprompter glass. Controls stay put.", 0.085),
     ("m-editor",    "05-write",   "On Cue · Your script", "Write it.\nOr open it.",
-     "Type a script, or open one from Files or iCloud.", 0.20),
+     # Starts just under the navigation bar. It was 0.20 to crop past the
+     # old in-content masthead; with that gone, 0.20 also hid the card's own
+     # header and left body text floating in a box, while going as high as
+     # the prompter frames sliced the navigation title in half.
+     "Type a script, or open one from Files or iCloud.", 0.120),
 ]
 
 def main(src, dest):
