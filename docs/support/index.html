@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>On Cue — support</title>
+<meta name="description" content="Support for On Cue, the teleprompter that follows your voice. Contact, common questions and troubleshooting.">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="lamp" aria-hidden="true"></span>
+    <span class="chrome wordmark"><a href="../" style="color:inherit;text-decoration:none">On Cue</a></span>
+    <nav>
+      <a href="../">Home</a>
+      <a href="https://github.com/sashamitrovich/Cue">Source</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <h1>Support</h1>
+    <p class="lede">Something not working, or an idea for what it should do next? Get in touch — a real person reads these.</p>
+  </div>
+
+  <section>
+    <div class="wrap prose">
+      <h2 class="chrome">Get in touch</h2>
+      <p><strong>Email:</strong> <a href="mailto:CONTACT_EMAIL_HERE">CONTACT_EMAIL_HERE</a></p>
+      <p><strong>Or open an issue:</strong> <a href="https://github.com/sashamitrovich/Cue/issues">github.com/sashamitrovich/Cue/issues</a> — public, and good for bug reports where the detail matters.</p>
+      <p>If you are reporting a problem, the most useful things to include are your device, your iOS version, and what you were doing when it happened.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2 class="chrome">Common questions</h2>
+      <dl class="faq">
+
+        <dt>The script lags behind my voice.</dt>
+        <dd>On Cue uses Apple’s on-device speech recognition, which is roughly ten times quicker than the network one. If your iPhone has not downloaded the offline speech model, iOS transcribes over the network instead and the script trails what you say. Turn on <strong>Settings ▸ General ▸ Keyboard ▸ Enable Dictation</strong>, and make sure Siri is enabled, then give the device a few minutes on Wi-Fi to fetch the model. Version 1.5.2 also tries harder to reach the on-device path before giving up on it.</dd>
+
+        <dt>It is not following me at all.</dt>
+        <dd>Check that On Cue has microphone and speech-recognition permission in <strong>Settings ▸ Privacy &amp; Security</strong>. Then check the language: On Cue listens in the language you pick on the setup screen, and it has to be one your device can recognise. Reading English text while it is set to another language will not match.</dd>
+
+        <dt>Which languages does it support?</dt>
+        <dd>Whatever your device supports for speech recognition — the setup screen lists exactly those. Note that iOS has no Serbian recognition; writing in Latin script and selecting Croatian works well in practice.</dd>
+
+        <dt>Can I use it without an internet connection?</dt>
+        <dd>Yes, once the offline speech model is on your device. That is also the fastest way to run it. Nothing you write or record is ever uploaded by On Cue.</dd>
+
+        <dt>Where do my recordings go?</dt>
+        <dd>Straight to your Photos library, as an ordinary video. They are never sent anywhere.</dd>
+
+        <dt>Can I use a teleprompter rig?</dt>
+        <dd>Yes. Turn on Mirror in the settings and the script flips for a beam-splitter rig while the controls stay the right way round.</dd>
+
+        <dt>Does it work on iPad?</dt>
+        <dd>Yes, iPhone and iPad, on iOS and iPadOS 16 or later. One purchase covers both.</dd>
+
+        <dt>Is there a subscription?</dt>
+        <dd>No. Buy it once. There is no account, and no sign-in.</dd>
+
+      </dl>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>On Cue · <a href="../">Home</a> · <a href="https://github.com/sashamitrovich/Cue/blob/main/PRIVACY.md">Privacy</a> · <a href="https://github.com/sashamitrovich/Cue">Source on GitHub</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

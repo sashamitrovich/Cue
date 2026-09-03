@@ -1,0 +1,113 @@
+/* The app's own palette. Amber is the only accent, and it marks the live
+   thing — the active word in the app, the primary action here. */
+:root {
+  --ground: #07090C;
+  --raise:  #0E1218;
+  --rule:   #1C222C;
+  --ink:    #F2F4F7;
+  --muted:  #8B95A3;
+  --amber:  #FFB83B;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: 16px/1.65 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 68rem; margin: 0 auto; padding: 0 1.5rem; }
+
+/* Chrome type: condensed, uppercase, widely tracked — the same treatment the
+   app gives its own labels, so the site and the product read as one thing. */
+.chrome {
+  font-family: "SF Pro Display", -apple-system, "Helvetica Neue", sans-serif;
+  font-stretch: condensed;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  font-weight: 700;
+}
+
+header {
+  border-bottom: 1px solid var(--rule);
+  padding: 1.1rem 0;
+  position: sticky; top: 0;
+  background: rgba(7, 9, 12, 0.92);
+  backdrop-filter: saturate(160%) blur(12px);
+  z-index: 10;
+}
+header .wrap { display: flex; align-items: center; gap: 0.7rem; }
+.lamp { width: 0.7rem; height: 0.7rem; background: var(--amber); border-radius: 2px; flex: none; }
+.wordmark { font-size: 0.95rem; }
+header nav { margin-left: auto; display: flex; gap: 1.5rem; }
+header nav a { color: var(--muted); text-decoration: none; font-size: 0.8rem; }
+header nav a:hover, header nav a:focus-visible { color: var(--ink); }
+
+h1 {
+  font-size: clamp(2.2rem, 6vw, 3.6rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin: 0 0 1rem;
+  max-width: 18ch;
+}
+h1 em { font-style: normal; color: var(--amber); }
+
+.lede { font-size: 1.2rem; color: var(--muted); max-width: var(--measure); margin: 0 0 2rem; }
+
+.hero { padding: 5rem 0 3rem; }
+
+.cta {
+  display: inline-block;
+  background: var(--amber);
+  color: #12161C;
+  padding: 0.85rem 1.6rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.cta:hover, .cta:focus-visible { filter: brightness(1.08); }
+.cta-note { color: var(--muted); font-size: 0.85rem; margin-top: 0.9rem; }
+
+.shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.2rem;
+  padding: 2rem 0 4rem;
+}
+.shots img {
+  width: 100%; height: auto; display: block;
+  border-radius: 14px;
+  border: 1px solid var(--rule);
+}
+
+section { padding: 3.5rem 0; border-top: 1px solid var(--rule); }
+h2 { font-size: 0.78rem; color: var(--amber); margin: 0 0 1.6rem; }
+h3 { font-size: 1.05rem; margin: 0 0 0.4rem; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2rem; }
+.grid p { color: var(--muted); margin: 0; }
+
+.prose { max-width: var(--measure); }
+.prose p { color: var(--muted); }
+.prose a { color: var(--amber); }
+.prose h3 { color: var(--ink); margin-top: 2rem; }
+
+dl.faq { max-width: var(--measure); }
+dl.faq dt { font-weight: 600; margin-top: 1.8rem; }
+dl.faq dd { margin: 0.4rem 0 0; color: var(--muted); }
+
+footer {
+  border-top: 1px solid var(--rule);
+  padding: 2.5rem 0 4rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+footer a { color: var(--muted); }
+
+@media (prefers-reduced-motion: no-preference) {
+  a, .cta { transition: color 0.15s ease, filter 0.15s ease; }
+}
