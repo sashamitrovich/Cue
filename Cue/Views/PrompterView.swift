@@ -40,8 +40,6 @@ struct PrompterView: View {
     @State private var noticeMessage: String?
     @State private var noticeWorkItem: DispatchWorkItem?
     @State private var showSettings = false
-    @State private var pinchStartZoom: CGFloat = 1
-    @State private var isPinching = false
     /// Speaking time only — paused stretches are excluded so the measured pace
     /// reflects time actually spent talking.
     @State private var clock = SpeakingClock()
@@ -497,19 +495,13 @@ struct PrompterView: View {
     @ViewBuilder
     private var cameraLayer: some View {
         if state.cameraEnabled {
+            // No pinch-to-zoom, deliberately. The camera stays at its widest
+            // field of view: a digital zoom on a front camera only crops the
+            // picture, and the script is drawn over this, so a stray pinch
+            // while reaching for the screen used to crop the shot with
+            // nothing on screen to say it had happened.
             CameraPreviewView(session: camera.session)
                 .scaleEffect(x: -1, y: 1)
-                .gesture(
-                    MagnificationGesture()
-                        .onChanged { scale in
-                            if !isPinching {
-                                pinchStartZoom = camera.zoomFactor
-                                isPinching = true
-                            }
-                            camera.setZoom(pinchStartZoom * scale)
-                        }
-                        .onEnded { _ in isPinching = false }
-                )
             Color.black.opacity(state.cameraDimming)
         }
     }

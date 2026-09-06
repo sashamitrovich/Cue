@@ -41,9 +41,6 @@ struct PrompterControlsSheet: View {
                 if state.cameraEnabled {
                     legibilitySection
                     qualitySection
-                    if camera.capabilities.maxZoom > camera.capabilities.minZoom + 0.05 {
-                        zoomSection
-                    }
                     if hasAdjustableCapture { captureSection }
                 }
                 // Last, deliberately: the UI tests scroll this Form counting
@@ -253,18 +250,6 @@ struct PrompterControlsSheet: View {
                      }.joined(separator: ", ") + ".")
             }
             .disabled(camera.isRecording)
-        }
-    }
-
-    private var zoomSection: some View {
-        Section("Zoom") {
-            labelledSlider(
-                "Zoom",
-                value: Binding(get: { camera.zoomFactor }, set: { camera.setZoom($0) }),
-                range: camera.capabilities.minZoom...camera.capabilities.maxZoom,
-                display: String(format: "%.1f×", camera.zoomFactor),
-                icons: ("minus.magnifyingglass", "plus.magnifyingglass")
-            )
         }
     }
 

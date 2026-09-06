@@ -7,8 +7,6 @@ import UIKit
 /// What the connected device's front camera supports, detected at runtime.
 /// The controls sheet only shows a row when the matching flag/list is non-empty.
 struct CameraCapabilities {
-    var minZoom: CGFloat = 1
-    var maxZoom: CGFloat = 1
     /// Size tiers (HD / 4K) with the frame rates each one offers.
     var qualityTiers: [QualityTier] = []
     var supportsHDR: Bool = false
@@ -32,7 +30,6 @@ final class CameraController: NSObject, ObservableObject {
     @Published var recordingSeconds: Int = 0
 
     @Published var capabilities = CameraCapabilities()
-    @Published var zoomFactor: CGFloat = 1
     @Published var selectedMode: VideoMode?
     @Published var hdrEnabled = false
     @Published var stabilizationEnabled = true
@@ -151,8 +148,6 @@ final class CameraController: NSObject, ObservableObject {
     /// 1080p30 on older ones).
     private func detectCapabilities(for device: AVCaptureDevice) {
         var caps = CameraCapabilities()
-        caps.minZoom = device.minAvailableVideoZoomFactor
-        caps.maxZoom = device.maxAvailableVideoZoomFactor
         caps.supportsLowLightBoost = device.isLowLightBoostSupported
 
         var formats: [VideoMode: AVCaptureDevice.Format] = [:]
@@ -199,7 +194,6 @@ final class CameraController: NSObject, ObservableObject {
         DispatchQueue.main.async {
             self.capabilities = caps
             self.formatsByMode = formats
-            self.zoomFactor = device.videoZoomFactor
             self.selectedMode = current
             if caps.supportsStabilization { self.setStabilization(true) }
             if caps.supportsLowLightBoost { self.setLowLightBoost(true) }
@@ -230,21 +224,26 @@ final class CameraController: NSObject, ObservableObject {
         return abs(Double(dims.width) / Double(dims.height) - 16.0 / 9.0) < 0.05
     }
 
-    /// Digital zoom, clamped to this device's actual reported range (front
-    /// cameras rarely go far past 1x — older models may not zoom at all).
-    func setZoom(_ factor: CGFloat) {
+    /// Pins the camera to its widest field of view.
+    ///
+    /// There is no zoom control any more. A teleprompter wants as much of the
+    /// speaker and the room in frame as the lens will give, and a digital
+    /// zoom on a front camera only crops that away — it adds no reach,
+    /// because there is nothing to reach with. The one thing the setting
+    /// could do was make the picture worse.
+    ///
+    /// Called again after a format change, because the zoom factor and its
+    /// range are properties of the *active format*: switching quality can
+    /// leave a factor behind that no longer means what it did.
+    private func pinToWidestFieldOfView() {
         guard let device = cameraDevice else { return }
-        // Clamped against the device's live range rather than the cached one:
-        // the range is a property of the active format, and asking for a
-        // factor outside it raises an uncatchable exception.
-        let clamped = min(max(factor, device.minAvailableVideoZoomFactor), device.maxAvailableVideoZoomFactor)
         do {
             try device.lockForConfiguration()
-            device.ramp(toVideoZoomFactor: clamped, withRate: 12)
+            device.videoZoomFactor = device.minAvailableVideoZoomFactor
             device.unlockForConfiguration()
-            zoomFactor = clamped
         } catch {
-            errorMessage = "Couldn't set zoom: \(error.localizedDescription)"
+            // Not worth a banner: the picture is merely narrower than it
+            // could be, and everything else about the take still works.
         }
     }
 
@@ -301,14 +300,10 @@ final class CameraController: NSObject, ObservableObject {
             device.unlockForConfiguration()
             session.commitConfiguration()
             selectedMode = mode
-            // Zoom range and HDR availability are properties of the active
-            // format, so they have to be re-read — a stale maximum would let
-            // the zoom slider ask for a factor this format rejects, which
-            // raises an exception of its own.
-            capabilities.minZoom = device.minAvailableVideoZoomFactor
-            capabilities.maxZoom = device.maxAvailableVideoZoomFactor
+            pinToWidestFieldOfView()
+            // HDR availability is a property of the active format, so it has
+            // to be re-read after a change.
             capabilities.supportsHDR = device.activeFormat.isVideoHDRSupported
-            zoomFactor = device.videoZoomFactor
         } catch {
             session.commitConfiguration()
             errorMessage = "Couldn't change quality: \(error.localizedDescription)"
