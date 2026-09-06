@@ -581,7 +581,10 @@ struct PrompterView: View {
                     PrompterControlsSheet(camera: camera, state: state) {
                         showSettings = false
                     }
-                    .frame(width: settingsPanelWidth)
+                    // Both dimensions, explicitly, so the panel is sized by
+                    // the screen rather than by whatever the Form inside it
+                    // would otherwise negotiate with an overlay.
+                    .frame(width: settingsPanelWidth, height: geo.size.height + insets.top + insets.bottom)
                     // The prompter bleeds to the edges, so without this the
                     // panel's own controls run under the rounded corner and
                     // the buttons nearest the edge are clipped.

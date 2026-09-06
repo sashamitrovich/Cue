@@ -48,6 +48,12 @@ struct PrompterControlsSheet: View {
                     if hasAdjustableCapture { captureSection }
                 }
             }
+            // Named so a UI test can scroll *this* Form rather than guessing
+            // which scrollable element it found. In landscape the Form is an
+            // overlay panel occupying part of the width, and a drag aimed at
+            // the screen instead lands on the script beside it and scrolls
+            // nothing — which is how the margin-slider test failed twice.
+            .accessibilityIdentifier("prompterSettingsForm")
             .tint(PrompterView.accent)
             .navigationTitle("Prompter")
             .navigationBarTitleDisplayMode(.inline)

@@ -268,12 +268,22 @@ final class PrompterSmokeTests: XCTestCase {
         return slider
     }
 
-    /// Dragging a control must visibly change the script — in BOTH
+    /// Changing the side margin must visibly move the script — in BOTH
     /// orientations. This is the assertion that was missing: the side-margin
     /// setting was implemented as a floor over the safe-area inset, so in
     /// landscape, where that inset is ~47pt a side, most of the slider's
     /// range did nothing at all. Unit tests passed the whole time, because
     /// they asserted the rule I intended rather than the effect you see.
+    ///
+    /// The margin is set **in portrait**, then checked in both. It used to be
+    /// set in each orientation in turn, which meant scrolling the settings to
+    /// reach the slider in landscape — where they are a panel down one side,
+    /// and where synthetic swipes do not drive that overlay reliably in the
+    /// simulator. On hardware that panel scrolls perfectly well: the test was
+    /// failing on a limitation of the harness rather than of the app, and it
+    /// cost four rounds of chasing a defect that did not exist. Setting the
+    /// value once and observing it twice asserts the same property and
+    /// depends on neither.
     func testSideMarginMovesTheScriptInBothOrientations() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
@@ -281,37 +291,45 @@ final class PrompterSmokeTests: XCTestCase {
         app.buttons["Start prompting →"].tap()
         XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
 
-        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+        let word = app.staticTexts.matching(identifier: "Being").firstMatch
+
+        /// Where the script's first word starts, in the given orientation.
+        func wordLeadingEdge(in orientation: UIDeviceOrientation) -> CGFloat {
             XCUIDevice.shared.orientation = orientation
             XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
-
-            let word = app.staticTexts.matching(identifier: "Being").firstMatch
             XCTAssertTrue(word.waitForExistence(timeout: 5))
-            let narrow = word.frame.minX
-
-            app.buttons["Prompter settings"].tap()
-            let slider = revealSlider(named: "Side margins", in: app)
-            XCTAssertTrue(slider.exists && slider.isHittable, "margin slider must be reachable")
-            // Deliberately a SMALL increase. A first version of this test used
-            // 0.9, which passed even against the broken rule: at that end the
-            // margin exceeds the ~47pt landscape inset and does move the
-            // text. The defect lived in the bottom of the range.
-            slider.adjust(toNormalizedSliderPosition: 0.25)
-            app.buttons["Done"].tap()
-
-            XCTAssertTrue(word.waitForExistence(timeout: 5))
-            let wide = word.frame.minX
-            XCTAssertGreaterThan(
-                wide, narrow + 4,
-                "widening the margin must move the script inward "
-                + "(orientation \(orientation.rawValue): \(narrow) -> \(wide))"
-            )
-
-            // Put it back, so the next orientation starts from a known place.
-            app.buttons["Prompter settings"].tap()
-            revealSlider(named: "Side margins", in: app).adjust(toNormalizedSliderPosition: 0.0)
-            app.buttons["Done"].tap()
+            return word.frame.minX
         }
+
+        let narrowPortrait = wordLeadingEdge(in: .portrait)
+        let narrowLandscape = wordLeadingEdge(in: .landscapeLeft)
+
+        // Back to portrait to change the setting: the sheet there is a plain
+        // presentation, which XCTest drives reliably.
         XCUIDevice.shared.orientation = .portrait
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["Prompter settings"].tap()
+        let slider = revealSlider(named: "Side margins", in: app)
+        XCTAssertTrue(slider.exists && slider.isHittable, "margin slider must be reachable")
+        // Deliberately a SMALL increase. A first version of this test used
+        // 0.9, which passed even against the broken rule: at that end the
+        // margin exceeds the ~47pt landscape inset and does move the text.
+        // The defect lived in the bottom of the range.
+        slider.adjust(toNormalizedSliderPosition: 0.25)
+        app.buttons["Done"].tap()
+
+        let widePortrait = wordLeadingEdge(in: .portrait)
+        let wideLandscape = wordLeadingEdge(in: .landscapeLeft)
+        XCUIDevice.shared.orientation = .portrait
+
+        XCTAssertGreaterThan(
+            widePortrait, narrowPortrait + 4,
+            "portrait: the script must move in from \(narrowPortrait) when the margin grows"
+        )
+        XCTAssertGreaterThan(
+            wideLandscape, narrowLandscape + 4,
+            "landscape: the script must move in from \(narrowLandscape) too — this is the case "
+            + "the old floor-over-safe-area rule got wrong"
+        )
     }
 }
