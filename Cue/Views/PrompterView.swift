@@ -457,7 +457,13 @@ struct PrompterView: View {
             // and the script still following a take the reader believed was
             // over.
             .onChange(of: camera.isRecording) { recording in
-                if !recording && state.isListening { pauseTake() }
+                guard !recording else { return }
+                if state.isListening { pauseTake() }
+                // The recording was the reason the audio session was being
+                // held past the end of recognition. It has finished, so hand
+                // it back — unless the reader has already started reading
+                // again, which `releaseAudioSessionIfIdle` checks for itself.
+                speech.releaseAudioSessionIfIdle()
             }
             .onChange(of: scenePhase) { phase in
                 guard phase != .active else { return }
@@ -1510,7 +1516,11 @@ struct PrompterView: View {
         if state.isListening { Haptics.takeStopped() }
         state.isListening = false
         clock.pause(at: Date())
-        speech.end()
+        // Pausing does not stop the recording, and handing the audio session
+        // back while the camera is still writing a file kills the sound in it
+        // from this point on — permanently, and invisibly until playback. The
+        // session goes back when the recording actually ends.
+        speech.end(releasingAudioSession: !camera.isRecording)
         chromeVisible = true
     }
 

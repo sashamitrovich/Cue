@@ -111,7 +111,19 @@ final class SpeechTracker: NSObject, ObservableObject {
         }
     }
 
-    func end() {
+    /// Stops recognition.
+    ///
+    /// - Parameter releasingAudioSession: whether to hand the shared audio
+    ///   session back. **Pass `false` while a recording is in progress.**
+    ///   Deactivating the session pulls the microphone out from under a
+    ///   running `AVCaptureSession`, and `AVCaptureMovieFileOutput` does not
+    ///   re-attach audio to a file it has already started: the video carries
+    ///   on and the sound stops dead at that point, for good. Pausing a take
+    ///   does *not* stop the recording, so pausing used to silence the rest
+    ///   of the file — discoverable only on playback, by which time the take
+    ///   was gone. Call `releaseAudioSessionIfIdle()` once the recording has
+    ///   actually finished.
+    func end(releasingAudioSession: Bool = true) {
         shouldRun = false
         interrupted = false
         if let interruptionObserver {
@@ -123,9 +135,19 @@ final class SpeechTracker: NSObject, ObservableObject {
         // Any session configuration still in flight belongs to a take that
         // no longer exists.
         startGeneration &+= 1
-        // Hand the audio session back. Without this the category stays active
-        // after a take and everyone else's audio — music, a podcast — stays
-        // ducked or stopped until the app is killed.
+        if releasingAudioSession { releaseAudioSessionIfIdle() }
+    }
+
+    /// Hands the shared audio session back, if nothing here still needs it.
+    ///
+    /// Without this the category stays active after a take and everyone
+    /// else's audio — music, a podcast — stays ducked or stopped until the
+    /// app is killed. It is separate from `end()` so the caller can defer it
+    /// past a recording that outlives recognition, and it re-checks
+    /// `shouldRun` because by the time it runs the reader may have started
+    /// another take.
+    func releaseAudioSessionIfIdle() {
+        guard !shouldRun else { return }
         sessionQueue.async {
             try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         }
@@ -190,7 +212,17 @@ final class SpeechTracker: NSObject, ObservableObject {
         sessionQueue.async { [weak self] in
             do {
                 let session = AVAudioSession.sharedInstance()
-                try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothHFP])
+                // Only reconfigure when it is not already right. Resuming a
+                // paused take re-enters this while a recording may still be
+                // running, and re-applying a category and mode reconfigures
+                // the audio route — which is the sort of thing a capture
+                // session in the middle of writing a file does not need.
+                let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetoothHFP]
+                if session.category != .playAndRecord
+                    || session.mode != .measurement
+                    || session.categoryOptions != options {
+                    try session.setCategory(.playAndRecord, mode: .measurement, options: options)
+                }
                 try session.setActive(true, options: .notifyOthersOnDeactivation)
             } catch {
                 DispatchQueue.main.async {
