@@ -100,6 +100,10 @@ struct SetupView: View {
         .tint(PrompterView.accent)
         .fullScreenCover(isPresented: $showPrompter) {
             PrompterView(state: state)
+                // The prompter is used in both orientations — landscape is
+                // what a rig wants — and going back means going back to a
+                // portrait-only screen.
+                .orientationLock(.all, restoring: .portrait)
         }
         .sheet(isPresented: $showHelp) {
             HelpSheet()

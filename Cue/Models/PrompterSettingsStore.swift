@@ -5,7 +5,10 @@ import Foundation
 /// (the reading cursor, whether a take is running, manual mode) reset with
 /// each launch by design; only preferences live here.
 struct PrompterSettingsStore {
-    enum Key: String {
+    /// `CaseIterable` so `SettingsPersistenceTests` can assert that every key
+    /// has a round-trip test — a setting that is added here but never read
+    /// back in `TeleprompterState.init` forgets itself silently.
+    enum Key: String, CaseIterable {
         case fontSize, mirror, textAlignment, cameraEnabled,
              textOpacity, cueLineFraction, sideMargin, cameraDimming,
              targetWPM, countdownSeconds, showTiming, voiceCommandsEnabled,

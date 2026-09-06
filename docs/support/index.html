@@ -41,7 +41,7 @@
       <dl class="faq">
 
         <dt>The script lags behind my voice.</dt>
-        <dd>On Cue uses Apple’s on-device speech recognition, which is roughly ten times quicker than the network one. If your iPhone has not downloaded the offline speech model, iOS transcribes over the network instead and the script trails what you say. Turn on <strong>Settings ▸ General ▸ Keyboard ▸ Enable Dictation</strong>, and make sure Siri is enabled, then give the device a few minutes on Wi-Fi to fetch the model. Version 1.5.2 also tries harder to reach the on-device path before giving up on it.</dd>
+        <dd>On Cue uses Apple’s on-device speech recognition, which is roughly ten times quicker than the network one. If your iPhone has not downloaded the offline speech model, iOS transcribes over the network instead and the script trails what you say. Turn on <strong>Settings ▸ General ▸ Keyboard ▸ Enable Dictation</strong>, and make sure Siri is enabled, then give the device a few minutes on Wi-Fi to fetch the model. Version 1.5.2 and later try harder to reach the on-device path before giving up on it.</dd>
 
         <dt>It is not following me at all.</dt>
         <dd>Check that On Cue has microphone and speech-recognition permission in <strong>Settings ▸ Privacy &amp; Security</strong>. Then check the language: On Cue listens in the language you pick on the setup screen, and it has to be one your device can recognise. Reading English text while it is set to another language will not match.</dd>
@@ -54,6 +54,9 @@
 
         <dt>Where do my recordings go?</dt>
         <dd>Straight to your Photos library, as an ordinary video. They are never sent anywhere.</dd>
+
+        <dt>My recording has no sound after I paused part-way through.</dt>
+        <dd>That was a bug in versions 1.5.1 and 1.5.2: pausing a take stopped the audio being recorded, while the picture carried on. It is fixed in 1.5.3. Recordings made with the earlier versions cannot be repaired — the sound was never captured.</dd>
 
         <dt>Can I use a teleprompter rig?</dt>
         <dd>Yes. Turn on Mirror in the settings and the script flips for a beam-splitter rig while the controls stay the right way round.</dd>

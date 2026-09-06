@@ -47,13 +47,6 @@ struct PrompterControlsSheet: View {
                     qualitySection
                     if hasAdjustableCapture { captureSection }
                 }
-                // Last, deliberately: the UI tests scroll this Form counting
-                // drags to reach a row, so a debug-only section above the
-                // real ones would shift every one of them in exactly the
-                // build the tests run against.
-                #if DEBUG
-                comparisonSection
-                #endif
             }
             .tint(PrompterView.accent)
             .navigationTitle("Prompter")
@@ -81,19 +74,6 @@ struct PrompterControlsSheet: View {
     }
 
     // MARK: - Reading
-
-    #if DEBUG
-    /// A/B for "1.3 felt smoother". Both behaviours in one build so they can
-    /// be compared inside a single take rather than against a memory of an
-    /// older release. Debug builds only.
-    private var comparisonSection: some View {
-        Section {
-            Toggle("Scroll like 1.3", isOn: $state.legacyScrolling)
-        } footer: {
-            Text("Debug only. On: the script heads straight for the word you just said, as 1.3 did. Off: it travels there at a bounded speed.")
-        }
-    }
-    #endif
 
     private var readingSection: some View {
         Section {
@@ -135,12 +115,11 @@ struct PrompterControlsSheet: View {
             .pickerStyle(.segmented)
             Toggle("Mirror", isOn: $state.mirror)
         } header: {
+            // No footer. These are the settings whose effect you can see on
+            // the script while you change them, which is the whole reason the
+            // panel leaves it visible — a paragraph explaining what you are
+            // already watching happen is just something else to read.
             Text("Reading")
-        } footer: {
-            // Adjusted here rather than before starting, because these are the
-            // settings whose effect you can only judge by looking at the
-            // script — which is visible behind this sheet.
-            Text("Already-read text fades with distance behind you, so the line you just said stays legible if you want it again — Already read text dimming sets how dim the oldest text goes. Side margins add to whatever the screen already needs, so the script never intrudes into a notch. Wider margins give shorter lines, which are easier to catch at a glance. Keep the reading line high on the screen so your eyes stay near the lens. Mirror is for teleprompter rigs that reflect the screen in a sheet of glass; reading from the phone, leave it off.")
         }
     }
 

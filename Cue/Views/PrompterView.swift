@@ -150,10 +150,6 @@ struct PrompterView: View {
     /// Seconds the pursuit would take to close the gap if nothing capped it.
     /// This is what keeps the active word *on* the reading line rather than
     /// somewhere below it.
-    /// 1.3's smoothing, for the A/B toggle. It ran `offset += gap * 0.12`
-    /// once a frame at 60Hz, which is an exponential with this time
-    /// constant — taken from the tag rather than from memory.
-    private static let legacySmoothingTau: CGFloat = 0.13
     private static let pursuitResponse: CGFloat = 0.18
     /// Ceiling on the pursuit, in **lines of script a second** — what stops a
     /// burst of recognised words being covered instantly.
@@ -184,14 +180,17 @@ struct PrompterView: View {
     /// of that keeps the word clear of the Dynamic Island rather than tucked
     /// behind it.
     private static let readingLineClearance: CGFloat = 0.75
-    /// The lowest the reading line goes, as a fraction of the screen.
-    private static let readingLineLowest: CGFloat = 0.6
     /// The landscape settings panel takes half the width, leaving the other
     /// half of the script — including the reading line — visible and live
     /// while a setting is being changed. It sits on the edge *opposite* the
     /// control rail, so it never covers the buttons that opened it.
     private var settingsPanelWidth: CGFloat {
-        UIScreen.main.bounds.width * 0.5
+        // Was half. Half squeezed twenty rows into a column narrow enough
+        // that reaching the lower ones took a long scroll, and a slider half
+        // as wide is half as precise to set — and this panel is mostly
+        // sliders. 62% still leaves a live strip of script with the reading
+        // line on it, which is the whole point of not using a sheet.
+        UIScreen.main.bounds.width * 0.62
     }
 
     /// Where the reading line sits, from the setting.
@@ -212,17 +211,46 @@ struct PrompterView: View {
     /// Still a pure function of geometry and settings — never of a measured
     /// chrome height, which is what once left the line and the script 45pt
     /// apart in landscape.
-    static func cueY(fraction: Double, fullHeight: CGFloat, topInset: CGFloat, fontSize: CGFloat) -> CGFloat {
-        let highest = topInset + fontSize * readingLineClearance
-        let lowest = max(highest, fullHeight * readingLineLowest)
+    static func cueY(
+        fraction: Double, fullHeight: CGFloat,
+        topInset: CGFloat, bottomInset: CGFloat, fontSize: CGFloat
+    ) -> CGFloat {
+        let (highest, lowest) = readingLineBand(
+            fullHeight: fullHeight, topInset: topInset, bottomInset: bottomInset, fontSize: fontSize)
         return highest + CGFloat(min(1, max(0, fraction))) * (lowest - highest)
+    }
+
+    /// The two ends of the band, so the position and its inverse cannot
+    /// disagree about where they are.
+    ///
+    /// The bottom end was a flat `0.6 * fullHeight`, which had the same fault
+    /// the top floor did: a fraction standing in for chrome. In landscape
+    /// there is no bottom bar at all — the controls are in a side rail — so
+    /// 60% stopped the line around the middle of an already short screen for
+    /// no reason. Portrait genuinely must stop above its bar.
+    ///
+    /// At 100% there is very little script left below the line, and in
+    /// portrait the line passes behind the control panel. Both are intended
+    /// and were approved after being seen on a device: the ends of the slider
+    /// are wherever the line can physically go, not an arbitrary number short
+    /// of it, and script below the line has already been spoken.
+    static func readingLineBand(
+        fullHeight: CGFloat, topInset: CGFloat, bottomInset: CGFloat, fontSize: CGFloat
+    ) -> (highest: CGFloat, lowest: CGFloat) {
+        let clearance = fontSize * readingLineClearance
+        let highest = topInset + clearance
+        let lowest = max(highest, fullHeight - bottomInset - clearance)
+        return (highest, lowest)
     }
 
     /// The inverse, for dragging the line directly: which setting puts the
     /// line under the finger.
-    static func cueFraction(y: CGFloat, fullHeight: CGFloat, topInset: CGFloat, fontSize: CGFloat) -> Double {
-        let highest = topInset + fontSize * readingLineClearance
-        let lowest = max(highest, fullHeight * readingLineLowest)
+    static func cueFraction(
+        y: CGFloat, fullHeight: CGFloat,
+        topInset: CGFloat, bottomInset: CGFloat, fontSize: CGFloat
+    ) -> Double {
+        let (highest, lowest) = readingLineBand(
+            fullHeight: fullHeight, topInset: topInset, bottomInset: bottomInset, fontSize: fontSize)
         guard lowest > highest else { return 0 }
         return Double(min(1, max(0, (y - highest) / (lowest - highest))))
     }
@@ -266,7 +294,8 @@ struct PrompterView: View {
             let cueY = Self.cueY(
                 fraction: state.cueLineFraction,
                 fullHeight: fullHeight(geo: geo, insets: insets),
-                topInset: insets.top,
+                topInset: readingLineTopInset(insets: insets),
+                bottomInset: readingLineBottomInset(insets: insets),
                 fontSize: state.fontSize
             )
 
@@ -553,6 +582,11 @@ struct PrompterView: View {
                         showSettings = false
                     }
                     .frame(width: settingsPanelWidth)
+                    // The prompter bleeds to the edges, so without this the
+                    // panel's own controls run under the rounded corner and
+                    // the buttons nearest the edge are clipped.
+                    .padding(.trailing, railOnLeading ? insets.trailing : 0)
+                    .padding(.leading, railOnLeading ? 0 : insets.leading)
                     // The panel is opaque on its own edge: a Form drawn
                     // straight over the script would leave words showing
                     // through the gaps between its rows.
@@ -586,8 +620,68 @@ struct PrompterView: View {
     /// stated constant rather than a measurement: the bar's contents are fixed
     /// and measuring it made the layout depend on the order measurements
     /// arrived in.
+    /// Height of the chrome docked at the top in landscape, above the safe
+    /// area. Constants rather than a measurement, deliberately — see
+    /// `readingLineTopInset`.
+    static let landscapeBarHeight: CGFloat = 48
+    static let landscapeBarHeightWithTiming: CGFloat = 78
+
     private func chromeTopInset(insets: EdgeInsets) -> CGFloat {
-        insets.top + (state.showTiming ? 78 : 48)
+        insets.top + (state.showTiming ? Self.landscapeBarHeightWithTiming : Self.landscapeBarHeight)
+    }
+
+    /// What the reading line has to clear at its highest.
+    ///
+    /// Portrait: the safe area. Landscape: the status bar too, which is
+    /// docked at the true top there — so the line's highest position must
+    /// start below it or the script scrolls behind it. That is what the old
+    /// 0.34 landscape floor was really guarding, and removing the floor
+    /// without replacing the guard put the line back under the bar.
+    ///
+    /// `chromeTopInset` is a pure function of geometry and a setting, never a
+    /// measured height, which is the property this whole calculation depends
+    /// on: measuring the chrome once made the line's position depend on when
+    /// the measurement landed, and left the line and the script 45pt apart.
+    ///
+    /// Used by both the layout and the drag, deliberately in one place — if
+    /// those two disagreed, dragging the line would move it somewhere the
+    /// slider could not express.
+    private func readingLineTopInset(insets: EdgeInsets) -> CGFloat {
+        Self.readingLineTopInset(
+            safeAreaTop: insets.top,
+            isLandscape: isLandscape,
+            showsTiming: state.showTiming
+        )
+    }
+
+    private func readingLineBottomInset(insets: EdgeInsets) -> CGFloat {
+        Self.readingLineBottomInset(safeAreaBottom: insets.bottom)
+    }
+
+    /// The testable form. This is deliberately not a method on the view: the
+    /// landscape-bar bug lived in exactly this decision, and a private view
+    /// method cannot be reached from a test — the arithmetic below it was
+    /// covered, and the choice of what to feed it was not.
+    static func readingLineTopInset(safeAreaTop: CGFloat, isLandscape: Bool, showsTiming: Bool) -> CGFloat {
+        guard isLandscape else { return safeAreaTop }
+        return safeAreaTop + (showsTiming ? landscapeBarHeightWithTiming : landscapeBarHeight)
+    }
+
+    /// What the reading line has to clear at its lowest: the safe area, and
+    /// nothing else — in both orientations.
+    ///
+    /// Deliberately **not** symmetric with the top. The top chrome sits
+    /// between the reader and the script they have not read yet, so a line
+    /// underneath it is a line they cannot use. The bottom chrome sits over
+    /// script that has already been spoken, so a line that runs behind the
+    /// control panel in portrait costs nothing — and the reader asked for the
+    /// full range having seen exactly that happen.
+    ///
+    /// Which leaves this a thin wrapper, kept because the asymmetry is the
+    /// kind of thing that gets "tidied" back into symmetry by someone reading
+    /// only `readingLineTopInset`.
+    static func readingLineBottomInset(safeAreaBottom: CGFloat) -> CGFloat {
+        safeAreaBottom
     }
 
     private func fullHeight(geo: GeometryProxy, insets: EdgeInsets) -> CGFloat {
@@ -708,7 +802,8 @@ struct PrompterView: View {
                             state.cueLineFraction = Self.cueFraction(
                                 y: value.location.y,
                                 fullHeight: height,
-                                topInset: insets.top,
+                                topInset: readingLineTopInset(insets: insets),
+                                bottomInset: readingLineBottomInset(insets: insets),
                                 fontSize: state.fontSize
                             )
                         }
@@ -1347,15 +1442,6 @@ struct PrompterView: View {
     ///
     /// Zero until the first layout pass has measured a word, which
     /// `ScrollPursuit.speed` handles by falling back to its floor.
-    /// Whether to scroll the way 1.3 did. Always false in a release build.
-    private var usesLegacyScrolling: Bool {
-        #if DEBUG
-        return state.legacyScrolling
-        #else
-        return false
-        #endif
-    }
-
     private var lineHeight: CGFloat {
         guard let frame = wordFrames[state.activeIndex] else { return 0 }
         return frame.height + Self.scriptLineSpacing
@@ -1374,9 +1460,8 @@ struct PrompterView: View {
         lastTickTime = now
 
         let gap = targetOffset - offset
-        let tau = usesLegacyScrolling ? Self.legacySmoothingTau : Self.smoothingTau
         if abs(gap) > Self.settleThreshold {
-            offset += gap * (1 - CGFloat(exp(-dt / Double(tau))))
+            offset += gap * (1 - CGFloat(exp(-dt / Double(Self.smoothingTau))))
         } else if offset != targetOffset {
             offset = targetOffset
         }
@@ -1412,28 +1497,20 @@ struct PrompterView: View {
                 response: Self.pursuitResponse
             )
             #endif
-            // 1.3 set the target straight to the recognised word and let the
-            // smoothing chase it — no pacing, no ceiling. That is the whole
-            // difference being compared.
-            let next: CGFloat
-            if usesLegacyScrolling {
-                next = want
-            } else {
-                next = ScrollPursuit.step(
-                    target: targetOffset,
-                    toward: want,
-                    speed: ScrollPursuit.speed(
-                        gap: want - targetOffset,
-                        lineHeight: lineHeight,
-                        maxLinesPerSecond: Self.pursuitMaxLinesPerSecond,
-                        response: Self.pursuitResponse,
-                        minimum: Self.pursuitMinSpeed
-                    ),
-                    dt: dt,
-                    snapDistance: Self.pursuitSnapDistance,
-                    jumped: cursorJumped
-                )
-            }
+            let next = ScrollPursuit.step(
+                target: targetOffset,
+                toward: want,
+                speed: ScrollPursuit.speed(
+                    gap: want - targetOffset,
+                    lineHeight: lineHeight,
+                    maxLinesPerSecond: Self.pursuitMaxLinesPerSecond,
+                    response: Self.pursuitResponse,
+                    minimum: Self.pursuitMinSpeed
+                ),
+                dt: dt,
+                snapDistance: Self.pursuitSnapDistance,
+                jumped: cursorJumped
+            )
             cursorJumped = false
             if next != targetOffset {
                 targetOffset = next

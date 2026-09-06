@@ -250,7 +250,13 @@ final class PrompterSmokeTests: XCTestCase {
         // sheet (a single ~45% detent, so the script stays visible while you
         // adjust it), which is about half of what it used to be. At 10 this
         // helper passed three full runs in four and failed the fourth.
-        for _ in 0..<24 {
+        // 24 was sized for the portrait sheet. Landscape now shows the same
+        // Form in a panel down one side, where the rows wrap taller and there
+        // are more of them to pass — reaching a row near the bottom takes
+        // roughly twice as many drags. The budget is only how long the test
+        // is willing to look; the property being asserted is that the row is
+        // reachable at all.
+        for _ in 0..<48 {
             if slider.exists && slider.isHittable { return slider }
             // Short drags, not swipes: a full swipe scrolls straight past the
             // row. Held near the left edge so the gesture can never land on a
