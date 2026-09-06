@@ -9,6 +9,10 @@ import SwiftUI
 struct PrompterControlsSheet: View {
     @ObservedObject var camera: CameraController
     @ObservedObject var state: TeleprompterState
+    /// Set when this is shown as the landscape side panel rather than as a
+    /// sheet. `@Environment(\.dismiss)` does nothing in an overlay, so
+    /// without this the panel has a Done button that cannot close it.
+    var onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     private var hasAdjustableCapture: Bool {
@@ -56,7 +60,9 @@ struct PrompterControlsSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        if let onClose { onClose() } else { dismiss() }
+                    }
                 }
             }
         }
@@ -94,7 +100,7 @@ struct PrompterControlsSheet: View {
             labelledSlider(
                 "Reading line",
                 value: $state.cueLineFraction,
-                range: 0.08...0.6,
+                range: 0...1,
                 display: "\(Int(state.cueLineFraction * 100))%",
                 icons: ("arrow.up.to.line", "arrow.down.to.line")
             )

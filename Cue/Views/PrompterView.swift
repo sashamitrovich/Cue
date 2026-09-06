@@ -65,8 +65,6 @@ struct PrompterView: View {
     /// controls off the screen entirely.
     @State private var isLandscapeLayout = false
     /// Chrome hides itself during a take and returns on a tap.
-    @State private var chromeVisible = true
-    @State private var chromeHideAt: Date?
     /// Grows the handle while it's being dragged, so it's obvious what moved.
     @State private var isDraggingLine = false
     /// True only while a finger is actively dragging the script. Scrolling
@@ -88,8 +86,13 @@ struct PrompterView: View {
     static let takeButtonSlot: CGFloat = 64
     /// The same circles in the landscape rail, which has less room.
     static let railButtonSize: CGFloat = 42
-    /// Camera / settings / exit.
-    static let glassButtonSize: CGFloat = 34
+    /// Camera / settings / exit. 44pt because that is the smallest thing a
+    /// finger reliably hits, and these are pressed with the phone at arm's
+    /// length on a rig rather than held close. They were 34.
+    static let glassButtonSize: CGFloat = 44
+    /// Gap between those three. They sit next to the screen edge and next to
+    /// each other, and "exit" beside "settings" is a bad pair to mis-hit.
+    static let glassButtonGap: CGFloat = 10
 
     static let railWidth: CGFloat = 56
     /// Breathing room for the rail on a screen edge with no cutout of its own.
@@ -107,8 +110,6 @@ struct PrompterView: View {
     /// point a camera at yourself with. Judge any change here on a device in
     /// the dark, never on a screenshot.
     static let ground = Color(red: 0x07 / 255, green: 0x09 / 255, blue: 0x0C / 255)
-    /// How long the controls linger after the last touch once a take is live.
-    private static let chromeLinger: TimeInterval = 4
 
     private var isLandscape: Bool { isLandscapeLayout }
     /// `landscapeLeft` puts the edge that was the bottom in portrait on the
@@ -177,6 +178,54 @@ struct PrompterView: View {
     /// Floor for the pursuit speed — the opening frames of a take, before the
     /// layout has been measured and there is a line height to work from.
     private static let pursuitMinSpeed: CGFloat = 40
+    /// How far below the safe area the reading line may sit at its highest,
+    /// as a multiple of the script's type size. A row is about 1.2x the type
+    /// size and the active word is centred on the line, so a little over half
+    /// of that keeps the word clear of the Dynamic Island rather than tucked
+    /// behind it.
+    private static let readingLineClearance: CGFloat = 0.75
+    /// The lowest the reading line goes, as a fraction of the screen.
+    private static let readingLineLowest: CGFloat = 0.6
+    /// The landscape settings panel takes half the width, leaving the other
+    /// half of the script — including the reading line — visible and live
+    /// while a setting is being changed. It sits on the edge *opposite* the
+    /// control rail, so it never covers the buttons that opened it.
+    private var settingsPanelWidth: CGFloat {
+        UIScreen.main.bounds.width * 0.5
+    }
+
+    /// Where the reading line sits, from the setting.
+    ///
+    /// `cueLineFraction` is **how far down the usable band** the line sits,
+    /// 0 to 1 — not a fraction of the screen. That distinction is the whole
+    /// point. The line cannot go above the safe area plus room for the word
+    /// itself, and when the setting was a fraction of the screen, every value
+    /// below that floor produced the same position: the slider had dead
+    /// travel at the top, and the number it displayed was not where the line
+    /// went. It said 8% on a 17 Pro and meant 8.6%, and on a phone without a
+    /// Dynamic Island it would have lied differently.
+    ///
+    /// Measured against the band instead, 0% is as high as the line can
+    /// physically go on *this* device, 100% is the lowest, every step moves
+    /// it, and the percentage means the same thing everywhere.
+    ///
+    /// Still a pure function of geometry and settings — never of a measured
+    /// chrome height, which is what once left the line and the script 45pt
+    /// apart in landscape.
+    static func cueY(fraction: Double, fullHeight: CGFloat, topInset: CGFloat, fontSize: CGFloat) -> CGFloat {
+        let highest = topInset + fontSize * readingLineClearance
+        let lowest = max(highest, fullHeight * readingLineLowest)
+        return highest + CGFloat(min(1, max(0, fraction))) * (lowest - highest)
+    }
+
+    /// The inverse, for dragging the line directly: which setting puts the
+    /// line under the finger.
+    static func cueFraction(y: CGFloat, fullHeight: CGFloat, topInset: CGFloat, fontSize: CGFloat) -> Double {
+        let highest = topInset + fontSize * readingLineClearance
+        let lowest = max(highest, fullHeight * readingLineLowest)
+        guard lowest > highest else { return 0 }
+        return Double(min(1, max(0, (y - highest) / (lowest - highest))))
+    }
     /// The gap between rows of script, shared by the layout that draws them
     /// and the `lineHeight` the pursuit ceiling is measured in. One constant
     /// deliberately: if these two drift apart the ceiling is quietly wrong,
@@ -200,15 +249,26 @@ struct PrompterView: View {
     var body: some View {
         GeometryReader { geo in
             let insets = geo.safeAreaInsets
-            // A pure function of geometry — deliberately not of the measured
-            // chrome height. Deriving it from a measurement made the line's
-            // position depend on when that measurement landed: the script was
-            // scrolled against one value while the line was drawn at another,
-            // which is what put them 45pt apart in landscape. The floor is a
-            // fraction instead, larger in landscape because the screen is
-            // short enough for the bar to swallow a low reading line.
-            let cueY = fullHeight(geo: geo, insets: insets)
-                * min(0.6, max(isLandscape ? 0.34 : 0.16, state.cueLineFraction))
+            // Still a pure function of geometry — deliberately not of the
+            // measured chrome height. Deriving it from a measurement made the
+            // line's position depend on when that measurement landed: the
+            // script was scrolled against one value while the line was drawn
+            // at another, which is what put them 45pt apart in landscape.
+            //
+            // The floor used to be a fraction too — 0.16 portrait, 0.34
+            // landscape — sized for a top bar that no longer exists. It
+            // outlived the bar and became a lie: the slider offered 8% and
+            // anything under 16% did nothing at all, so the line could not be
+            // put where it said it could. The floor is now the safe area plus
+            // enough room for the word itself, which is what "as high as it
+            // can go" actually means. `fontSize` is a setting rather than a
+            // measurement, so this stays a pure function of geometry.
+            let cueY = Self.cueY(
+                fraction: state.cueLineFraction,
+                fullHeight: fullHeight(geo: geo, insets: insets),
+                topInset: insets.top,
+                fontSize: state.fontSize
+            )
 
             ZStack {
                 Self.ground
@@ -235,10 +295,8 @@ struct PrompterView: View {
             // padded by the insets instead.
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.28), value: isLandscape)
-            .animation(.easeInOut(duration: 0.25), value: chromeVisible)
             .animation(.easeInOut(duration: 0.3), value: showVoiceTip)
             .contentShape(Rectangle())
-            .onTapGesture { revealChrome(toggle: true) }
             .gesture(
                 DragGesture()
                     .onChanged { value in
@@ -407,9 +465,6 @@ struct PrompterView: View {
                 // re-measure after the new layout lands.
                 DispatchQueue.main.async { recomputeTarget(cueY: cueY, animated: false) }
             }
-            .onChange(of: takeIsLive) { live in
-                if live { scheduleChromeHide() } else { revealChrome() }
-            }
             // The ticker's callback is registered once, so it must not close
             // over `cueY` — that local would freeze at whatever the reading
             // line was when the prompter appeared and never follow a rotation
@@ -423,12 +478,6 @@ struct PrompterView: View {
                 // is also the reliable moment to re-read which landscape it
                 // is — the rail's edge depends on it.
                 syncInterfaceOrientation()
-                // Rotating is a deliberate act, and the controls move to a
-                // different edge when you do it — coming out of a rotation
-                // to a screen with no buttons on it reads as the app having
-                // lost them, since nothing on screen says a tap brings them
-                // back. Mid-take they still linger away again afterwards.
-                revealChrome()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
                 // Still needed for landscapeLeft <-> landscapeRight, where
@@ -482,9 +531,36 @@ struct PrompterView: View {
                 // it tracks this exactly.
                 if listening { clock.start(at: Date()) } else { clock.pause(at: Date()) }
             }
-            .sheet(isPresented: $showSettings) {
+            // Portrait presents the controls as a sheet; landscape slides
+            // them in beside the script instead.
+            //
+            // A sheet cannot do the landscape job. `presentationDetents` is
+            // ignored in compact height, so the sheet covers the whole screen
+            // — and the whole reason for opening it is to watch what a
+            // setting does to the script. A translucent background would only
+            // mean reading the script through frosted glass, and would cost
+            // an iOS 16.4 deployment target for the privilege. A wide screen
+            // wants a panel down one side, with the script live on the other.
+            .sheet(isPresented: Binding(
+                get: { showSettings && !isLandscape },
+                set: { if !$0 { showSettings = false } }
+            )) {
                 PrompterControlsSheet(camera: camera, state: state)
             }
+            .overlay(alignment: railOnLeading ? .trailing : .leading) {
+                if isLandscape, showSettings {
+                    PrompterControlsSheet(camera: camera, state: state) {
+                        showSettings = false
+                    }
+                    .frame(width: settingsPanelWidth)
+                    // The panel is opaque on its own edge: a Form drawn
+                    // straight over the script would leave words showing
+                    // through the gaps between its rows.
+                    .background(.regularMaterial)
+                    .transition(.move(edge: railOnLeading ? .trailing : .leading))
+                }
+            }
+            .animation(.easeInOut(duration: 0.25), value: showSettings)
         }
         .statusBarHidden()
         .preferredColorScheme(.dark)
@@ -628,18 +704,21 @@ struct PrompterView: View {
                     DragGesture(minimumDistance: 0, coordinateSpace: .global)
                         .onChanged { value in
                             isDraggingLine = true
-                            revealChrome()
                             guard height > 0 else { return }
-                            state.cueLineFraction = min(0.6, max(0.08, value.location.y / height))
+                            state.cueLineFraction = Self.cueFraction(
+                                y: value.location.y,
+                                fullHeight: height,
+                                topInset: insets.top,
+                                fontSize: state.fontSize
+                            )
                         }
                         .onEnded { _ in isDraggingLine = false }
                 )
-                .opacity(chromeVisible ? 1 : 0.5)
                 .accessibilityLabel("Reading line position")
                 .accessibilityValue("\(Int(state.cueLineFraction * 100)) percent")
                 .accessibilityAdjustableAction { direction in
-                    let delta = direction == .increment ? 0.02 : -0.02
-                    state.cueLineFraction = min(0.6, max(0.08, state.cueLineFraction + delta))
+                    let delta = direction == .increment ? 0.05 : -0.05
+                    state.cueLineFraction = min(1, max(0, state.cueLineFraction + delta))
                 }
             Rectangle()
                 .fill(.white.opacity(0.22))
@@ -693,7 +772,6 @@ struct PrompterView: View {
                     Spacer(minLength: 0)
                     if !railOnLeading { controlRail(insets: insets) }
                 }
-                .modifier(FadingControls(visible: chromeVisible))
             }
         }
     }
@@ -730,9 +808,9 @@ struct PrompterView: View {
 
     /// Portrait's whole chrome: status, timing and the take controls in a
     /// single material panel with a single hairline, rather than two panels
-    /// stacked against each other. The take controls dim during a take (see
-    /// `FadingControls`) but never leave, so the panel's height — and the
-    /// amount of script above it — does not change mid-take.
+    /// stacked against each other. Nothing here dims or leaves during a take,
+    /// so the panel's height — and the amount of script above it — does not
+    /// change mid-take.
     private func unifiedBar(insets: EdgeInsets) -> some View {
         VStack(spacing: 8) {
             statusRow(showsUtilities: false)
@@ -751,12 +829,11 @@ struct PrompterView: View {
             HStack(alignment: .top, spacing: 0) {
                 controlButtons(compact: true)
                 Spacer(minLength: 8)
-                utilityButtons
+                HStack(spacing: Self.glassButtonGap) { utilityButtons }
                     .padding(.top, (Self.takeButtonSize - Self.glassButtonSize) / 2)
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 2)
-            .modifier(FadingControls(visible: chromeVisible))
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -797,7 +874,7 @@ struct PrompterView: View {
                     qualityControl(mode: mode, tier: tier)
                 }
 
-                if showsUtilities { utilityButtons }
+                if showsUtilities { HStack(spacing: Self.glassButtonGap) { utilityButtons } }
         }
     }
 
@@ -814,7 +891,6 @@ struct PrompterView: View {
         .disabled(camera.isRecording)
 
         glassButton(icon: "slider.horizontal.3", label: "Prompter settings") {
-            revealChrome()
             showSettings = true
         }
 
@@ -864,8 +940,7 @@ struct PrompterView: View {
     /// where your hands are, not where your eye is. Landscape keeps it in the
     /// status bar, which already runs along the top edge.
     ///
-    /// Deliberately outside `FadingControls`: this never dims and never hides.
-    /// It is also outside the mirrored layer, so it stays upright on a rig.
+    /// Outside the mirrored layer, so it stays upright on a rig.
     @ViewBuilder
     private func recordingTally(insets: EdgeInsets) -> some View {
         if !isLandscape, camera.isRecording || armedForRecording {
@@ -926,7 +1001,6 @@ struct PrompterView: View {
     private func qualityControl(mode: VideoMode, tier: QualityTier) -> some View {
         HStack(spacing: 0) {
             Button {
-                revealChrome()
                 if let next = CaptureQualityMenu.nextTier(after: tier, in: camera.capabilities.qualityTiers) {
                     camera.selectTier(next)
                 }
@@ -940,7 +1014,6 @@ struct PrompterView: View {
             Rectangle().fill(.white.opacity(0.14)).frame(width: 0.5, height: 16)
 
             Button {
-                revealChrome()
                 camera.cycleFrameRate()
             } label: {
                 Text(mode.frameRateLabel)
@@ -1091,7 +1164,6 @@ struct PrompterView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button {
-            revealChrome()
             action()
         } label: {
             VStack(spacing: 6) {
@@ -1372,10 +1444,6 @@ struct PrompterView: View {
         if let deadline = countdownDeadline, now >= deadline {
             startListeningNow()
         }
-        if let hideAt = chromeHideAt, now >= hideAt {
-            chromeHideAt = nil
-            if takeIsLive && !showSettings { chromeVisible = false }
-        }
         // Only publish a new date when the displayed second changes, rather
         // than every frame for a readout that can't show it.
         if Int(now.timeIntervalSince1970) != Int(displayNow.timeIntervalSince1970) {
@@ -1399,23 +1467,6 @@ struct PrompterView: View {
     }
 
     // MARK: - Chrome visibility
-
-    /// Brings the controls back and restarts the linger timer. Called from
-    /// every control, so using one never makes the others vanish underneath
-    /// your thumb.
-    private func revealChrome(toggle: Bool = false) {
-        if toggle && chromeVisible && takeIsLive {
-            chromeVisible = false
-            chromeHideAt = nil
-            return
-        }
-        chromeVisible = true
-        scheduleChromeHide()
-    }
-
-    private func scheduleChromeHide() {
-        chromeHideAt = takeIsLive ? Date().addingTimeInterval(Self.chromeLinger) : nil
-    }
 
     /// Read from the window scene rather than `UIDevice.orientation`, which
     /// also reports face-up and face-down — neither of which changes the
@@ -1491,7 +1542,6 @@ struct PrompterView: View {
         state.isListening = true
         clock.start(at: Date())
         speech.begin(localeIdentifier: state.recognitionLocale)
-        scheduleChromeHide()
         if pendingRecordOnListen {
             pendingRecordOnListen = false
             camera.startRecording()
@@ -1513,7 +1563,6 @@ struct PrompterView: View {
         // from this point on — permanently, and invisibly until playback. The
         // session goes back when the recording actually ends.
         speech.end(releasingAudioSession: !camera.isRecording)
-        chromeVisible = true
     }
 
     /// Starts or tears down the capture session live, so the button's effect
@@ -1579,7 +1628,6 @@ struct PrompterView: View {
 
     private func showError(_ msg: String) {
         errorMessage = msg
-        revealChrome()
         errorWorkItem?.cancel()
         let item = DispatchWorkItem { errorMessage = nil }
         errorWorkItem = item
@@ -1588,7 +1636,6 @@ struct PrompterView: View {
 
     private func showNotice(_ msg: String) {
         noticeMessage = msg
-        revealChrome()
         noticeWorkItem?.cancel()
         let item = DispatchWorkItem { noticeMessage = nil }
         noticeWorkItem = item
@@ -1619,24 +1666,6 @@ struct PrompterView: View {
 /// Fades a control out of the way during a take, and takes it out of the
 /// hit-testing while hidden so an invisible button can't be tapped.
 /// Recedes the take controls during a take without taking them away.
-///
-/// They used to go to `opacity(0)` and stop hit-testing, which read as the
-/// app having lost its buttons: nothing on screen suggested they still
-/// existed, or that a tap would bring them back. Dimmed instead — quiet
-/// enough to stop competing with the script, present enough to be found and
-/// pressed without a preceding tap to reveal them.
-private struct FadingControls: ViewModifier {
-    let visible: Bool
-
-    /// Low enough to read as inactive chrome rather than as a live control,
-    /// high enough to stay legible against the material behind it.
-    static let dimmed: Double = 0.28
-
-    func body(content: Content) -> some View {
-        content.opacity(visible ? 1 : Self.dimmed)
-    }
-}
-
 private struct ScrollFlow: View {
     @ObservedObject var state: TeleprompterState
     @Binding var wordFrames: [Int: CGRect]

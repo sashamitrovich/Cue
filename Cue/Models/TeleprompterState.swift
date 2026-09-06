@@ -73,7 +73,14 @@ final class TeleprompterState: ObservableObject {
     /// Where the reading line sits, as a fraction of screen height. Kept high
     /// by default so the words are close to the front lens and your eyes read
     /// near the camera rather than down the screen.
-    @Published var cueLineFraction: Double = 0.18 {
+    /// How far down the *usable band* the reading line sits, 0 to 1 — not a
+    /// fraction of the screen. See `PrompterView.cueY(fraction:...)`: the band
+    /// runs from the highest the line can physically go on this device to the
+    /// lowest, so every value moves the line and the percentage means the same
+    /// thing on every phone. It was a fraction of screen height, which gave
+    /// the slider dead travel at the top wherever the safe area was deeper
+    /// than the number.
+    @Published var cueLineFraction: Double = 0.12 {
         didSet { if persistsSettings { settings.set(.cueLineFraction, cueLineFraction) } }
     }
     /// How far the script sits from the sides of the screen. A floor, not an
