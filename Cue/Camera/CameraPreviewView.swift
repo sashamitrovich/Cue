@@ -19,7 +19,11 @@ struct CameraPreviewView: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: PreviewUIView, context: Context) {}
+    func updateUIView(_ uiView: PreviewUIView, context: Context) {
+        #if DEBUG
+        RenderCost.previewUpdate()
+        #endif
+    }
 }
 
 final class PreviewUIView: UIView {
@@ -27,6 +31,17 @@ final class PreviewUIView: UIView {
     var videoPreviewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
 
     private var orientationObserver: NSObjectProtocol?
+
+    #if DEBUG
+    /// The expensive one if it fires at the scroll rate: this resets the
+    /// capture preview layer's geometry, and doing that sixty times a second
+    /// underneath a running session is a far better candidate for dropped
+    /// frames than redrawing text is.
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        RenderCost.previewLayout()
+    }
+    #endif
 
     func startTrackingOrientation() {
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()

@@ -24,15 +24,15 @@ struct PrompterView: View {
     @StateObject private var camera = CameraController()
 
     @State private var wordFrames: [Int: CGRect] = [:]
-    @State private var offset: CGFloat = 0
-    @State private var targetOffset: CGFloat = 0
+    /// Per-frame scroll state, held by reference so writing it does not
+    /// invalidate this view. See `ScrollState` — `@State` stores without
+    /// subscribing, which is the whole point.
+    @State private var scroll = ScrollState()
     #if DEBUG
     @State private var pursuitDiagnostics = PursuitDiagnostics()
     #endif
     /// The live reading-line position, for the ticker — see the `onChange`
     /// that maintains it.
-    @State private var tickCueY: CGFloat = 0
-    @State private var dragStartOffset: CGFloat = 0
     @State private var errorMessage: String?
     @State private var errorWorkItem: DispatchWorkItem?
     /// A neutral confirmation — currently only "take saved" — kept separate
@@ -124,7 +124,7 @@ struct PrompterView: View {
     /// re-initialises that struct.
     @StateObject private var ticker = PrompterTicker()
 
-    /// How close `offset` has to get to its target before it stops being
+    /// How close the offset has to get to its target before it stops being
     /// worth a state write. The smoothing below is exponential and therefore
     /// approaches its target without ever arriving; writing the result every
     /// frame regardless re-evaluated the whole prompter — every word view
@@ -272,9 +272,11 @@ struct PrompterView: View {
     @State private var lastFrameKeyIndex = 0
     /// Timestamp of the previous tick, for the elapsed time the smoothing
     /// above needs. Nil before the first tick of a run.
-    @State private var lastTickTime: Date?
 
     var body: some View {
+        #if DEBUG
+        let _ = RenderCost.prompterBody()
+        #endif
         GeometryReader { geo in
             let insets = geo.safeAreaInsets
             // Still a pure function of geometry — deliberately not of the
@@ -330,16 +332,16 @@ struct PrompterView: View {
                 DragGesture()
                     .onChanged { value in
                         isDraggingScript = true
-                        targetOffset = dragStartOffset + value.translation.height
+                        scroll.target = scroll.dragStart + value.translation.height
                     }
                     .onEnded { _ in
-                        dragStartOffset = targetOffset
+                        scroll.dragStart = scroll.target
                         // Wherever the drag stopped becomes the reading
                         // position, so pausing to record a later scene and
                         // scrolling ahead to it picks tracking back up there
                         // instead of where it was left off — whether or not
                         // listening was running while the drag happened.
-                        if let target = VisualLines.nearestRowStart(toFlowY: cueY - targetOffset, frames: wordFrames) {
+                        if let target = VisualLines.nearestRowStart(toFlowY: cueY - scroll.target, frames: wordFrames) {
                             state.activeIndex = target
                             // Placed by hand, not reached by reading it.
                             cursorJumped = true
@@ -354,6 +356,11 @@ struct PrompterView: View {
                 // for the whole prompter, not just while recording — the
                 // screen going dark mid-read is just as bad.
                 UIApplication.shared.isIdleTimerDisabled = true
+                // One owner for the audio session, for as long as the
+                // prompter is on screen. The camera starts here too, and a
+                // capture session started against an unconfigured audio
+                // session froze the preview on a cold launch.
+                PrompterAudioSession.activate()
                 isLandscapeLayout = geo.size.width > geo.size.height
                 syncInterfaceOrientation()
                 // Screenshot hook: the simulator has no microphone, so the
@@ -397,9 +404,9 @@ struct PrompterView: View {
                     state.isListening = true
                 }
                 syncInterfaceOrientation()
-                tickCueY = cueY
+                scroll.cueY = cueY
                 ticker.start { tick(now: $0) }
-                dragStartOffset = targetOffset
+                scroll.dragStart = scroll.target
                 recomputeTarget(cueY: cueY)
                 speech.onTranscript = { words in
                     guard state.voiceCommandsEnabled else {
@@ -447,6 +454,8 @@ struct PrompterView: View {
                 clock.pause(at: Date())
                 speech.end()
                 camera.stop()
+                // Leaving is what finishing means.
+                PrompterAudioSession.deactivate()
             }
             .onChange(of: state.activeIndex) { _ in
                 // Deliberately does *not* re-target. Setting the target to
@@ -500,7 +509,7 @@ struct PrompterView: View {
             // or a drag of the handle. Mirrored into state instead, which the
             // callback reads live. Still a pure function of geometry, so this
             // is not the measurement-drives-layout cycle `cueY` is kept out of.
-            .onChange(of: cueY) { tickCueY = $0 }
+            .onChange(of: cueY) { scroll.cueY = $0 }
             .onChange(of: geo.size.width > geo.size.height) { landscape in
                 isLandscapeLayout = landscape
                 // The scene has rotated by the time the layout has, so this
@@ -535,16 +544,14 @@ struct PrompterView: View {
             .onChange(of: camera.isRecording) { recording in
                 guard !recording else { return }
                 if state.isListening { pauseTake() }
-                // The recording was the reason the audio session was being
-                // held past the end of recognition. It has finished, so hand
-                // it back — unless the reader has already started reading
-                // again, which `releaseAudioSessionIfIdle` checks for itself.
-                speech.releaseAudioSessionIfIdle()
             }
             .onChange(of: scenePhase) { phase in
                 guard phase != .active else { return }
                 if camera.isRecording { camera.stopRecording() }
                 if state.isListening || countdownDeadline != nil { pauseTake() }
+                // Leaving the app is when someone else's music should come
+                // back, and pausing deliberately no longer does it.
+                speech.releaseAudioSessionIfIdle()
             }
             // The tracker is the authority on whether the microphone is
             // actually running, so the prompter follows it in both
@@ -719,7 +726,11 @@ struct PrompterView: View {
         // badly.
         .opacity((state.cameraEnabled ? state.textOpacity : 1.0) * (countdownRemaining != nil ? 0.30 : 1.0))
         .animation(.easeInOut(duration: 0.25), value: countdownRemaining != nil)
-        .offset(y: offset)
+        // Not `.offset(y: scroll.offset)`: reading it here would put the
+        // scroll back into this view's body, and rebuilding the prompter
+        // sixty times a second is the whole defect. The modifier observes
+        // the state; this view only stores it.
+        .modifier(ScrollOffset(scroll: scroll))
         // Pinned to an explicit frame — the flow is 2-3x taller than the
         // screen and an unpinned ZStack sizes to it, pushing the controls off
         // screen entirely. The frame is the *full* screen, insets included:
@@ -1451,22 +1462,22 @@ struct PrompterView: View {
     }
 
     private func tick(now: Date) {
-        let cueY = tickCueY
+        let cueY = scroll.cueY
 
         // Exponential smoothing towards the target, but only while the step
         // is big enough to see. Once it isn't, land exactly on the target one
-        // final time and then leave `offset` alone — that last write is what
+        // final time and then leave the offset alone — that last write is what
         // lets the view stop being invalidated.
         // Clamped: a tick delayed by a stall, a backgrounding or a slow
         // frame must not be paid back as one enormous jump.
-        let dt = min(max(now.timeIntervalSince(lastTickTime ?? now), 0), 0.1)
-        lastTickTime = now
+        let dt = min(max(now.timeIntervalSince(scroll.lastTick ?? now), 0), 0.1)
+        scroll.lastTick = now
 
-        let gap = targetOffset - offset
+        let gap = scroll.target - scroll.offset
         if abs(gap) > Self.settleThreshold {
-            offset += gap * (1 - CGFloat(exp(-dt / Double(Self.smoothingTau))))
-        } else if offset != targetOffset {
-            offset = targetOffset
+            scroll.offset += gap * (1 - CGFloat(exp(-dt / Double(Self.smoothingTau))))
+        } else if scroll.offset != scroll.target {
+            scroll.offset = scroll.target
         }
 
         // Follow the reading cursor, at the speed the words are being spoken.
@@ -1488,23 +1499,23 @@ struct PrompterView: View {
         // change leaves a stale offset that no discrete event corrects, and
         // the pursuit walks it back onto the reading line. Safe as a
         // continuous check because these frames are in the flow's own space
-        // and don't move when `offset` does.
+        // and don't move when the offset does.
         if !isDraggingScript, !isDraggingLine, let frame = wordFrames[state.activeIndex] {
             let want = cueY - frame.midY
             #if DEBUG
             pursuitDiagnostics.record(
                 now: now,
-                gap: want - targetOffset,
+                gap: want - scroll.target,
                 lineHeight: lineHeight,
                 maxLinesPerSecond: Self.pursuitMaxLinesPerSecond,
                 response: Self.pursuitResponse
             )
             #endif
             let next = ScrollPursuit.step(
-                target: targetOffset,
+                target: scroll.target,
                 toward: want,
                 speed: ScrollPursuit.speed(
-                    gap: want - targetOffset,
+                    gap: want - scroll.target,
                     lineHeight: lineHeight,
                     maxLinesPerSecond: Self.pursuitMaxLinesPerSecond,
                     response: Self.pursuitResponse,
@@ -1515,9 +1526,9 @@ struct PrompterView: View {
                 jumped: cursorJumped
             )
             cursorJumped = false
-            if next != targetOffset {
-                targetOffset = next
-                dragStartOffset = next
+            if next != scroll.target {
+                scroll.target = next
+                scroll.dragStart = next
             }
         }
 
@@ -1528,6 +1539,9 @@ struct PrompterView: View {
         // than every frame for a readout that can't show it.
         if Int(now.timeIntervalSince1970) != Int(displayNow.timeIntervalSince1970) {
             displayNow = now
+            #if DEBUG
+            RenderCost.report()
+            #endif
             // The pre-roll exists so you can settle and find the lens, which
             // is exactly when you are not looking at the number counting
             // down. Tapped out instead. `startListeningNow` above has already
@@ -1539,7 +1553,7 @@ struct PrompterView: View {
         // Full refresh rate only while something is actually moving; the rest
         // of a take runs at the idle rate, which is most of a take.
         ticker.setActive(
-            abs(targetOffset - offset) > Self.settleThreshold
+            abs(scroll.target - scroll.offset) > Self.settleThreshold
             || isDraggingScript
             || isDraggingLine
             || countdownDeadline != nil
@@ -1621,14 +1635,18 @@ struct PrompterView: View {
         }
         state.isListening = true
         clock.start(at: Date())
-        speech.begin(localeIdentifier: state.recognitionLocale)
-        if pendingRecordOnListen {
-            pendingRecordOnListen = false
+        let startsRecording = pendingRecordOnListen
+        pendingRecordOnListen = false
+        speech.begin(localeIdentifier: state.recognitionLocale) {
+            // Only once the shared audio session is actually live. This used
+            // to run on the same turn as `begin`, which is asynchronous — so
+            // the file output started against a session a previous pause had
+            // deactivated, and recorded the whole take with no sound.
+            guard startsRecording else { return }
             camera.startRecording()
             Haptics.recordingStarted()
-        } else {
-            Haptics.takeStarted()
         }
+        if !startsRecording { Haptics.takeStarted() }
     }
 
     private func pauseTake() {
@@ -1638,11 +1656,13 @@ struct PrompterView: View {
         if state.isListening { Haptics.takeStopped() }
         state.isListening = false
         clock.pause(at: Date())
-        // Pausing does not stop the recording, and handing the audio session
-        // back while the camera is still writing a file kills the sound in it
-        // from this point on — permanently, and invisibly until playback. The
-        // session goes back when the recording actually ends.
-        speech.end(releasingAudioSession: !camera.isRecording)
+        // Pausing never hands the audio session back. 1.5.3 released it
+        // whenever the camera was idle, which fixed pausing *during* a
+        // recording and left the other half: pausing *before* one meant the
+        // next recording started against a dead session and captured no sound
+        // at all. Pausing is not finishing — the session belongs to the
+        // prompter being on screen.
+        speech.end(releasingAudioSession: false)
     }
 
     /// Starts or tears down the capture session live, so the button's effect
@@ -1684,11 +1704,11 @@ struct PrompterView: View {
         let newTarget = cueY - frame.midY
         // A change too small to see is not worth a state write — writing one
         // re-enters layout, which is how the feedback loop starts.
-        guard abs(newTarget - targetOffset) > 0.5 || offset == 0 else { return }
+        guard abs(newTarget - scroll.target) > 0.5 || scroll.offset == 0 else { return }
         // Whether the script was at rest *before* this new target arrived.
-        let wasSettled = abs(targetOffset - offset) <= Self.settleThreshold
-        targetOffset = newTarget
-        dragStartOffset = newTarget
+        let wasSettled = abs(scroll.target - scroll.offset) <= Self.settleThreshold
+        scroll.target = newTarget
+        scroll.dragStart = newTarget
         // Wake the ticker here rather than letting it discover the new target
         // on its own next frame. Parked on the reading line it idles at
         // `PrompterTicker.idleFrameRate`, so that discovery is up to 100ms
@@ -1699,11 +1719,11 @@ struct PrompterView: View {
         // line sits below the reading line until the cursor happens to move.
         //
         // Otherwise a re-measurement (`animated: false`) may only snap when
-        // the script was already at rest. Doing it mid-scroll writes `offset`
+        // the script was already at rest. Doing it mid-scroll writes `scroll.offset`
         // out from under an animation in flight, which lands as a teleport —
         // the script stalls, then jumps. A re-measure during a scroll just
         // moves the target and lets the smoothing above absorb it.
-        if offset == 0 || (!animated && wasSettled) { offset = newTarget }
+        if scroll.offset == 0 || (!animated && wasSettled) { scroll.offset = newTarget }
     }
 
     private func showError(_ msg: String) {
@@ -1778,6 +1798,9 @@ private struct ScrollFlow: View {
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = RenderCost.scriptBody()
+        #endif
         VStack(alignment: horizontalAlignment, spacing: state.fontSize * 0.35) {
             ForEach(state.lines) { line in
                 if line.isBlank {
@@ -1798,7 +1821,27 @@ private struct ScrollFlow: View {
         .padding(.trailing, trailingInset)
         .padding(.top, topInset)
         .padding(.bottom, bottomInset)
-        .onPreferenceChange(WordFramePreferenceKey.self) { wordFrames = $0 }
+        .onPreferenceChange(WordFramePreferenceKey.self) { frames in
+            // Only when something actually moved.
+            //
+            // This wrote unconditionally, and the write is `@State` on the
+            // prompter: layout publishes the preference, the write invalidates
+            // the view, the view re-renders, which lays out, which publishes
+            // again. Measured on a device, the prompter's body was rebuilding
+            // 80-120 times a second while the script moved, and that — not the
+            // per-word views — is what dropped capture frames.
+            //
+            // Nearly all of those writes carried **identical** values: these
+            // frames are in the flow's own coordinate space, so scrolling does
+            // not move them. Only a real relayout does — a type size change, a
+            // rotation, an edit, rewrapping.
+            //
+            // Comparing a few hundred rects is trivially cheaper than
+            // rebuilding the screen, and this leaves the frames themselves
+            // exactly as they were: same source, same values, fewer writes.
+            guard wordFrames != frames else { return }
+            wordFrames = frames
+        }
         // NOTE: each word is deliberately left as its own accessibility
         // element. Grouping the script into one element reads far better
         // under VoiceOver — currently it is one swipe per word — but the
@@ -1816,14 +1859,25 @@ private struct ScrollFlow: View {
         // System type, not a serif: SF is drawn for screen legibility at a
         // glance, which is the whole job here — you read this in your
         // peripheral vision while looking at a lens.
+        let wordWeight: Font.Weight = wordState == .spoken ? .semibold : .bold
+        // Words sit over live video, so they need a dark edge — a flat colour
+        // alone disappears against faces, windows and anything bright behind
+        // them. This is a thin outline made of four HARD (radius 0) shadows, NOT
+        // the two blurred `.shadow` halos it replaces: those had blur radii 2 and
+        // 8, and ~430 recomposited Gaussian-blur layers over live video were the
+        // cause of #11 (recording drops frames whenever the script moves).
+        // radius-0 shadows skip the offscreen blur pass entirely, and — unlike an
+        // outline built from duplicate `Text` copies — a shadow adds no
+        // accessibility element, so each word stays a single `staticTexts[word]`
+        // for VoiceOver and the reading-line UI tests.
+        let edge = max(1, state.fontSize * 0.022)
         Text(word.raw)
-            .font(.system(size: state.fontSize, weight: wordState == .spoken ? .semibold : .bold, design: .default))
+            .font(.system(size: state.fontSize, weight: wordWeight, design: .default))
             .foregroundStyle(color(for: wordState, wordsBehind: wordsBehind))
-            // Words sit over live video, so they need their own dark halo — a
-            // flat colour alone disappears against faces, windows, and
-            // anything else bright behind them.
-            .shadow(color: .black.opacity(0.9), radius: 2, x: 0, y: 1)
-            .shadow(color: .black.opacity(0.6), radius: 8)
+            .shadow(color: .black.opacity(0.9), radius: 0, x:  edge, y:  edge)
+            .shadow(color: .black.opacity(0.9), radius: 0, x: -edge, y:  edge)
+            .shadow(color: .black.opacity(0.9), radius: 0, x:  edge, y: -edge)
+            .shadow(color: .black.opacity(0.9), radius: 0, x: -edge, y: -edge)
             // Reserve the word's width at its widest (bold) rendering. Without
             // this, a word narrowing to semibold the moment it's marked spoken
             // frees up row space, and FlowLayout can pull the next — still

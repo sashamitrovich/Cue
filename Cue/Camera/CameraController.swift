@@ -20,6 +20,16 @@ final class CameraController: NSObject, ObservableObject {
     let session = AVCaptureSession()
     private let movieOutput = AVCaptureMovieFileOutput()
     private var cameraDevice: AVCaptureDevice?
+    #if DEBUG
+    /// Why a recorded file stutters, answered rather than guessed at. iOS
+    /// throttles capture under thermal pressure without telling the app in
+    /// any visible way, interrupts the session for reasons worth naming, and
+    /// changes the audio route underneath a running recording — all three
+    /// produce "it freezes occasionally" and only one of them is a bug we
+    /// could have written.
+    private var pressureObservation: NSKeyValueObservation?
+    private var captureDiagnostics: [NSObjectProtocol] = []
+    #endif
 
     @Published var isRunning = false
     @Published var isRecording = false
@@ -71,6 +81,12 @@ final class CameraController: NSObject, ObservableObject {
     }
 
     private func setup() {
+        // One owner for the audio session, and it is not this one.
+        // `AVCaptureSession` reconfigures the app's audio session by default
+        // when it starts running, which would fight the category and mode set
+        // for the take — two things writing the same setting is how a take
+        // lost its sound in the first place.
+        session.automaticallyConfiguresApplicationAudioSession = false
         session.beginConfiguration()
         // .inputPriority (rather than a fixed preset like .high) is required
         // for `device.activeFormat` to actually take effect below, since the
@@ -384,8 +400,47 @@ final class CameraController: NSObject, ObservableObject {
         isRunning = false
     }
 
+    #if DEBUG
+    private func observeCaptureHealth() {
+        guard captureDiagnostics.isEmpty, let device = cameraDevice else { return }
+        pressureObservation = device.observe(\.systemPressureState, options: [.new]) { _, change in
+            guard let state = change.newValue else { return }
+            print("[capture] systemPressure=\(state.level.rawValue) factors=\(state.factors)")
+        }
+        let centre = NotificationCenter.default
+        captureDiagnostics.append(centre.addObserver(
+            forName: .AVCaptureSessionWasInterrupted, object: session, queue: .main) { note in
+                let raw = note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int ?? -1
+                print("[capture] INTERRUPTED reason=\(raw)")
+            })
+        captureDiagnostics.append(centre.addObserver(
+            forName: .AVCaptureSessionInterruptionEnded, object: session, queue: .main) { _ in
+                print("[capture] interruption ended")
+            })
+        captureDiagnostics.append(centre.addObserver(
+            forName: .AVCaptureSessionRuntimeError, object: session, queue: .main) { note in
+                let e = note.userInfo?[AVCaptureSessionErrorKey] as? NSError
+                print("[capture] RUNTIME ERROR \(e?.domain ?? "?") \(e?.code ?? 0) \(e?.localizedDescription ?? "")")
+            })
+        captureDiagnostics.append(centre.addObserver(
+            forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { note in
+                let raw = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt ?? 99
+                let s = AVAudioSession.sharedInstance()
+                print("[capture] audio route change reason=\(raw) sampleRate=\(s.sampleRate) ioBuffer=\(s.ioBufferDuration)")
+            })
+        let s = AVAudioSession.sharedInstance()
+        print("[capture] recording starts: mode=\(s.mode.rawValue) sampleRate=\(s.sampleRate) " +
+              "ioBuffer=\(s.ioBufferDuration) pressure=\(device.systemPressureState.level.rawValue) " +
+              "format=\(device.activeFormat.formatDescription) " +
+              "fpsRange=\(device.activeVideoMinFrameDuration.timescale)/\(device.activeVideoMaxFrameDuration.timescale)")
+    }
+    #endif
+
     func startRecording() {
         guard isRunning, !isRecording else { return }
+        #if DEBUG
+        observeCaptureHealth()
+        #endif
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mov")
         movieOutput.startRecording(to: url, recordingDelegate: self)
         isRecording = true

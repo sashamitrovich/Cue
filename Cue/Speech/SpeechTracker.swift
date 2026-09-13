@@ -61,16 +61,18 @@ final class SpeechTracker: NSObject, ObservableObject {
     }
 
     private var stage: Stage = .onDeviceWithContext
-    /// `AVAudioSession`'s `setCategory`/`setActive` block, and Apple warns
-    /// that calling them on the main thread while the session is active can
-    /// stall the UI. A long take calls them repeatedly — iOS ends a
-    /// recognition task roughly every minute and the engine restarts — so
-    /// they run here, and only the parts that touch `@Published` state or
-    /// `AVAudioEngine` hop back to main.
-    private let sessionQueue = DispatchQueue(label: "app.oncue.audio-session")
-    /// Bumped by every start and by `end()`, so a session configured on
-    /// `sessionQueue` can tell it has been superseded before it resumes on
-    /// main — a take ended, or restarted, while it was still configuring.
+    /// Called once the shared audio session has been configured and activated
+    /// for this run — or has failed to be. Anything that needs the microphone
+    /// must wait for it: `AVCaptureMovieFileOutput` started against an
+    /// inactive session records **no audio at all**, silently, for the whole
+    /// file, and the take is gone by the time anyone plays it back.
+    ///
+    /// Fires on failure too. Recognition being unavailable is not a reason to
+    /// refuse to record, and the caller would otherwise wait forever.
+    private var audioSessionSettled: (() -> Void)?
+    /// Bumped by every start and by `end()`, so a session configuration in
+    /// flight can tell it has been superseded before it resumes on main — a
+    /// take ended, or restarted, while it was still configuring.
     private var startGeneration = 0
 
     /// Requests speech-recognition and microphone permission before starting
@@ -80,7 +82,11 @@ final class SpeechTracker: NSObject, ObservableObject {
     /// - Parameter localeIdentifier: the language to listen in. Rebuilding
     ///   the recogniser is cheap and only happens when it actually changes,
     ///   so this is safe to pass on every start.
-    func begin(localeIdentifier: String = SpeechLocales.fallback) {
+    func begin(
+        localeIdentifier: String = SpeechLocales.fallback,
+        whenAudioSessionSettled settled: (() -> Void)? = nil
+    ) {
+        audioSessionSettled = settled
         if localeIdentifier != self.localeIdentifier || recognizer == nil {
             self.localeIdentifier = localeIdentifier
             recognizer = SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier))
@@ -135,6 +141,9 @@ final class SpeechTracker: NSObject, ObservableObject {
         // Any session configuration still in flight belongs to a take that
         // no longer exists.
         startGeneration &+= 1
+        // And so does anything waiting on it. Starting a recording here would
+        // be starting one for a take that has already ended.
+        audioSessionSettled = nil
         if releasingAudioSession { releaseAudioSessionIfIdle() }
     }
 
@@ -146,11 +155,19 @@ final class SpeechTracker: NSObject, ObservableObject {
     /// past a recording that outlives recognition, and it re-checks
     /// `shouldRun` because by the time it runs the reader may have started
     /// another take.
+    /// Runs the waiting callback, once. `startEngine` is re-entered whenever
+    /// the recognition task restarts — iOS ends one about every minute — and
+    /// whenever the fallback ladder drops a rung, so this must not fire again
+    /// on those.
+    private func settleAudioSession() {
+        guard let settled = audioSessionSettled else { return }
+        audioSessionSettled = nil
+        settled()
+    }
+
     func releaseAudioSessionIfIdle() {
         guard !shouldRun else { return }
-        sessionQueue.async {
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        }
+        PrompterAudioSession.deactivate()
     }
 
     /// A call, Siri, or an alarm takes the microphone away mid-take. Before
@@ -209,33 +226,21 @@ final class SpeechTracker: NSObject, ObservableObject {
 
         startGeneration &+= 1
         let generation = startGeneration
-        sessionQueue.async { [weak self] in
-            do {
-                let session = AVAudioSession.sharedInstance()
-                // Only reconfigure when it is not already right. Resuming a
-                // paused take re-enters this while a recording may still be
-                // running, and re-applying a category and mode reconfigures
-                // the audio route — which is the sort of thing a capture
-                // session in the middle of writing a file does not need.
-                let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetoothHFP]
-                if session.category != .playAndRecord
-                    || session.mode != .measurement
-                    || session.categoryOptions != options {
-                    try session.setCategory(.playAndRecord, mode: .measurement, options: options)
-                }
-                try session.setActive(true, options: .notifyOthersOnDeactivation)
-            } catch {
-                DispatchQueue.main.async {
-                    guard let self, self.startGeneration == generation, self.shouldRun else { return }
-                    self.errorMessage = "Couldn't configure the audio session: \(error.localizedDescription)"
-                    self.isListening = false
-                }
+        // The session belongs to `PrompterAudioSession`, which the prompter
+        // activated when it appeared. Asking again is cheap and a no-op when
+        // it is already right — but this does not own it, and must never hand
+        // it back: the camera may be recording. The callback returns on main,
+        // which is where everything below it has to run.
+        PrompterAudioSession.activate { [weak self] error in
+            guard let self, self.startGeneration == generation, self.shouldRun else { return }
+            if let error {
+                self.errorMessage = "Couldn't configure the audio session: \(error.localizedDescription)"
+                self.isListening = false
+                self.settleAudioSession()
                 return
             }
-            DispatchQueue.main.async {
-                guard let self, self.startGeneration == generation, self.shouldRun else { return }
-                self.startRecognition(recognizer: recognizer)
-            }
+            self.settleAudioSession()
+            self.startRecognition(recognizer: recognizer)
         }
     }
 
