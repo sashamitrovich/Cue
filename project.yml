@@ -20,7 +20,7 @@ configFiles:
 # ci_pre_xcodebuild.sh to stamp CFBundleVersion into both bundles.
 settings:
   base:
-    MARKETING_VERSION: "1.5.4"
+    MARKETING_VERSION: "1.5.5"
 targets:
   Cue:
     type: application
