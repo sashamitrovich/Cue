@@ -189,11 +189,29 @@ final class TeleprompterStateTests: XCTestCase {
     func testFillerStillCannotAnchorALongJumpEvenWhenLost() {
         let filler = (0..<30).map { "padding\($0)" }.joined(separator: " ")
         let state = makeState("opening line here \(filler) their continues afterwards")
+        state.recognitionLocale = "en-US"  // "their" is an English function word
         for _ in 0..<5 { state.ingest(transcriptWords: ["improvised"]) }
-        // "their" is five letters, so it clears the length guard — but it is
-        // filler, and filler may never match beyond `fillerReach`.
+        // "their" is five letters, so it clears the length guard, and it appears
+        // once so the script-frequency guard does not catch it — but it is an
+        // English function word, and a reader in English says it reflexively, so
+        // it must never anchor a jump beyond `fillerReach`. (This is the
+        // once-occurring-function-word case that frequency alone would miss.)
         state.ingest(transcriptWords: ["their"])
         XCTAssertEqual(state.activeIndex, 0)
+    }
+
+    /// The other side of the same case: in a language with no function-word list,
+    /// a once-occurring word is not guarded and can re-anchor. Documents that the
+    /// protection is per-recognition-language, degrading to frequency-only.
+    func testOneOffWordCanAnchorWhenLanguageHasNoList() {
+        let filler = (0..<30).map { "padding\($0)" }.joined(separator: " ")
+        let state = makeState("opening line here \(filler) their continues afterwards")
+        state.recognitionLocale = "xx-XX"  // no function-word list for "xx"
+        for _ in 0..<5 { state.ingest(transcriptWords: ["improvised"]) }
+        // "their" appears once and is five letters; with no list for this
+        // language, only frequency guards, which does not fire — so it anchors.
+        state.ingest(transcriptWords: ["their"])
+        XCTAssertEqual(state.activeIndex, 34)
     }
 
     func testResyncMatcherNarrowsTheSearchAgain() {

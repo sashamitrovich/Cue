@@ -200,6 +200,12 @@ final class TeleprompterState: ObservableObject {
             built.removeLast()
         }
 
+        var freq: [String: Int] = [:]
+        for w in flat where !w.norm.isEmpty {
+            freq[w.norm, default: 0] += 1
+        }
+        scriptWordFrequency = freq
+
         words = flat
         lines = built
         activeIndex = 0
@@ -242,21 +248,39 @@ final class TeleprompterState: ObservableObject {
         return .upcoming
     }
 
-    /// Words so common they recur throughout any script. Letting one of these
-    /// match far ahead of the cursor is a major cause of the prompter lurching
-    /// forward — hearing "the" should never skip ten words to reach a later
-    /// "the". They can still match at or next to the cursor, which is where
-    /// they land during normal sequential reading.
-    private static let filler: Set<String> = [
-        "a", "an", "and", "are", "as", "at", "be", "been", "but", "by", "can",
-        "do", "for", "from", "had", "has", "have", "he", "her", "him", "his",
-        "i", "if", "in", "is", "it", "its", "me", "my", "no", "not", "of",
-        "on", "or", "our", "she", "so", "that", "the", "their", "them", "then",
-        "there", "they", "this", "to", "up", "us", "was", "we", "were", "what",
-        "when", "which", "who", "will", "with", "you", "your"
-    ]
+    /// A word is "common" if letting it match far ahead of the cursor risks the
+    /// prompter lurching forward — hearing "the" should never skip ten words to
+    /// reach a later "the". Common words can still match at or next to the
+    /// cursor, which is where they land during normal sequential reading.
+    ///
+    /// Two independent sources, OR'd (`isCommon`):
+    /// - **Common in this script** (`scriptWordFrequency` ≥ this threshold):
+    ///   language-agnostic, no list needed. Catches a word that recurs in *this*
+    ///   script — including ones no English list would know ("slide" in a talk
+    ///   about slides; Croatian "se", "je", "da").
+    /// - **A function word of the recognition language** (`FunctionWords`):
+    ///   catches the words a reader utters reflexively ("the", "their", "which")
+    ///   even when they appear only once in a short script — which frequency
+    ///   alone misses, and which readers say constantly while ad-libbing.
+    ///
+    /// Neither alone is enough: a fixed English list guarded only English and
+    /// missed script-specific recurrences; frequency alone missed one-off
+    /// function words. Together they cover both.
+    private static let commonWordMinOccurrences = 3
 
-    /// How far ahead of the cursor a filler word is allowed to match.
+    /// Occurrence count per normalized word for the current script, built in
+    /// `buildWords`. Drives the frequency half of `isCommon`.
+    private var scriptWordFrequency: [String: Int] = [:]
+
+    /// Whether `word` is guarded from matching or anchoring far ahead of the
+    /// cursor — common in this script, or a function word of the recognition
+    /// language.
+    private func isCommon(_ word: String) -> Bool {
+        if (scriptWordFrequency[word] ?? 0) >= Self.commonWordMinOccurrences { return true }
+        return FunctionWords.contains(word, locale: recognitionLocale)
+    }
+
+    /// How far ahead of the cursor a common word is allowed to match.
     private static let fillerReach = 1
     /// The ordinary look-ahead, for someone reading roughly what is written.
     private static let window = 12
@@ -269,8 +293,15 @@ final class TeleprompterState: ObservableObject {
     /// ...and before it gives up on locality entirely and searches the rest
     /// of the script.
     private static let missesBeforeGlobal = 12
-    /// Shortest word allowed to re-anchor the cursor beyond the ordinary
-    /// window. A long jump on a short word is how the prompter runs away.
+
+    /// Secondary guard on a far re-anchor, alongside `isCommon`. Frequency alone
+    /// leaves a hole: a short filler-ish word that happens to appear only twice
+    /// in the script (below `commonWordMinOccurrences`) is not "common", yet
+    /// anchoring a fifty-word jump on "so" or "the" is exactly the runaway we are
+    /// preventing — and "so" recurs precisely when a reader is ad-libbing, which
+    /// is when the search is widened. So a far anchor also requires a word of at
+    /// least this many characters. Distinctive words (the matcher's recovery
+    /// path) are longer than this; short words re-anchor only within the window.
     private static let minimumAnchorLength = 4
 
     /// Heard words that have found nothing since the cursor last moved.
@@ -321,15 +352,18 @@ final class TeleprompterState: ObservableObject {
                 j += 1
             }
             guard found >= 0 else { continue }
-            if found - cursor > Self.fillerReach && Self.filler.contains(word) {
+            if found - cursor > Self.fillerReach && isCommon(word) {
                 continue
             }
             // Past the ordinary window this is no longer sequential reading —
             // it is a re-anchor after a deviation, and it needs a word
-            // distinctive enough to be worth trusting. Anchoring a
-            // fifty-word jump on "slide" or "so" is how a prompter runs away
-            // from its reader.
-            if found - cursor > Self.window, word.count < Self.minimumAnchorLength {
+            // distinctive enough to be worth trusting. Anchoring a fifty-word
+            // jump on a word that recurs through the script ("slide" in a talk
+            // about slides) or on a short filler-ish word ("so", "the") is how a
+            // prompter runs away from its reader. A far re-anchor is only allowed
+            // on a word that is neither common in this script nor too short.
+            if found - cursor > Self.window,
+               isCommon(word) || word.count < Self.minimumAnchorLength {
                 continue
             }
             cursor = found + 1
