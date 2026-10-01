@@ -197,6 +197,76 @@ final class FillerWordJumpTests: XCTestCase {
             "Doubling back by voice must not leap the cursor forward to a later identical phrase")
     }
 
+    // MARK: accented function words — the diacritic-fold fix
+
+    /// `normalize` must fold Latin diacritics so an accented word reaches its
+    /// unaccented `FunctionWords` entry, and must leave Cyrillic alone so
+    /// distinct Cyrillic letters are not merged.
+    func testNormalizeFoldsLatinDiacriticsButNotCyrillic() {
+        XCTAssertEqual(TeleprompterState.normalize("não"), "nao")   // pt
+        XCTAssertEqual(TeleprompterState.normalize("È"), "e")       // it, also lowercases
+        XCTAssertEqual(TeleprompterState.normalize("più"), "piu")   // it
+        XCTAssertEqual(TeleprompterState.normalize("će"), "ce")     // hr
+        XCTAssertEqual(TeleprompterState.normalize("są"), "sa")     // pl (ogonek folds)
+        // Cyrillic: "й"/"ё" are letters, not accented vowels — must stay distinct.
+        XCTAssertNotEqual(TeleprompterState.normalize("мой"), TeleprompterState.normalize("мои"))
+        XCTAssertNotEqual(TeleprompterState.normalize("все"), TeleprompterState.normalize("всё"))
+        XCTAssertEqual(TeleprompterState.normalize("мой"), "мой")
+    }
+
+    /// Portuguese "não" one window-width ahead of the cursor. A Brazilian utters
+    /// it reflexively; it must not pull the cursor forward to that later word.
+    /// Only the per-language guard stops it, and only once "não" folds to the
+    /// list's "nao" — without the fold this leaps 1 → 6.
+    func testAccentedFunctionWordDoesNotLeapForwardPortuguese() {
+        let state = makeState("eu acho que isso aqui não funciona muito bem hoje")
+        // idx: eu0 acho1 que2 isso3 aqui4 não5 funciona6 ...
+        state.recognitionLocale = "pt-BR"
+        state.activeIndex = 1
+        state.ingest(transcriptWords: ["não"])
+        XCTAssertEqual(state.activeIndex, 1,
+            "An accented function word must be guarded after folding (não → nao)")
+    }
+
+    /// Italian accented function words "è" and "più", each once ahead of the
+    /// cursor. Without the fold both leap the cursor forward.
+    func testAccentedFunctionWordsDoNotLeapForwardItalian() {
+        let stateE = makeState("io penso che questo è davvero molto importante oggi")
+        // idx: io0 penso1 che2 questo3 è4 ...
+        stateE.recognitionLocale = "it-IT"
+        stateE.activeIndex = 1
+        stateE.ingest(transcriptWords: ["è"])
+        XCTAssertEqual(stateE.activeIndex, 1, "Italian 'è' must fold to 'e' and be guarded")
+
+        let statePiu = makeState("lui parla sempre più forte quando racconta")
+        // idx: lui0 parla1 sempre2 più3 forte4 ...
+        statePiu.recognitionLocale = "it-IT"
+        statePiu.activeIndex = 1
+        statePiu.ingest(transcriptWords: ["più"])
+        XCTAssertEqual(statePiu.activeIndex, 1, "Italian 'più' must fold to 'piu' and be guarded")
+    }
+
+    /// Croatian "će" folds to the list's "ce"; the reader's reflexive "će" must
+    /// not drag the cursor to a later occurrence.
+    func testAccentedFunctionWordDoesNotLeapForwardCroatian() {
+        let state = makeState("on kaže da će doći sutra ujutro")
+        // idx: on0 kaže1 da2 će3 doći4 ...
+        state.recognitionLocale = "hr-HR"
+        state.activeIndex = 1
+        state.ingest(transcriptWords: ["će"])
+        XCTAssertEqual(state.activeIndex, 1, "Croatian 'će' must fold to 'ce' and be guarded")
+    }
+
+    /// The fold must not break ordinary matching: an accented content word still
+    /// advances the cursor when it is genuinely the next word read.
+    func testAccentedContentWordStillAdvances() {
+        let state = makeState("a apresentação começa já")
+        // idx: a0 apresentação1 começa2 já3
+        state.recognitionLocale = "pt-BR"
+        state.ingest(transcriptWords: ["apresentação"])
+        XCTAssertEqual(state.activeIndex, 2, "An accented content word at the cursor must still advance")
+    }
+
     func testCursorAtEndOfScriptDoesNotOverrun() {
         let state = makeState("one two three")
         state.activeIndex = 2

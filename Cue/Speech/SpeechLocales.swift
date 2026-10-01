@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 import Speech
 
 /// Which language the prompter listens in.
@@ -70,5 +71,54 @@ enum SpeechLocales {
             available: SFSpeechRecognizer.supportedLocales().map(\.identifier),
             current: Locale.current.identifier
         )
+    }
+
+    // MARK: - Detecting the script's language
+
+    /// The dominant language of `text` and the recogniser's confidence in it,
+    /// or nil when the text is too short or empty to judge. A thin wrapper over
+    /// `NLLanguageRecognizer`, kept apart from the pure resolver below so that
+    /// stays testable without NaturalLanguage.
+    static func detectLanguage(in text: String) -> (language: String, confidence: Double)? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(trimmed)
+        guard let dominant = recognizer.dominantLanguage else { return nil }
+        let confidence = recognizer.languageHypotheses(withMaximum: 1)[dominant] ?? 0
+        return (dominant.rawValue, confidence)
+    }
+
+    /// Which locale to auto-switch to for a script in `detected` language, or
+    /// nil to leave the current one alone. Pure, so it is tested without a
+    /// recogniser. The locale is left unchanged when:
+    /// - detection failed (`detected == nil`),
+    /// - confidence is below `minConfidence` (short or mixed-language text),
+    /// - the device cannot recognise that language, or
+    /// - the current locale is already that language (don't churn the region a
+    ///   reader deliberately chose — pt-PT stays pt-PT for Portuguese).
+    static func autoLocale(detected language: String?,
+                           confidence: Double,
+                           available: [String],
+                           current: String,
+                           minConfidence: Double = 0.6) -> String? {
+        guard let language, confidence >= minConfidence else { return nil }
+        let want = languageCode(of: language)
+        guard !want.isEmpty else { return nil }
+        if languageCode(of: current) == want { return nil }
+        // Reuse the dialect-picking logic; it falls back to en-US when the
+        // language is unavailable, so only switch if it truly found `want`.
+        let picked = preferred(available: available, current: language)
+        guard languageCode(of: picked) == want else { return nil }
+        return picked
+    }
+
+    /// The lowercased language component of a locale identifier ("pt-BR" → "pt",
+    /// "nl_NL" → "nl", "en" → "en").
+    private static func languageCode(of identifier: String) -> String {
+        identifier
+            .replacingOccurrences(of: "_", with: "-")
+            .split(separator: "-").first
+            .map { $0.lowercased() } ?? identifier.lowercased()
     }
 }

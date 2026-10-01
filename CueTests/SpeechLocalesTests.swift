@@ -64,4 +64,59 @@ final class SpeechLocalesTests: XCTestCase {
     func testLabelSurvivesALanguageOnlyIdentifier() {
         XCTAssertFalse(SpeechLocales.label(for: Locale(identifier: "de")).isEmpty)
     }
+
+    // MARK: - autoLocale: switching the listening language to match the script
+
+    private let detectAvailable = ["en-US", "en-GB", "pt-BR", "it-IT", "de-DE", "fr-FR"]
+
+    func testAutoSwitchesToTheDetectedLanguage() {
+        // A Portuguese script on an English default should move to pt-BR.
+        XCTAssertEqual(
+            SpeechLocales.autoLocale(detected: "pt", confidence: 0.95,
+                                     available: detectAvailable, current: "en-US"),
+            "pt-BR"
+        )
+    }
+
+    func testAutoIgnoresLowConfidence() {
+        // Short or mixed text → don't guess; leave the locale alone.
+        XCTAssertNil(
+            SpeechLocales.autoLocale(detected: "pt", confidence: 0.2,
+                                     available: detectAvailable, current: "en-US")
+        )
+    }
+
+    func testAutoIgnoresUnrecognisableLanguage() {
+        // Detected Japanese, but the device has no Japanese recogniser: stay put
+        // rather than fall back to English and churn the locale.
+        XCTAssertNil(
+            SpeechLocales.autoLocale(detected: "ja", confidence: 0.99,
+                                     available: detectAvailable, current: "en-US")
+        )
+    }
+
+    func testAutoLeavesTheRegionAloneWhenLanguageAlreadyMatches() {
+        // Reader is on pt-PT and the script is Portuguese: don't yank them to
+        // pt-BR — the language is already right.
+        XCTAssertNil(
+            SpeechLocales.autoLocale(detected: "pt", confidence: 0.99,
+                                     available: detectAvailable + ["pt-PT"], current: "pt-PT")
+        )
+    }
+
+    func testAutoDoesNothingWithoutADetection() {
+        XCTAssertNil(
+            SpeechLocales.autoLocale(detected: nil, confidence: 0,
+                                     available: detectAvailable, current: "en-US")
+        )
+    }
+
+    /// The end-to-end detector should recognise an unambiguous paragraph. This
+    /// one leans on NaturalLanguage, so it asserts only the language, not a
+    /// confidence figure.
+    func testDetectLanguageOnARealParagraph() {
+        let pt = "Olá a todos, hoje vou falar sobre a nossa empresa e os resultados que alcançámos neste trimestre."
+        XCTAssertEqual(SpeechLocales.detectLanguage(in: pt)?.language, "pt")
+        XCTAssertNil(SpeechLocales.detectLanguage(in: "   "))
+    }
 }

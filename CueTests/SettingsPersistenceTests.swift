@@ -88,6 +88,12 @@ final class SettingsPersistenceTests: XCTestCase {
         XCTAssertEqual(afterRelaunch { $0.recognitionLocale = "hr-HR" }.recognitionLocale, "hr-HR")
     }
 
+    func testRecognitionLocaleIsAutoSurvivesARelaunch() {
+        // A manual language pick turns auto-detection off; that choice must
+        // persist, or the next launch would silently re-detect over it.
+        XCTAssertFalse(afterRelaunch { $0.selectLocaleManually("de-DE") }.recognitionLocaleIsAuto)
+    }
+
     func testCameraEnabledSurvivesARelaunch() {
         // This one persisting is what made the setup screen's camera control
         // necessary: turning it off inside the prompter came back next launch
@@ -112,7 +118,7 @@ final class SettingsPersistenceTests: XCTestCase {
             .fontSize, .mirror, .textAlignment, .cameraEnabled, .textOpacity,
             .cueLineFraction, .sideMargin, .cameraDimming, .targetWPM,
             .countdownSeconds, .showTiming, .voiceCommandsEnabled,
-            .readTextFloor, .recognitionLocale,
+            .readTextFloor, .recognitionLocale, .recognitionLocaleIsAuto,
         ]
         let all = Set(PrompterSettingsStore.Key.allCases)
         XCTAssertEqual(

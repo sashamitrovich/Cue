@@ -1,4 +1,5 @@
 import Foundation
+import Speech
 
 struct ScriptWord: Identifiable {
     let id: Int
@@ -121,6 +122,35 @@ final class TeleprompterState: ObservableObject {
     @Published var recognitionLocale: String = SpeechLocales.systemDefault() {
         didSet { if persistsSettings { settings.set(.recognitionLocale, recognitionLocale) } }
     }
+    /// Whether the listening language tracks the loaded script automatically.
+    /// True until the reader picks a language by hand — a manual choice sticks,
+    /// an automatic one updates as scripts load. See `selectLocaleManually`.
+    @Published var recognitionLocaleIsAuto: Bool = true {
+        didSet { if persistsSettings { settings.set(.recognitionLocaleIsAuto, recognitionLocaleIsAuto) } }
+    }
+
+    /// The reader picked a language by hand: honour it and stop auto-detecting.
+    /// The pickers call this instead of writing `recognitionLocale` directly.
+    func selectLocaleManually(_ identifier: String) {
+        recognitionLocaleIsAuto = false
+        recognitionLocale = identifier
+    }
+
+    /// If the language is still following the script, detect the loaded text's
+    /// language and switch to the best locale the device can recognise for it.
+    /// A low-confidence or unrecognisable result leaves the current locale be.
+    /// Does not clear `recognitionLocaleIsAuto` — only a manual pick does that.
+    private func applyAutoLocaleIfNeeded() {
+        guard recognitionLocaleIsAuto else { return }
+        let detected = SpeechLocales.detectLanguage(in: scriptText)
+        guard let chosen = SpeechLocales.autoLocale(
+            detected: detected?.language,
+            confidence: detected?.confidence ?? 0,
+            available: SFSpeechRecognizer.supportedLocales().map(\.identifier),
+            current: recognitionLocale
+        ) else { return }
+        recognitionLocale = chosen
+    }
 
     private let settings: PrompterSettingsStore
     /// Off during UI tests (same flag that keeps the camera off for them) so
@@ -146,6 +176,7 @@ final class TeleprompterState: ObservableObject {
         voiceCommandsEnabled = settings.bool(.voiceCommandsEnabled, default: voiceCommandsEnabled)
         readTextFloor = settings.double(.readTextFloor, default: readTextFloor)
         recognitionLocale = settings.string(.recognitionLocale, default: recognitionLocale)
+        recognitionLocaleIsAuto = settings.bool(.recognitionLocaleIsAuto, default: recognitionLocaleIsAuto)
     }
 
     static let countdownOptions = [0, 3, 5, 10]
@@ -210,6 +241,8 @@ final class TeleprompterState: ObservableObject {
         lines = built
         activeIndex = 0
         unmatchedWords = 0
+
+        applyAutoLocaleIfNeeded()
     }
 
     /// Moves the cursor by whole lines, for "scroll up" / "scroll down".
@@ -239,7 +272,38 @@ final class TeleprompterState: ObservableObject {
     }
 
     static func normalize(_ s: String) -> String {
-        s.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "'" }
+        let kept = s.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "'" }
+        return foldLatinDiacritics(kept)
+    }
+
+    /// Strips diacritics from Latin-script letters so an accented word matches
+    /// its unaccented form — Portuguese "não" → "nao", Italian "è" → "e" and
+    /// "più" → "piu", Croatian "će" → "ce", Polish "są" → "sa". The
+    /// `FunctionWords` lists are all written unaccented and assume this folding;
+    /// without it the per-language guard silently misses every accented function
+    /// word, which is the most common word a Romance-language reader utters.
+    ///
+    /// Cyrillic is deliberately left untouched: there "й" and "ё" are distinct
+    /// letters, not decorated vowels, so folding would wrongly merge "мой"/"мои"
+    /// and "все"/"всё". The matcher compares normalized script against normalized
+    /// speech, so folding one side folds both — real-word matches stay equal and
+    /// only accented↔unaccented pairs newly collide, which is the intent.
+    private static func foldLatinDiacritics(_ s: String) -> String {
+        var out = ""
+        out.reserveCapacity(s.count)
+        for ch in s {
+            if ch.unicodeScalars.contains(where: isCyrillicScalar) {
+                out.append(ch)
+            } else {
+                out += String(ch).folding(options: .diacriticInsensitive, locale: nil)
+            }
+        }
+        return out
+    }
+
+    /// Cyrillic and its Supplement block (covers ru/uk/bg/sr-Cyrl and friends).
+    private static func isCyrillicScalar(_ u: Unicode.Scalar) -> Bool {
+        (0x0400...0x04FF).contains(u.value) || (0x0500...0x052F).contains(u.value)
     }
 
     func state(for index: Int) -> WordState {

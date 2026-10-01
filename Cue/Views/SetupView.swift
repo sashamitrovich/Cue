@@ -275,7 +275,10 @@ struct SetupView: View {
             Image(systemName: "waveform")
             Text("Listening in")
             Menu {
-                Picker("Language", selection: $state.recognitionLocale) {
+                Picker("Language", selection: Binding(
+                    get: { state.recognitionLocale },
+                    set: { state.selectLocaleManually($0) }
+                )) {
                     ForEach(SpeechLocales.available(), id: \.identifier) { locale in
                         Text(SpeechLocales.label(for: locale)).tag(locale.identifier)
                     }
