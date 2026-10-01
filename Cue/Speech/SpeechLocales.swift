@@ -57,20 +57,48 @@ enum SpeechLocales {
         // Same language, different region: a de-AT device should still get
         // German recognition rather than falling all the way back to English.
         let wantedLanguage = wanted.split(separator: "-").first.map(String.init) ?? wanted
-        if let sameLanguage = available.first(where: {
+        let sameLanguage = available.filter {
             normalize($0).split(separator: "-").first.map(String.init) == wantedLanguage
-        }) {
-            return sameLanguage
+        }
+        // Not just the first one listed: the recogniser's list is alphabetical,
+        // so "first English" was en-AE and "first Italian" was it-CH. An app
+        // whose UI is English-only reports `en_BR` on a Brazilian phone, so this
+        // branch is the common case outside English-speaking countries.
+        let primary = normalize("\(wantedLanguage)-\(primaryRegion[wantedLanguage] ?? wantedLanguage)")
+        if let main = sameLanguage.first(where: { normalize($0) == primary }) ?? sameLanguage.first {
+            return main
         }
         return available.first(where: { normalize($0) == normalize(fallback) }) ?? fallback
     }
 
+    /// The dialect to fall back to when a language's region can't be matched,
+    /// where it isn't simply `xx-XX` (it-IT, de-DE, fr-FR…).
+    private static let primaryRegion = ["en": "US", "pt": "BR", "sv": "SE", "da": "DK",
+                                        "uk": "UA", "cs": "CZ", "zh": "CN", "ja": "JP",
+                                        "ko": "KR", "he": "IL", "el": "GR", "ar": "SA"]
+
     /// The stored default for a fresh install, resolved against this device.
+    ///
+    /// The phone's own language, not `Locale.current`: On Cue's interface is
+    /// English-only, so iOS resolves `Locale.current` to English plus the
+    /// phone's region (`en_BR` on a Brazilian phone) and every new user outside
+    /// English-speaking countries started out listening in English (#17).
     static func systemDefault() -> String {
-        preferred(
-            available: SFSpeechRecognizer.supportedLocales().map(\.identifier),
-            current: Locale.current.identifier
+        firstLaunchDefault(
+            phoneLanguage: Locale.preferredLanguages.first,
+            region: Locale.current.region?.identifier,
+            available: SFSpeechRecognizer.supportedLocales().map(\.identifier)
         )
+    }
+
+    /// Pure core of `systemDefault`. `phoneLanguage` may carry no region
+    /// ("hr"), in which case the device's region fills it in.
+    static func firstLaunchDefault(phoneLanguage: String?, region: String?,
+                                   available: [String]) -> String {
+        guard let phoneLanguage else { return preferred(available: available, current: fallback) }
+        let hasRegion = phoneLanguage.replacingOccurrences(of: "_", with: "-").contains("-")
+        let wanted = hasRegion || region == nil ? phoneLanguage : "\(phoneLanguage)-\(region!)"
+        return preferred(available: available, current: wanted)
     }
 
     // MARK: - Detecting the script's language
@@ -101,6 +129,7 @@ enum SpeechLocales {
                            confidence: Double,
                            available: [String],
                            current: String,
+                           deviceRegion: String? = nil,
                            minConfidence: Double = 0.6) -> String? {
         guard let language, confidence >= minConfidence else { return nil }
         let want = languageCode(of: language)
@@ -108,7 +137,10 @@ enum SpeechLocales {
         if languageCode(of: current) == want { return nil }
         // Reuse the dialect-picking logic; it falls back to en-US when the
         // language is unavailable, so only switch if it truly found `want`.
-        let picked = preferred(available: available, current: language)
+        // The device's region picks the dialect: a Portuguese script on a
+        // Brazilian phone wants pt-BR, on a Portuguese one pt-PT.
+        let wanted = deviceRegion.map { "\(want)-\($0)" } ?? want
+        let picked = preferred(available: available, current: wanted)
         guard languageCode(of: picked) == want else { return nil }
         return picked
     }

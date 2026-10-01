@@ -60,6 +60,14 @@ struct SetupView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: editorFocused)
+            // Keep "Listening in" matched to the script as it's typed, pasted
+            // or opened — not only at Start (#17). Restarts on every change, so
+            // it settles once typing pauses rather than flickering per key.
+            .task(id: state.scriptText) {
+                try? await Task.sleep(for: .milliseconds(400))
+                guard !Task.isCancelled else { return }
+                state.applyAutoLocaleIfNeeded()
+            }
             .padding(.horizontal, 20)
             .padding(.top, 4)
             .padding(.bottom, 12)
@@ -118,7 +126,7 @@ struct SetupView: View {
             Button("Use It") {
                 pendingSave?.cancel()
                 openedFileURL = nil
-                state.scriptText = shared.text
+                state.loadScript(shared.text)
                 SharedScriptInbox()?.clear()
                 sharedScript = nil
             }
@@ -370,7 +378,7 @@ struct SetupView: View {
                 }
                 pendingSave?.cancel()
                 openedFileURL = url
-                state.scriptText = text
+                state.loadScript(text)
             } catch {
                 importError = "Couldn't read \(url.lastPathComponent): \(error.localizedDescription)"
             }

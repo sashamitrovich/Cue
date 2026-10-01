@@ -332,4 +332,19 @@ final class PrompterSmokeTests: XCTestCase {
             + "the old floor-over-safe-area rule got wrong"
         )
     }
+
+    /// #17: a Portuguese script shows Portuguese on the setup screen before
+    /// Start is ever tapped. It used to show the device default — English
+    /// (United Arab Emirates) on this simulator — until the prompter opened.
+    func testEditorShowsTheScriptsLanguageBeforeStart() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera"]
+        app.launchEnvironment["UITEST_SCRIPT"] = "Oi, pessoal! Hoje eu trouxe três dicas simples para quem tem medo de falar em público. A primeira é respirar antes de começar."
+        app.launch()
+        let language = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Speech recognition language'")).firstMatch
+        XCTAssertTrue(language.waitForExistence(timeout: 5))
+        let portuguese = NSPredicate(format: "label CONTAINS 'Portuguese'")
+        expectation(for: portuguese, evaluatedWith: language)
+        waitForExpectations(timeout: 3)
+    }
 }

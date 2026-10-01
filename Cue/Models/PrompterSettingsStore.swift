@@ -52,4 +52,12 @@ struct PrompterSettingsStore {
     func set(_ key: Key, _ value: String) {
         defaults.set(value, forKey: key.rawValue)
     }
+
+    /// Whether a value for `key` has ever been written. Distinct from the typed
+    /// getters, which return a default when the key is absent — the upgrade
+    /// seed in `TeleprompterState.init` must tell "never written" (a fresh
+    /// install, or a pre-1.5.6 reader) apart from "written as false".
+    func has(_ key: Key) -> Bool {
+        defaults.object(forKey: key.rawValue) != nil
+    }
 }

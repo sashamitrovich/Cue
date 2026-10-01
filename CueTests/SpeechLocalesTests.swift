@@ -119,4 +119,69 @@ final class SpeechLocalesTests: XCTestCase {
         XCTAssertEqual(SpeechLocales.detectLanguage(in: pt)?.language, "pt")
         XCTAssertNil(SpeechLocales.detectLanguage(in: "   "))
     }
+
+    // MARK: - #17: which dialect a same-language fallback lands on
+
+    /// The recogniser's list in its real (alphabetical) order, where the first
+    /// English is en-AE and the first Italian is it-CH.
+    private let realOrder = ["en-AE", "en-AU", "en-GB", "en-US", "it-CH", "it-IT",
+                             "pt-BR", "pt-PT", "de-AT", "de-CH", "de-DE"]
+
+    func testEnglishOnlyAppOnABrazilianPhoneGetsUSEnglishNotEmirati() {
+        // An English-only app sees `en_BR` on a pt-BR device. This was en-AE.
+        XCTAssertEqual(SpeechLocales.preferred(available: realOrder, current: "en_BR"), "en-US")
+    }
+
+    func testBareItalianLandsOnItalyNotSwitzerland() {
+        XCTAssertEqual(SpeechLocales.preferred(available: realOrder, current: "it"), "it-IT")
+    }
+
+    func testRegionMatchStillBeatsThePrimaryDialect() {
+        XCTAssertEqual(SpeechLocales.preferred(available: realOrder, current: "en_GB"), "en-GB")
+        XCTAssertEqual(SpeechLocales.preferred(available: realOrder, current: "de_CH"), "de-CH")
+    }
+
+    func testPrimaryDialectMissingFallsToAnyOfTheLanguage() {
+        XCTAssertEqual(SpeechLocales.preferred(available: ["en-US", "it-CH"], current: "it"), "it-CH")
+    }
+
+    func testAutoUsesTheDeviceRegionToPickTheDialect() {
+        // Portuguese script: a Portuguese phone keeps pt-PT even though pt-BR
+        // is the primary dialect; a Brazilian phone gets pt-BR.
+        XCTAssertEqual(
+            SpeechLocales.autoLocale(detected: "pt", confidence: 0.95, available: realOrder,
+                                     current: "en-US", deviceRegion: "PT"), "pt-PT")
+        XCTAssertEqual(
+            SpeechLocales.autoLocale(detected: "pt", confidence: 0.95, available: realOrder,
+                                     current: "en-US", deviceRegion: "BR"), "pt-BR")
+    }
+
+    func testAutoOnAForeignRegionFallsToThePrimaryDialect() {
+        // Italian script on a Brazilian phone: there is no it-BR, so it-IT,
+        // not the alphabetically first it-CH.
+        XCTAssertEqual(
+            SpeechLocales.autoLocale(detected: "it", confidence: 0.95, available: realOrder,
+                                     current: "en-US", deviceRegion: "BR"), "it-IT")
+    }
+
+    // MARK: - First launch uses the phone's language (#17)
+
+    func testFirstLaunchOnABrazilianPhoneListensInPortuguese() {
+        XCTAssertEqual(SpeechLocales.firstLaunchDefault(phoneLanguage: "pt-BR", region: "BR",
+                                                        available: realOrder), "pt-BR")
+    }
+
+    func testFirstLaunchFillsInTheRegionWhenTheLanguageHasNone() {
+        XCTAssertEqual(SpeechLocales.firstLaunchDefault(phoneLanguage: "de", region: "AT",
+                                                        available: realOrder), "de-AT")
+        XCTAssertEqual(SpeechLocales.firstLaunchDefault(phoneLanguage: "it", region: "BR",
+                                                        available: realOrder), "it-IT")
+    }
+
+    func testFirstLaunchWithAnUnsupportedLanguageIsUSEnglish() {
+        XCTAssertEqual(SpeechLocales.firstLaunchDefault(phoneLanguage: "ja-JP", region: "JP",
+                                                        available: realOrder), "en-US")
+        XCTAssertEqual(SpeechLocales.firstLaunchDefault(phoneLanguage: nil, region: "AE",
+                                                        available: realOrder), "en-US")
+    }
 }

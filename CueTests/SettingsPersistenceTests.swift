@@ -109,6 +109,19 @@ final class SettingsPersistenceTests: XCTestCase {
         XCTAssertEqual(fresh.targetWPM, ReadingPace.defaultWPM)
         XCTAssertGreaterThan(fresh.textOpacity, 0, "a default of zero would render the script invisible")
         XCTAssertFalse(fresh.recognitionLocale.isEmpty)
+        XCTAssertTrue(fresh.recognitionLocaleIsAuto, "a fresh install should start with auto-detection on")
+    }
+
+    func testUpgradeFromBeforeAutoDetectKeepsTheManualLocale() {
+        // 1.5.5 and earlier had no recognitionLocaleIsAuto key. A reader who
+        // manually chose a language there has recognitionLocale persisted but no
+        // flag; the new auto-detect must not silently re-detect over that
+        // explicit choice on the first launch after upgrading, so the flag must
+        // come back off.
+        defaults.set("de-DE", forKey: PrompterSettingsStore.Key.recognitionLocale.rawValue)
+        let state = TeleprompterState(settings: PrompterSettingsStore(defaults: defaults))
+        XCTAssertFalse(state.recognitionLocaleIsAuto)
+        XCTAssertEqual(state.recognitionLocale, "de-DE")
     }
 
     func testEveryPersistedKeyIsCovered() {
