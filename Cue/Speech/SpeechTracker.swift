@@ -23,6 +23,12 @@ final class SpeechTracker: NSObject, ObservableObject {
     private var shouldRun = false
     private var receivedAnyResult = false
     private var delta = TranscriptDeltaTracker()
+    /// Whether a tap is installed on the engine's input node. Guards
+    /// `stopEngine` from touching `audioEngine.inputNode` when no tap was ever
+    /// installed — accessing the node lazily initialises it (an AURemoteIO RPC
+    /// to the audio server), which times out and aborts on a host whose audio
+    /// server does not answer, e.g. the CI virtual Mac.
+    private var tapInstalled = false
     private var interruptionObserver: NSObjectProtocol?
     /// Set when iOS takes the microphone away mid-take (a call, Siri, an
     /// alarm). Listening stops, but the take is not abandoned — the engine
@@ -286,6 +292,7 @@ final class SpeechTracker: NSObject, ObservableObject {
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             self?.request?.append(buffer)
         }
+        tapInstalled = true
 
         audioEngine.prepare()
         do {
@@ -366,6 +373,15 @@ final class SpeechTracker: NSObject, ObservableObject {
         if audioEngine.isRunning {
             audioEngine.stop()
         }
-        audioEngine.inputNode.removeTap(onBus: 0)
+        // Only touch the input node if a tap is actually installed. Accessing
+        // `audioEngine.inputNode` lazily initialises it, so this used to create
+        // the node even for a take that never started recognition — and on the
+        // CI virtual Mac that initialisation is an RPC the audio server never
+        // answers, which aborts the process. Guarded, a clean exit never
+        // touches the node.
+        if tapInstalled {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            tapInstalled = false
+        }
     }
 }
