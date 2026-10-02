@@ -27,13 +27,15 @@ final class PrompterTicker: ObservableObject {
     /// nearly free, often enough that the reading line's self-heal check
     /// still catches a stale layout within a frame or two of it happening.
     static let idleFrameRate: Float = 10
-    /// Ceiling while something is animating. Deliberately 60 rather than the
-    /// panel's maximum: the offset smoothing is time-based, so 120Hz and
-    /// 60Hz produce *identical* motion — the extra frames buy nothing
-    /// visible and cost real work. This runs alongside live speech
-    /// recognition and (usually) 4K capture, and a warm phone throttles both
-    /// the frame rate and the audio buffers that recognition depends on.
-    static let trackingFrameRate: Float = 60
+    /// Ceiling while something is animating, now matched to ProMotion (120Hz):
+    /// on a 120Hz panel a 60fps scroll reads as a lower-frame-rate animation
+    /// even though the trajectory is identical — perceived smoothness is the
+    /// point, not just the path. The offset update is a cheap transform (no
+    /// re-layout, no blur), so doubling the refresh adds little work, and a
+    /// 60Hz device is unaffected (`maximumFramesPerSecond` caps it anyway).
+    /// ProMotion still throttles down under load, which is the graceful path
+    /// alongside live speech recognition and 4K capture.
+    static let trackingFrameRate: Float = 120
 
     private var link: CADisplayLink?
     private var onTick: ((Date) -> Void)?

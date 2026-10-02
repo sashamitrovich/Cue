@@ -140,17 +140,22 @@ struct PrompterView: View {
     /// Low Power Mode. It is now frame-rate independent on every device.
     ///
     /// It exists only to animate *jumps* — a restart, a rotation, the end of
-    /// a drag. The paced pursuit already produces continuous motion, so
-    /// filtering its output again was two lag stages stacked: 0.13 was
-    /// inherited from when this was the only smoothing there was, and on top
-    /// of the pursuit nearly all it added was delay. 0.05 still takes the
-    /// edge off a jump (~95% closed in 0.15s) without putting an eighth of a
-    /// second between the reader and the script.
+    /// a drag. 0.05 takes the edge off a jump (~95% closed in 0.15s) without
+    /// putting an eighth of a second between the reader and the script.
     private static let smoothingTau: CGFloat = 0.05
+    /// Light output smoothing for the normal (following) path, in seconds.
+    ///
+    /// `smoothingTau` eases *jumps*; this is a much smaller filter that takes
+    /// the edge off the pursuit's own motion. Recognition still arrives in
+    /// bursts, so the pursuit's target accelerates and brakes abruptly as each
+    /// burst opens and closes the gap — at this tuning the bursts read as a
+    /// lurch, not a glide. A small low-pass smooths those velocity changes
+    /// while adding only tens of milliseconds.
+    private static let followTau: CGFloat = 0.03
     /// Seconds the pursuit would take to close the gap if nothing capped it.
     /// This is what keeps the active word *on* the reading line rather than
     /// somewhere below it.
-    private static let pursuitResponse: CGFloat = 0.18
+    private static let pursuitResponse: CGFloat = 0.10
     /// Ceiling on the pursuit, in **lines of script a second** — what stops a
     /// burst of recognised words being covered instantly.
     ///
@@ -165,12 +170,12 @@ struct PrompterView: View {
     /// speed limit ranged from 1.2 to 4.7 lines a second while nothing about
     /// the reading had changed.
     ///
-    /// 4 is a starting point taken from the middle of that observed range and
-    /// wants re-measuring, not defending: `PursuitDiagnostics` reports how
-    /// often this is the binding constraint, and on the run that motivated
-    /// the change it was binding on 20-84% of frames — a ceiling that is
-    /// active most of the time is setting the speed rather than guarding it.
-    private static let pursuitMaxLinesPerSecond: CGFloat = 4
+    /// 8 is a deliberate raise from 4: `PursuitDiagnostics` showed the ceiling
+    /// binding on 20-84% of frames, which means it was *setting* the speed
+    /// rather than guarding it — the active word sat permanently below the
+    /// reading line while the ceiling throttled the catch-up. Still a knob to
+    /// re-measure, not a number to defend.
+    private static let pursuitMaxLinesPerSecond: CGFloat = 8
     /// Floor for the pursuit speed — the opening frames of a take, before the
     /// layout has been measured and there is a line height to work from.
     private static let pursuitMinSpeed: CGFloat = 40
@@ -332,6 +337,7 @@ struct PrompterView: View {
                 DragGesture()
                     .onChanged { value in
                         isDraggingScript = true
+                        scroll.easing = false
                         scroll.target = scroll.dragStart + value.translation.height
                     }
                     .onEnded { _ in
@@ -1464,21 +1470,10 @@ struct PrompterView: View {
     private func tick(now: Date) {
         let cueY = scroll.cueY
 
-        // Exponential smoothing towards the target, but only while the step
-        // is big enough to see. Once it isn't, land exactly on the target one
-        // final time and then leave the offset alone — that last write is what
-        // lets the view stop being invalidated.
         // Clamped: a tick delayed by a stall, a backgrounding or a slow
         // frame must not be paid back as one enormous jump.
         let dt = min(max(now.timeIntervalSince(scroll.lastTick ?? now), 0), 0.1)
         scroll.lastTick = now
-
-        let gap = scroll.target - scroll.offset
-        if abs(gap) > Self.settleThreshold {
-            scroll.offset += gap * (1 - CGFloat(exp(-dt / Double(Self.smoothingTau))))
-        } else if scroll.offset != scroll.target {
-            scroll.offset = scroll.target
-        }
 
         // Follow the reading cursor, at the speed the words are being spoken.
         //
@@ -1500,6 +1495,7 @@ struct PrompterView: View {
         // the pursuit walks it back onto the reading line. Safe as a
         // continuous check because these frames are in the flow's own space
         // and don't move when the offset does.
+        var targetJumped = cursorJumped
         if !isDraggingScript, !isDraggingLine, let frame = wordFrames[state.activeIndex] {
             let want = cueY - frame.midY
             #if DEBUG
@@ -1511,6 +1507,10 @@ struct PrompterView: View {
                 response: Self.pursuitResponse
             )
             #endif
+            // A jump is a deliberate move (`cursorJumped`) or a re-anchor too
+            // far to pace. Either snaps the target, and a snap is the one
+            // thing the offset should ease into rather than track directly.
+            targetJumped = targetJumped || abs(want - scroll.target) > Self.pursuitSnapDistance
             let next = ScrollPursuit.step(
                 target: scroll.target,
                 toward: want,
@@ -1531,6 +1531,30 @@ struct PrompterView: View {
                 scroll.dragStart = next
             }
         }
+        if targetJumped { scroll.easing = true }
+
+        // Apply the offset. The pursuit moves the target continuously but not
+        // smoothly — recognition arrives in bursts, so the target's speed
+        // changes abruptly as each burst opens and closes the gap. Following
+        // passes it through a light low-pass (`followTau`) so those speed
+        // changes read as a glide; a jump is eased with the slower
+        // `smoothingTau`. Either way the final write is what lets the view
+        // stop being invalidated.
+        let gap = scroll.target - scroll.offset
+        if scroll.easing {
+            if abs(gap) > Self.settleThreshold {
+                scroll.offset += gap * (1 - CGFloat(exp(-dt / Double(Self.smoothingTau))))
+            } else {
+                scroll.easing = false
+                if scroll.offset != scroll.target {
+                    scroll.offset = scroll.target
+                }
+            }
+        } else if abs(gap) > Self.settleThreshold {
+            scroll.offset += gap * (1 - CGFloat(exp(-dt / Double(Self.followTau))))
+        } else if scroll.offset != scroll.target {
+            scroll.offset = scroll.target
+        }
 
         if let deadline = countdownDeadline, now >= deadline {
             startListeningNow()
@@ -1550,10 +1574,16 @@ struct PrompterView: View {
             if countdownDeadline != nil { Haptics.countdownTick() }
         }
 
-        // Full refresh rate only while something is actually moving; the rest
-        // of a take runs at the idle rate, which is most of a take.
+        // Full rate while the take is live or something is actually moving.
+        // A live take idles only when the reader is silent — but recognition
+        // arrives in bursts, so "moving" switches on and off every few hundred
+        // milliseconds; dropping the link to idle in between is what reads as
+        // a lower-frame-rate, dropping-frames animation. While listening or
+        // recording the link stays up (a frame that changes nothing writes
+        // nothing, so it is nearly free) and only idles when no take is live.
         ticker.setActive(
-            abs(scroll.target - scroll.offset) > Self.settleThreshold
+            takeIsLive
+            || abs(scroll.target - scroll.offset) > Self.settleThreshold
             || isDraggingScript
             || isDraggingLine
             || countdownDeadline != nil
@@ -1723,7 +1753,13 @@ struct PrompterView: View {
         // out from under an animation in flight, which lands as a teleport —
         // the script stalls, then jumps. A re-measure during a scroll just
         // moves the target and lets the smoothing above absorb it.
-        if scroll.offset == 0 || (!animated && wasSettled) { scroll.offset = newTarget }
+        if scroll.offset == 0 || (!animated && wasSettled) {
+            scroll.offset = newTarget
+        } else {
+            // A re-target mid-scroll must not teleport: mark it for easing so
+            // the offset glides to the new position rather than jumping.
+            scroll.easing = true
+        }
     }
 
     private func showError(_ msg: String) {

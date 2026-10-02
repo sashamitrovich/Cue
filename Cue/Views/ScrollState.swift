@@ -39,6 +39,12 @@ final class ScrollState: ObservableObject {
     /// Where the script is travelling to. Written every frame by the pursuit
     /// and read by it on the next one; nothing draws from it.
     var target: CGFloat = 0
+    /// True while a deliberate jump (a restart, a re-anchor, a drag landing on
+    /// a word, a cue-line or font change) is eased into. Normal following does
+    /// not set it: the pursuit already moves the target continuously, so the
+    /// offset tracks it directly. Only a jump gets the exponential easing,
+    /// because that is what turns a snap into a short glide.
+    var easing: Bool = false
     /// Where the offset was when the current drag began.
     var dragStart: CGFloat = 0
     /// Timestamp of the previous tick, for frame-rate-independent smoothing.
