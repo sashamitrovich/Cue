@@ -840,6 +840,10 @@ struct PrompterView: View {
                 .frame(height: 1)
                 .allowsHitTesting(false)
         }
+        // The handle sits where the eye starts a line: the right edge for a
+        // right-to-left script (#20). Scoped to the HStack only, so the
+        // margin paddings below keep their physical sides.
+        .environment(\.layoutDirection, state.isRightToLeft ? .rightToLeft : .leftToRight)
         .frame(maxHeight: .infinity, alignment: .top)
         .padding(.top, cueY)
         // Same rule as the script, so the line starts and ends with the words.
@@ -1817,19 +1821,20 @@ private struct ScrollFlow: View {
     /// `VStack`/`.frame` only know leading/center/trailing; a justified
     /// block still reads left-to-right at the block level, since it's each
     /// wrapped row inside `FlowLayout` that does the stretching.
+    /// In a right-to-left script "leading" is the right edge (#20).
     private var horizontalAlignment: HorizontalAlignment {
-        switch state.textAlignment {
-        case .leading, .justified: .leading
-        case .center: .center
-        case .trailing: .trailing
+        switch (state.textAlignment, state.isRightToLeft) {
+        case (.leading, false), (.justified, false), (.trailing, true): .leading
+        case (.center, _): .center
+        case (.trailing, false), (.leading, true), (.justified, true): .trailing
         }
     }
 
     private var frameAlignment: Alignment {
-        switch state.textAlignment {
-        case .leading, .justified: .leading
-        case .center: .center
-        case .trailing: .trailing
+        switch (state.textAlignment, state.isRightToLeft) {
+        case (.leading, false), (.justified, false), (.trailing, true): .leading
+        case (.center, _): .center
+        case (.trailing, false), (.leading, true), (.justified, true): .trailing
         }
     }
 
@@ -1844,7 +1849,7 @@ private struct ScrollFlow: View {
                     // pauses and ad-lib room survive into the prompter.
                     Color.clear.frame(height: state.fontSize * 0.9)
                 } else {
-                    FlowLayout(spacing: 8, lineSpacing: PrompterView.scriptLineSpacing, alignment: state.textAlignment, fontSize: state.fontSize) {
+                    FlowLayout(spacing: 8, lineSpacing: PrompterView.scriptLineSpacing, alignment: state.textAlignment, fontSize: state.fontSize, rightToLeft: state.isRightToLeft) {
                         ForEach(line.words) { word in
                             wordView(word)
                         }

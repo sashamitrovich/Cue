@@ -347,4 +347,40 @@ final class PrompterSmokeTests: XCTestCase {
         expectation(for: portuguese, evaluatedWith: language)
         waitForExpectations(timeout: 3)
     }
+
+    /// #20: words of a right-to-left script must run right to left, starting
+    /// at the right edge. They used to be laid out left to right, which
+    /// reversed every Arabic line. Words are unique so each query is exact.
+    func testRightToLeftScriptReadsRightToLeft() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera"]
+        app.launchEnvironment["UITEST_SCRIPT"] = "مرحباً بالجميع اليوم أقدّم لكم ثلاث نصائح بسيطة"
+        app.launch()
+        app.buttons["Start prompting →"].tap()
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+        let first = app.staticTexts["مرحباً"], second = app.staticTexts["بالجميع"]
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        XCTAssertTrue(second.exists)
+        let width = app.windows.firstMatch.frame.width
+        XCTAssertLessThan(abs(first.frame.midY - second.frame.midY), 4, "first two words should share a row")
+        XCTAssertGreaterThan(first.frame.minX, second.frame.maxX,
+                             "first word \(first.frame) must sit right of the second \(second.frame)")
+        XCTAssertGreaterThan(first.frame.maxX, width * 0.75,
+                             "a right-to-left line starts at the right edge; first word at \(first.frame) in width \(width)")
+    }
+
+    /// The other half of #20: the fix must not turn ordinary scripts around.
+    func testLeftToRightScriptStillReadsLeftToRight() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera"]
+        app.launch()
+        app.buttons["Start prompting →"].tap()
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+
+        let first = app.staticTexts["Being"], second = app.staticTexts["told"]
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        XCTAssertLessThan(first.frame.maxX, second.frame.minX)
+        XCTAssertLessThan(first.frame.minX, app.windows.firstMatch.frame.width * 0.25)
+    }
 }

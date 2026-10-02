@@ -56,6 +56,10 @@ final class TeleprompterState: ObservableObject {
     @Published var words: [ScriptWord] = []
     /// The same words grouped as typed, so layout can honour line breaks.
     @Published var lines: [ScriptLine] = []
+    /// Whether the built script reads right to left (Arabic, Hebrew…), so the
+    /// prompter lays its words out from the right. Set by `buildWords` from
+    /// the script's own letters, never from the listening locale (#20).
+    @Published var isRightToLeft = false
     @Published var activeIndex: Int = 0
     @Published var fontSize: CGFloat = 32 {
         didSet { if persistsSettings { settings.set(.fontSize, Double(fontSize)) } }
@@ -278,6 +282,7 @@ final class TeleprompterState: ObservableObject {
 
         words = flat
         lines = built
+        isRightToLeft = ScriptDirection.isRightToLeft(normalized)
         activeIndex = 0
         unmatchedWords = 0
 

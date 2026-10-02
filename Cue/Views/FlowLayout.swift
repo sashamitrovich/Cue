@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Wraps words left-to-right like text, so individual word views can each
-/// carry their own color state (spoken / active / upcoming).
+/// Wraps words like text, so individual word views can each carry their own
+/// color state (spoken / active / upcoming). Runs left to right, or right to
+/// left for Arabic, Hebrew and the like (`rightToLeft`).
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
     var lineSpacing: CGFloat = 6
@@ -11,6 +12,13 @@ struct FlowLayout: Layout {
     /// the measurements below survive a word changing state and only go stale
     /// when the reader changes the text size.
     var fontSize: CGFloat = 0
+    /// Lay each row out from the right: first word at the right, and the
+    /// alignments read in the script's own direction (leading = right edge,
+    /// a justified block's last row hugs the right). Words are separate views,
+    /// so iOS's bidi reordering never reaches across them; without this every
+    /// right-to-left line came out reversed (#20). Rows are computed as usual,
+    /// then mirrored, so wrapping is identical in both directions.
+    var rightToLeft = false
 
     /// One wrapped row: which subview indices it holds, their natural
     /// (unstretched) width, and the tallest word in it.
@@ -116,7 +124,8 @@ struct FlowLayout: Layout {
         var x = startX
         for (offset, index) in row.indices.enumerated() {
             let size = sizes[offset]
-            subviews[index].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            let placedX = rightToLeft ? bounds.minX + bounds.maxX - x - size.width : x
+            subviews[index].place(at: CGPoint(x: placedX, y: y), proposal: ProposedViewSize(size))
             x += size.width + gap
         }
     }
