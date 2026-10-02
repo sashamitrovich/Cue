@@ -18,7 +18,7 @@ final class MarketingCaptures: XCTestCase {
     private func stage(_ app: XCUIApplication) {
         let locale = ProcessInfo.processInfo.environment["MARKETING_LOCALE"] ?? ""
         if let script = Self.scripts[locale] {
-            let appleLocale = ["pt-BR": "pt_BR", "it": "it_IT", "es-MX": "es_MX", "ru": "ru_RU", "uk": "uk_UA", "ar": "ar_SA", "en-US": "en_US"][locale] ?? locale
+            let appleLocale = ["pt-BR": "pt_BR", "it": "it_IT", "es-MX": "es_MX", "es-ES": "es_ES", "ru": "ru_RU", "uk": "uk_UA", "ar": "ar_SA", "en-US": "en_US"][locale] ?? locale
             app.launchArguments += ["-AppleLanguages", "(\(locale))", "-AppleLocale", appleLocale]
             app.launchEnvironment["UITEST_SCRIPT"] = script
         }
@@ -64,6 +64,19 @@ final class MarketingCaptures: XCTestCase {
         Non serve essere perfetti. Nessuno ricorda un piccolo errore; le persone ricordano come le avete fatte sentire.
 
         Se questi consigli vi sono stati utili, scrivete nei commenti quale proverete per primo. Alla prossima!
+        """,
+        "es-ES": """
+        ¡Hola a todos! Hoy os traigo tres consejos sencillos para quienes tienen miedo de hablar en público.
+
+        El primero es respirar antes de empezar. Parece obvio, pero casi nadie lo hace. Una respiración lenta y profunda calma la voz y te da tiempo para ordenar la primera frase.
+
+        El segundo consejo es hablar más despacio de lo que crees necesario. Cuando estamos nerviosos, aceleramos sin darnos cuenta. Quien escucha necesita tiempo para seguir la idea, y una pausa en el momento justo vale más que cualquier palabra difícil.
+
+        El tercero es mirar a las personas, no al suelo. Elige una cara amable entre el público y háblale como en una conversación. Después, elige otra. En pocos minutos, toda la sala sentirá que le hablas a cada uno.
+
+        No hace falta ser perfecto. Nadie recuerda un pequeño error; la gente recuerda cómo la hiciste sentir.
+
+        Si estos consejos os han servido, contadme en los comentarios cuál vais a probar primero. ¡Hasta la próxima!
         """,
         "es-MX": """
         ¡Hola a todos! Hoy les traigo tres consejos sencillos para quienes tienen miedo de hablar en público.
