@@ -124,6 +124,20 @@ final class SettingsPersistenceTests: XCTestCase {
         XCTAssertEqual(state.recognitionLocale, "de-DE")
     }
 
+    func testUpgradeSeedHonorsTheOldPickUntilANewScriptLoads() {
+        // The whole journey in one place: a pre-1.5.6 manual pick is honoured
+        // for the default script (auto off), and opening a new script re-arms
+        // detection — the old pick covered only the script it was made for.
+        defaults.set("de-DE", forKey: PrompterSettingsStore.Key.recognitionLocale.rawValue)
+        let state = TeleprompterState(settings: PrompterSettingsStore(defaults: defaults))
+        XCTAssertFalse(state.recognitionLocaleIsAuto)
+
+        state.loadScript("Oi, pessoal! Hoje eu trouxe três dicas simples para quem tem medo de falar em público.")
+        XCTAssertTrue(state.recognitionLocaleIsAuto, "loading a new script re-arms auto-detection")
+        XCTAssertEqual(state.recognitionLocale, "de-DE",
+                       "re-arming only allows detection; the locale changes once the new script is actually detected")
+    }
+
     func testEveryPersistedKeyIsCovered() {
         // The guard on this file. Adding a Key without a round-trip test here
         // fails, rather than leaving a setting that quietly does not persist.
