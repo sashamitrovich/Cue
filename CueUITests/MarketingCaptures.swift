@@ -194,7 +194,22 @@ final class MarketingCaptures: XCTestCase {
         XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
         app.buttons["prompterSettings"].tap()
         XCTAssertTrue(app.buttons["done"].waitForExistence(timeout: 5))
-        attach(XCUIScreen.main.screenshot(), named: "r-settings")
+        capturePages(of: app.collectionViews["prompterSettingsForm"].exists
+                         ? app.collectionViews["prompterSettingsForm"] : app.collectionViews.firstMatch,
+                     named: "r-settings")
+    }
+
+    /// Screenshots a scrolling sheet page by page until it stops moving, so a
+    /// reviewer sees every row, not only the top of the sheet.
+    private func capturePages(of scroller: XCUIElement, named name: String, maxPages: Int = 10) {
+        var last = Data()
+        for page in 1...maxPages {
+            let shot = XCUIScreen.main.screenshot()
+            if shot.pngRepresentation == last { break }
+            last = shot.pngRepresentation
+            attach(shot, named: String(format: "%@-%02d", name, page))
+            scroller.swipeUp(velocity: .slow)
+        }
     }
 
     func testHelpSheet() throws {
@@ -203,6 +218,6 @@ final class MarketingCaptures: XCTestCase {
         stage(app)
         app.buttons["help"].tap()
         XCTAssertTrue(app.buttons["done"].waitForExistence(timeout: 5))
-        attach(XCUIScreen.main.screenshot(), named: "r-help")
+        capturePages(of: app.collectionViews.firstMatch, named: "r-help")
     }
 }
