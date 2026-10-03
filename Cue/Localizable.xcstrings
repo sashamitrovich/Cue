@@ -1,0 +1,3097 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "": {
+      "shouldTranslate": false
+    },
+    "\"%@\" was shared with On Cue. Using it replaces the script you have here.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" foi compartilhado com o On Cue. Usá-lo substitui o roteiro que você tem aqui."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "«%@» se compartió con On Cue. Si lo usas, reemplaza el guion que tienes aquí."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" è stato condiviso con On Cue. Se lo usi, sostituisce lo script che hai qui."
+          }
+        }
+      }
+    },
+    "\"scroll down\" or \"go on\"": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"scroll down\" ou \"go on\""
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"scroll down\" o \"go on\""
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"scroll down\" o \"go on\""
+          }
+        }
+      }
+    },
+    "\"scroll up\" or \"go back\"": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"scroll up\" ou \"go back\""
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"scroll up\" o \"go back\""
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"scroll up\" o \"go back\""
+          }
+        }
+      }
+    },
+    "%@ can't be edited here": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ não pode ser editado aqui"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ no se puede editar aquí"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ non può essere modificato qui"
+          }
+        }
+      }
+    },
+    "%@ didn't contain any readable text.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ não continha texto legível."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ no contenía texto legible."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ non conteneva testo leggibile."
+          }
+        }
+      }
+    },
+    "%@ pace": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ritmo %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ritmo %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ritmo %@"
+          }
+        }
+      }
+    },
+    "%@ · %lld wpm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · %2$lld wpm"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld ppm"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld ppm"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld ppm"
+          }
+        }
+      }
+    },
+    "%@%@ left": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@%2$@ left"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "faltam %@%@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "quedan %@%@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%@ rimanenti"
+          }
+        }
+      }
+    },
+    "%lld": {
+      "shouldTranslate": false
+    },
+    "%lld percent": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld por cento"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld por ciento"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld percento"
+          }
+        }
+      }
+    },
+    "%lld words · about %@ at a": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld word · about %@ at a"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld words · about %@ at a"
+                }
+              }
+            }
+          }
+        },
+        "pt-BR": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld palavra · cerca de %@ em"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld palavras · cerca de %@ em"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld palabra · unos %@ a"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld palabras · unos %@ a"
+                }
+              }
+            }
+          }
+        },
+        "it": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld parola · circa %@ a"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld parole · circa %@ a"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld wpm": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ppm"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ppm"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ppm"
+          }
+        }
+      }
+    },
+    "%llds": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%llds"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%llds"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%llds"
+          }
+        }
+      }
+    },
+    "A pre-roll before listening starts, so you can check your framing and settle before you speak. Tap anywhere to cancel the start if you're not ready.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uma contagem antes de a escuta começar, para você conferir o enquadramento e se preparar antes de falar. Toque em qualquer lugar para cancelar o início se não estiver pronto."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una cuenta atrás antes de empezar a escuchar, para que revises el encuadre y te prepares antes de hablar. Toca en cualquier parte para cancelar el inicio si no estás listo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un conto alla rovescia prima dell'ascolto, per controllare l'inquadratura e rilassarti prima di parlare. Tocca in un punto qualsiasi per annullare la partenza se non sei pronto."
+          }
+        }
+      }
+    },
+    "Already read text dimming": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escurecer texto já lido"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atenuar el texto ya leído"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attenuazione del testo già letto"
+          }
+        }
+      }
+    },
+    "Armed": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparado"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparado"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pronto"
+          }
+        }
+      }
+    },
+    "Before you start": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antes de começar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antes de empezar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prima di iniziare"
+          }
+        }
+      }
+    },
+    "Camera": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Câmera"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cámara"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotocamera"
+          }
+        }
+      }
+    },
+    "Camera and microphone access are required to record.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "É preciso permitir o acesso à câmera e ao microfone para gravar."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para grabar se necesita acceso a la cámara y al micrófono."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per registrare serve l'accesso a fotocamera e microfono."
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annulla"
+          }
+        }
+      }
+    },
+    "Capture": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captura"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captura"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ripresa"
+          }
+        }
+      }
+    },
+    "Couldn't change HDR: %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível alterar o HDR: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cambiar el HDR: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile cambiare HDR: %@"
+          }
+        }
+      }
+    },
+    "Couldn't change low-light boost: %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível alterar o reforço para pouca luz: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cambiar el refuerzo con poca luz: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile cambiare il potenziamento con poca luce: %@"
+          }
+        }
+      }
+    },
+    "Couldn't change quality: %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível alterar a qualidade: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cambiar la calidad: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile cambiare la qualità: %@"
+          }
+        }
+      }
+    },
+    "Couldn't configure the audio session: %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível configurar a sessão de áudio: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo configurar la sesión de audio: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile configurare la sessione audio: %@"
+          }
+        }
+      }
+    },
+    "Couldn't open that file: %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível abrir esse arquivo: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo abrir ese archivo: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile aprire il file: %@"
+          }
+        }
+      }
+    },
+    "Couldn't read %@: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Couldn't read %1$@: %2$@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível ler %@: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo leer %@: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile leggere %@: %@"
+          }
+        }
+      }
+    },
+    "Couldn't save to %@: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Couldn't save to %1$@: %2$@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível salvar em %@: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo guardar en %@: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile salvare in %@: %@"
+          }
+        }
+      }
+    },
+    "Couldn't save to Photos: %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível salvar em Fotos: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo guardar en Fotos: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile salvare in Foto: %@"
+          }
+        }
+      }
+    },
+    "Couldn't start the microphone: %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível ativar o microfone: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo iniciar el micrófono: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile avviare il microfono: %@"
+          }
+        }
+      }
+    },
+    "Countdown": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contagem regressiva"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta atrás"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conto alla rovescia"
+          }
+        }
+      }
+    },
+    "Dim": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escurecer"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atenuar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oscura"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fine"
+          }
+        }
+      }
+    },
+    "Done editing": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concluir edição"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminar edición"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fine modifica"
+          }
+        }
+      }
+    },
+    "Drag the script with your finger": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arraste o roteiro com o dedo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrastra el guion con el dedo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trascina lo script con il dito"
+          }
+        }
+      }
+    },
+    "Editing %@ — changes save automatically": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editando %@ — as alterações são salvas automaticamente"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editando %@: los cambios se guardan automáticamente"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifica di %@ — le modifiche si salvano automaticamente"
+          }
+        }
+      }
+    },
+    "Elapsed %@, about %@ remaining": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Elapsed %1$@, about %2$@ remaining"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decorrido: %@, restam cerca de %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcurrido %@, quedan unos %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trascorso %@, circa %@ rimanenti"
+          }
+        }
+      }
+    },
+    "Elapsed speaking time, an estimate of what's left, and your pace. The estimate is marked with a ~ until On Cue has heard enough of the take to measure how fast you actually talk.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tempo de fala decorrido, uma estimativa do que falta e o seu ritmo. A estimativa fica marcada com ~ até o On Cue ouvir o suficiente da gravação para medir a velocidade com que você realmente fala."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiempo de habla transcurrido, una estimación de lo que falta y tu ritmo. La estimación lleva una ~ hasta que On Cue ha oído suficiente de la toma para medir a qué velocidad hablas en realidad."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tempo di parlato trascorso, una stima di quello che resta e il tuo ritmo. La stima è contrassegnata da ~ finché On Cue non ha ascoltato abbastanza della ripresa da misurare quanto velocemente parli davvero."
+          }
+        }
+      }
+    },
+    "Enable Photos access to save your take (it's still on disk as %@).": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permita o acesso a Fotos para salvar sua gravação (ela continua no dispositivo como %@)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activa el acceso a Fotos para guardar tu toma (sigue en el dispositivo como %@)."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attiva l'accesso a Foto per salvare la ripresa (è ancora sul dispositivo come %@)."
+          }
+        }
+      }
+    },
+    "Estimated reading pace: %lld words per minute": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo de leitura estimado: %lld palavras por minuto"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo de lectura estimado: %lld palabras por minuto"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo di lettura stimato: %lld parole al minuto"
+          }
+        }
+      }
+    },
+    "Exit": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sair"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salir"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esci"
+          }
+        }
+      }
+    },
+    "Find the lens": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encontre a lente"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encuentra el objetivo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trova l'obiettivo"
+          }
+        }
+      }
+    },
+    "Flips the script top-to-bottom for teleprompter rigs that bounce the screen off a sheet of glass in front of the lens; the reflection turns it back the right way round. The controls stay exactly where they are and read normally, since you look at them directly rather than through the glass. Reading straight from the phone? Leave it off.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inverte o roteiro de cima para baixo para teleprompters que refletem a tela em uma lâmina de vidro na frente da lente; o reflexo o devolve ao sentido certo. Os controles ficam exatamente onde estão e continuam normais, já que você olha para eles diretamente, não pelo vidro. Lendo direto do celular? Deixe desativado."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voltea el guion de arriba abajo para los teleprompters que reflejan la pantalla en un cristal colocado frente al objetivo; el reflejo lo devuelve a su orientación correcta. Los controles se quedan donde están y se leen con normalidad, porque los miras directamente y no a través del cristal. ¿Lees directamente del teléfono? Déjalo desactivado."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capovolge lo script dall'alto in basso per i teleprompter che riflettono lo schermo su un vetro davanti all'obiettivo; il riflesso lo rimette per il verso giusto. I controlli restano esattamente dove sono e si leggono normalmente, perché li guardi direttamente e non attraverso il vetro. Leggi direttamente dal telefono? Lascialo disattivato."
+          }
+        }
+      }
+    },
+    "Frame rate": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taxa de quadros"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotogramas por segundo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frequenza fotogrammi"
+          }
+        }
+      }
+    },
+    "From another app — Notes, Mail, Files, Drive — tap Share and choose On Cue. It waits for you here and asks before replacing the script you already have. A Google Doc shares as a link rather than text, so use \"Send a copy\" and pick plain text or rich text.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Em outro app — Notas, Mail, Arquivos, Drive — toque em Compartilhar e escolha On Cue. Ele espera por você aqui e pergunta antes de substituir o roteiro que você já tem. Um Google Doc é compartilhado como link, e não como texto; por isso use \"Enviar uma cópia\" e escolha texto simples ou texto formatado."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desde otra app (Notas, Mail, Archivos, Drive), toca Compartir y elige On Cue. El guion te espera aquí y te pregunta antes de reemplazar el que ya tienes. Un documento de Google se comparte como enlace y no como texto, así que usa \"Enviar una copia\" y elige texto sin formato o texto enriquecido."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Da un'altra app — Note, Mail, File, Drive — tocca Condividi e scegli On Cue. Lo script aspetta qui e ti chiede conferma prima di sostituire quello che hai già. Un Documento Google si condivide come link e non come testo, quindi usa \"Invia una copia\" e scegli testo semplice o testo formattato."
+          }
+        }
+      }
+    },
+    "Get ready…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prepare-se…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prepárate…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparati…"
+          }
+        }
+      }
+    },
+    "HD / 4K": {
+      "shouldTranslate": false
+    },
+    "HDR video": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vídeo HDR"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video HDR"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video HDR"
+          }
+        }
+      }
+    },
+    "How On Cue works": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Como o On Cue funciona"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cómo funciona On Cue"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Come funziona On Cue"
+          }
+        }
+      }
+    },
+    "Import": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importa"
+          }
+        }
+      }
+    },
+    "In landscape the controls move to a rail on the edge they were already on, so they stay under the same thumb and stop eating the height you need for the script.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Na horizontal, os controles passam para uma barra lateral, no mesmo lado em que já estavam, e continuam sob o mesmo polegar sem ocupar a altura de que você precisa para o roteiro."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En horizontal, los controles pasan a una barra en el borde en el que ya estaban, así siguen bajo el mismo pulgar y no te quitan la altura que necesitas para el guion."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In orizzontale i controlli si spostano in una barra sul lato in cui si trovavano, così restano sotto lo stesso pollice e non occupano più l'altezza che serve allo script."
+          }
+        }
+      }
+    },
+    "In the listening mode, it steps the script back one line on screen and moves the cursor with it, so that line reads as unread again. Say it again to go back further.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No modo de escuta, volta o roteiro uma linha na tela e leva o cursor junto, de modo que essa linha volta a contar como não lida. Diga de novo para voltar mais."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En el modo de escucha, retrocede el guion una línea en pantalla y mueve el cursor con él, de modo que esa línea vuelve a quedar sin leer. Dilo de nuevo para retroceder más."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In modalità ascolto, riporta lo script indietro di una riga sullo schermo e sposta il cursore con esso, così quella riga risulta di nuovo da leggere. Ripetilo per tornare ancora indietro."
+          }
+        }
+      }
+    },
+    "In the prompter": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No prompter"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En el prompter"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nel teleprompter"
+          }
+        }
+      }
+    },
+    "It uses your phone's speech model": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa o modelo de fala do seu celular"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa el modelo de voz de tu teléfono"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa il modello vocale del tuo telefono"
+          }
+        }
+      }
+    },
+    "Jumps back to the first word and starts the timing over.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volta para a primeira palavra e zera a contagem de tempo."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vuelve a la primera palabra y reinicia el cronómetro."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Torna alla prima parola e riavvia il conteggio del tempo."
+          }
+        }
+      }
+    },
+    "Keep Mine": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manter o meu"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conservar el mío"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tieni il mio"
+          }
+        }
+      }
+    },
+    "Language": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Idioma"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Idioma"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lingua"
+          }
+        }
+      }
+    },
+    "Listen": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvir"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escuchar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ascolta"
+          }
+        }
+      }
+    },
+    "Listen / Pause": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvir / Pausar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escuchar / Pausa"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ascolta / Pausa"
+          }
+        }
+      }
+    },
+    "Listening in": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvindo em"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escuchando"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In ascolto in"
+          }
+        }
+      }
+    },
+    "Listening stopped when another app took the microphone. Tap play to carry on.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A escuta parou quando outro app usou o microfone. Toque em play para continuar."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La escucha se detuvo porque otra app tomó el micrófono. Toca reproducir para continuar."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'ascolto si è interrotto perché un'altra app ha preso il microfono. Tocca play per continuare."
+          }
+        }
+      }
+    },
+    "Load a script from Files or iCloud Drive — .txt, .md or .rtf. Line breaks and blank lines carry through, so leave a blank line where you want ad-lib room. You can edit the script for finishing touches and the changes save automatically.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carregue um roteiro de Arquivos ou do iCloud Drive — .txt, .md ou .rtf. Quebras de linha e linhas em branco são mantidas, então deixe uma linha em branco onde quiser espaço para improvisar. Você pode editar o roteiro para os últimos ajustes, e as alterações são salvas automaticamente."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga un guion desde Archivos o iCloud Drive (.txt, .md o .rtf). Los saltos de línea y las líneas en blanco se conservan, así que deja una línea en blanco donde quieras espacio para improvisar. Puedes editar el guion para darle los últimos retoques y los cambios se guardan automáticamente."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carica uno script da File o iCloud Drive — .txt, .md o .rtf. Le interruzioni di riga e le righe vuote vengono mantenute, quindi lascia una riga vuota dove vuoi spazio per improvvisare. Puoi modificare lo script per i ritocchi finali e le modifiche si salvano automaticamente."
+          }
+        }
+      }
+    },
+    "Low-light boost": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reforço para pouca luz"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refuerzo con poca luz"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Potenziamento con poca luce"
+          }
+        }
+      }
+    },
+    "Microphone access was denied. Enable it in Settings → Privacy & Security → Microphone → On Cue.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O acesso ao microfone foi negado. Ative em Ajustes → Privacidade e Segurança → Microfone → On Cue."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se denegó el acceso al micrófono. Actívalo en Ajustes → Privacidad y seguridad → Micrófono → On Cue."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'accesso al microfono è stato negato. Attivalo in Impostazioni → Privacy e sicurezza → Microfono → On Cue."
+          }
+        }
+      }
+    },
+    "Mirror": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espelhar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espejo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Specchio"
+          }
+        }
+      }
+    },
+    "Off": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desativado"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desactivado"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessuno"
+          }
+        }
+      }
+    },
+    "On Cue": {
+      "shouldTranslate": false
+    },
+    "On Cue follows your script in the language set here; a new take uses it. Say \"scroll up\" to step back a line, or \"scroll down\" to step forward — repeat to go further. Command words are not read as script. If your script itself says one of these phrases at that point, it is read rather than obeyed; turn this off if it still gets in the way. Spoken commands are recognised in English only, whatever language the script is in.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O On Cue acompanha seu roteiro no idioma definido aqui; uma nova gravação passa a usá-lo. Diga \"scroll up\" para voltar uma linha ou \"scroll down\" para avançar uma — repita para ir mais longe. As palavras de comando não são lidas como parte do roteiro. Se o próprio roteiro disser uma dessas frases nesse ponto, ela é lida como texto, e não obedecida; desative isto se ainda atrapalhar. Os comandos de voz são reconhecidos apenas em inglês, seja qual for o idioma do roteiro."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue sigue tu guion en el idioma que elijas aquí; una toma nueva lo usará. Di \"scroll up\" para retroceder una línea o \"scroll down\" para avanzar una; repítelo para ir más lejos. Las palabras de los comandos no se leen como parte del guion. Si tu guion dice una de estas frases en ese momento, se lee en lugar de obedecerse; desactiva esto si aun así te estorba. Los comandos de voz solo se reconocen en inglés, sea cual sea el idioma del guion."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue segue il tuo script nella lingua impostata qui; una nuova ripresa la usa. Di' \"scroll up\" per tornare indietro di una riga, o \"scroll down\" per andare avanti di una riga — ripeti per andare oltre. Le parole dei comandi non vengono lette come script. Se il tuo script stesso contiene una di queste frasi in quel punto, viene letta e non eseguita; disattiva questa opzione se continua a darti fastidio. I comandi vocali sono riconosciuti solo in inglese, qualunque sia la lingua dello script."
+          }
+        }
+      }
+    },
+    "Open": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apri"
+          }
+        }
+      }
+    },
+    "Open a script file": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir um arquivo de roteiro"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir un archivo de guion"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apri un file di script"
+          }
+        }
+      }
+    },
+    "Over the camera": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sobre a câmera"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sobre la cámara"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sopra la fotocamera"
+          }
+        }
+      }
+    },
+    "Pace": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo"
+          }
+        }
+      }
+    },
+    "Pause": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausa"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausa"
+          }
+        }
+      }
+    },
+    "Prompter": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prompter"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prompter"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teleprompter"
+          }
+        }
+      }
+    },
+    "Prompter settings": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustes do prompter"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustes del prompter"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impostazioni del teleprompter"
+          }
+        }
+      }
+    },
+    "Raise Dim to darken the picture behind the words. Lower Text to see more of yourself through them.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aumente Escurecer para escurecer a imagem atrás das palavras. Diminua Texto para ver mais de você através delas."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sube Atenuar para oscurecer la imagen detrás de las palabras. Baja Texto para verte más a través de ellas."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aumenta Oscura per scurire l'immagine dietro le parole. Abbassa Testo per vederti di più attraverso di esse."
+          }
+        }
+      }
+    },
+    "Reading": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leitura"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lectura"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lettura"
+          }
+        }
+      }
+    },
+    "Reading line": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linha de leitura"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Línea de lectura"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riga di lettura"
+          }
+        }
+      }
+    },
+    "Reading line position": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posição da linha de leitura"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posición de la línea de lectura"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posizione della riga di lettura"
+          }
+        }
+      }
+    },
+    "Record": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gravar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registra"
+          }
+        }
+      }
+    },
+    "Record with the front camera": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gravar com a câmera frontal"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabar con la cámara frontal"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registra con la fotocamera frontale"
+          }
+        }
+      }
+    },
+    "Recording error: %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erro de gravação: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error de grabación: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Errore di registrazione: %@"
+          }
+        }
+      }
+    },
+    "Recording size and frame rate, offered only as far as your device's front camera supports. Stop recording to change them.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamanho e taxa de quadros da gravação, oferecidos apenas até onde a câmera frontal do seu dispositivo permite. Pare a gravação para alterá-los."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamaño y fotogramas por segundo de la grabación, disponibles solo en la medida en que los admita la cámara frontal de tu dispositivo. Detén la grabación para cambiarlos."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dimensione e frequenza fotogrammi della registrazione, offerte solo nei limiti di ciò che supporta la fotocamera frontale del tuo dispositivo. Interrompi la registrazione per cambiarle."
+          }
+        }
+      }
+    },
+    "Records a take from the camera. The recording is saved to Photos when you stop.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grava uma tomada com a câmera. A gravação é salva em Fotos quando você para."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Graba una toma con la cámara. La grabación se guarda en Fotos cuando la detienes."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registra una ripresa dalla fotocamera. La registrazione viene salvata in Foto quando ti fermi."
+          }
+        }
+      }
+    },
+    "Restart": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reiniciar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reiniciar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riavvia"
+          }
+        }
+      }
+    },
+    "Saved to your Photos library when you finish.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvo na sua biblioteca do Fotos quando você termina."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se guarda en tu fototeca al terminar."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvato nella tua libreria Foto al termine."
+          }
+        }
+      }
+    },
+    "Say **\"scroll up\"** to go back a line": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diga **\"scroll up\"** para voltar uma linha"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Di **\"scroll up\"** para retroceder una línea"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Di' **\"scroll up\"** per tornare indietro di una riga"
+          }
+        }
+      }
+    },
+    "Script": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Roteiro"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guion"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script"
+          }
+        }
+      }
+    },
+    "Share a script to On Cue": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compartilhe um roteiro com o On Cue"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparte un guion con On Cue"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Condividi uno script con On Cue"
+          }
+        }
+      }
+    },
+    "Show timing": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar tempo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar tiempo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostra il tempo"
+          }
+        }
+      }
+    },
+    "Side margins": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Margens laterais"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Márgenes laterales"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Margini laterali"
+          }
+        }
+      }
+    },
+    "Size": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamanho"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamaño"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dimensione"
+          }
+        }
+      }
+    },
+    "Speech recognition isn't available for %@ on this device. Pick another language in the prompter settings.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O reconhecimento de fala não está disponível para %@ neste dispositivo. Escolha outro idioma nos ajustes do prompter."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El reconocimiento de voz no está disponible para %@ en este dispositivo. Elige otro idioma en los ajustes del prompter."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il riconoscimento vocale non è disponibile per %@ su questo dispositivo. Scegli un'altra lingua nelle impostazioni del teleprompter."
+          }
+        }
+      }
+    },
+    "Speech recognition language, %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Idioma do reconhecimento de fala: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Idioma de reconocimiento de voz, %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lingua del riconoscimento vocale, %@"
+          }
+        }
+      }
+    },
+    "Speech recognition permission was denied. Enable it in Settings → Privacy & Security → Speech Recognition → On Cue.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A permissão de reconhecimento de fala foi negada. Ative em Ajustes → Privacidade e Segurança → Reconhecimento de Fala → On Cue."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se denegó el permiso de reconocimiento de voz. Actívalo en Ajustes → Privacidad y seguridad → Reconocimiento de voz → On Cue."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'autorizzazione al riconoscimento vocale è stata negata. Attivala in Impostazioni → Privacy e sicurezza → Riconoscimento vocale → On Cue."
+          }
+        }
+      }
+    },
+    "Speech recognition runs on your device (uses the same local model for keyboard dictation). If it hasn't downloaded the speech model, iOS falls back to Apple's speech service and sends audio there to transcribe. Recordings are only ever saved to your own Photos library.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O reconhecimento de fala roda no seu dispositivo (usa o mesmo modelo local do ditado do teclado). Se o modelo de fala não tiver sido baixado, o iOS recorre ao serviço de fala da Apple e envia o áudio para lá para transcrição. As gravações são salvas somente na sua própria biblioteca do Fotos."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El reconocimiento de voz se ejecuta en tu dispositivo (usa el mismo modelo local que el dictado del teclado). Si no se ha descargado el modelo de voz, iOS recurre al servicio de voz de Apple y le envía el audio para transcribirlo. Las grabaciones solo se guardan en tu propia fototeca de Fotos."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il riconoscimento vocale funziona sul tuo dispositivo (usa lo stesso modello locale della dettatura da tastiera). Se non ha scaricato il modello vocale, iOS ripiega sul servizio vocale di Apple e invia lì l'audio per trascriverlo. Le registrazioni vengono salvate solo nella tua libreria Foto."
+          }
+        }
+      }
+    },
+    "Speech recognition runs on your device. If it hasn't downloaded the offline speech model (Settings → General → Keyboard → Dictation), iOS falls back to Apple's speech service, which means audio is sent to Apple to be transcribed — the same thing dictation does. When using the local model, your script and your recordings never leave the device. Videos are saved straight to your Photos library only.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O reconhecimento de fala roda no seu dispositivo. Se o modelo de fala offline não tiver sido baixado (Ajustes → Geral → Teclado → Ditado), o iOS recorre ao serviço de fala da Apple, o que significa que o áudio é enviado à Apple para ser transcrito — o mesmo que o ditado faz. Ao usar o modelo local, seu roteiro e suas gravações nunca saem do dispositivo. Os vídeos são salvos direto na sua biblioteca do Fotos, e em nenhum outro lugar."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El reconocimiento de voz se ejecuta en tu dispositivo. Si no se ha descargado el modelo de voz sin conexión (Ajustes → General → Teclado → Dictado), iOS recurre al servicio de voz de Apple, lo que significa que el audio se envía a Apple para transcribirlo, igual que hace el dictado. Con el modelo local, tu guion y tus grabaciones nunca salen del dispositivo. Los videos se guardan directamente solo en tu fototeca de Fotos."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il riconoscimento vocale funziona sul tuo dispositivo. Se non ha scaricato il modello vocale offline (Impostazioni → Generali → Tastiera → Dettatura), iOS ripiega sul servizio vocale di Apple, il che significa che l'audio viene inviato ad Apple per essere trascritto — come fa la dettatura. Con il modello locale, il tuo script e le tue registrazioni non lasciano mai il dispositivo. I video vengono salvati direttamente solo nella tua libreria Foto."
+          }
+        }
+      }
+    },
+    "Speech recognition stopped: %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O reconhecimento de fala parou: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El reconocimiento de voz se detuvo: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riconoscimento vocale interrotto: %@"
+          }
+        }
+      }
+    },
+    "Stabilisation": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estabilização"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estabilización"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stabilizzazione"
+          }
+        }
+      }
+    },
+    "Start prompting →": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar prompter →"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empezar →"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inizia a leggere →"
+          }
+        }
+      }
+    },
+    "Starting in %lld seconds": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Começando em %lld segundos"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empieza en %lld segundos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si parte tra %lld secondi"
+          }
+        }
+      }
+    },
+    "Starts and stops voice tracking. Pausing keeps your place and stops the clock.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicia e para o acompanhamento por voz. Ao pausar, você mantém sua posição e o cronômetro para."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicia y detiene el seguimiento de voz. Al pausar se conserva tu posición y se detiene el reloj."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvia e interrompe il tracciamento della voce. Con la pausa mantieni il punto in cui sei e il cronometro si ferma."
+          }
+        }
+      }
+    },
+    "Steps forward one line, the same way.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avança uma linha, do mesmo jeito."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avanza una línea, del mismo modo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Va avanti di una riga, allo stesso modo."
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detener"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        }
+      }
+    },
+    "Switch on the front camera for recording.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liga a câmera frontal para gravar."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activa la cámara frontal para grabar."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attiva la fotocamera frontale per registrare."
+          }
+        }
+      }
+    },
+    "Take saved to Photos": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gravação salva em Fotos"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toma guardada en Fotos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ripresa salvata in Foto"
+          }
+        }
+      }
+    },
+    "Take saved to Photos · %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gravação salva em Fotos · %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toma guardada en Fotos · %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ripresa salvata in Foto · %@"
+          }
+        }
+      }
+    },
+    "Tap Listen and start speaking. On Cue matches what it hears against your script and scrolls to keep the line you're on at the reading line. Stop talking and it waits. Paraphrase, skip a word, or start a sentence again and it stays with you.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque em Ouvir e comece a falar. O On Cue compara o que ouve com o seu roteiro e rola o texto para manter a linha em que você está na linha de leitura. Parou de falar, ele espera. Parafraseie, pule uma palavra ou recomece uma frase, e ele continua com você."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca Escuchar y empieza a hablar. On Cue compara lo que oye con tu guion y se desplaza para mantener la línea en la que vas en la línea de lectura. Si dejas de hablar, espera. Si parafraseas, omites una palabra o empiezas una frase otra vez, sigue contigo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tocca Ascolta e inizia a parlare. On Cue confronta ciò che sente con il tuo script e scorre per tenere la riga in cui sei alla riga di lettura. Se smetti di parlare, aspetta. Se parafrasi, salti una parola o ricominci una frase, ti resta dietro."
+          }
+        }
+      }
+    },
+    "Tap anywhere to cancel": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque em qualquer lugar para cancelar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca en cualquier parte para cancelar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tocca in un punto qualsiasi per annullare"
+          }
+        }
+      }
+    },
+    "Tap pause to stop listening": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque em pausar para parar de ouvir"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca pausa para dejar de escuchar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tocca pausa per smettere di ascoltare"
+          }
+        }
+      }
+    },
+    "Tap play to begin": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque em play para começar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca reproducir para empezar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tocca play per iniziare"
+          }
+        }
+      }
+    },
+    "Text": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texto"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texto"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Testo"
+          }
+        }
+      }
+    },
+    "Text alignment": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alinhamento do texto"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alineación del texto"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allineamento del testo"
+          }
+        }
+      }
+    },
+    "Text and Dim": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texto e Escurecer"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texto y Atenuar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Testo e Oscura"
+          }
+        }
+      }
+    },
+    "Text fades the script so more of the camera shows through; Dim darkens the picture behind it. Between them you can keep the words legible over any background.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texto esmaece o roteiro para mostrar mais da câmera; Escurecer escurece a imagem atrás dele. Com os dois, você mantém as palavras legíveis sobre qualquer fundo."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texto atenúa el guion para que se vea más de la cámara a través de él; Atenuar oscurece la imagen detrás. Entre los dos puedes mantener las palabras legibles sobre cualquier fondo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Testo rende lo script più trasparente, così si vede di più la fotocamera; Oscura scurisce l'immagine dietro di esso. Con i due puoi mantenere le parole leggibili su qualsiasi sfondo."
+          }
+        }
+      }
+    },
+    "Text size": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamanho do texto"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamaño del texto"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dimensione del testo"
+          }
+        }
+      }
+    },
+    "The marked line your eyes read from. Adjust it any time from the settings button, to keep it as near to the lens as possible.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A linha marcada de onde seus olhos leem. Ajuste-a quando quiser pelo botão de ajustes, para mantê-la o mais perto possível da lente."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La línea marcada desde la que leen tus ojos. Ajústala cuando quieras desde el botón de ajustes, para tenerla lo más cerca posible del objetivo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La riga evidenziata da cui leggono i tuoi occhi. Regolala quando vuoi dal pulsante delle impostazioni, per tenerla il più vicino possibile all'obiettivo."
+          }
+        }
+      }
+    },
+    "The screen stays awake for as long as the prompter is open.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A tela fica ligada enquanto o prompter estiver aberto."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La pantalla permanece encendida mientras el prompter esté abierto."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lo schermo resta acceso finché il teleprompter è aperto."
+          }
+        }
+      }
+    },
+    "The script follows your voice": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O roteiro acompanha a sua voz"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El guion sigue tu voz"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lo script segue la tua voce"
+          }
+        }
+      }
+    },
+    "Timing": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tempo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiempo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tempo"
+          }
+        }
+      }
+    },
+    "Tip: say scroll up to go back a line": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dica: diga scroll up para voltar uma linha"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consejo: di scroll up para retroceder una línea"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggerimento: di' scroll up per tornare indietro di una riga"
+          }
+        }
+      }
+    },
+    "Turn camera off": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desligar a câmera"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apagar la cámara"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disattiva la fotocamera"
+          }
+        }
+      }
+    },
+    "Turn camera on": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ligar a câmera"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encender la cámara"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attiva la fotocamera"
+          }
+        }
+      }
+    },
+    "Turning sideways": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Girando o aparelho"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al girar el dispositivo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Girare il telefono"
+          }
+        }
+      }
+    },
+    "Turns the live camera view behind the script on or off.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liga ou desliga a imagem ao vivo da câmera atrás do roteiro."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activa o desactiva la vista en vivo de la cámara detrás del guion."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attiva o disattiva l'immagine dal vivo della fotocamera dietro lo script."
+          }
+        }
+      }
+    },
+    "Use It": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usarlo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usalo"
+          }
+        }
+      }
+    },
+    "Use the shared script?": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar o roteiro compartilhado?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Usar el guion compartido?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usare lo script condiviso?"
+          }
+        }
+      }
+    },
+    "Video quality": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualidade do vídeo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calidad de video"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualità video"
+          }
+        }
+      }
+    },
+    "Video quality %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualidade do vídeo %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calidad de video %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualità video %@"
+          }
+        }
+      }
+    },
+    "Voice commands": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comandos de voz"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comandos de voz"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comandi vocali"
+          }
+        }
+      }
+    },
+    "Voice control": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controle por voz"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Control por voz"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controllo vocale"
+          }
+        }
+      }
+    },
+    "Works always, listening or not — drag to scroll by hand, and voice tracking picks up from wherever you let go, the next word to speak is highlighted.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funciona sempre, com ou sem escuta — arraste para rolar à mão, e o acompanhamento por voz continua de onde você soltar; a próxima palavra a falar fica destacada."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funciona siempre, estés escuchando o no: arrastra para desplazarte a mano y el seguimiento de voz continúa desde donde sueltes; se resalta la siguiente palabra que toca decir."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funziona sempre, in ascolto o no — trascina per scorrere a mano e il tracciamento della voce riprende da dove lasci, con la parola successiva da dire evidenziata."
+          }
+        }
+      }
+    },
+    "Your target pace drives the estimate until you've read enough of a take for On Cue to measure your real one.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seu ritmo-alvo define a estimativa até você ler o suficiente de uma gravação para o On Cue medir o seu ritmo real."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu ritmo objetivo determina la estimación hasta que hayas leído suficiente de una toma para que On Cue mida tu ritmo real."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il tuo ritmo obiettivo guida la stima finché non hai letto abbastanza di una ripresa perché On Cue misuri il tuo ritmo reale."
+          }
+        }
+      }
+    },
+    "Your target words per minute. It's what the run-time estimate is based on until you've spoken enough of a take for On Cue to measure your real pace. This gives you the feel of how long the text takes to be spoken.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sua meta de palavras por minuto. É nela que se baseia a estimativa de duração até você falar o suficiente de uma gravação para o On Cue medir o seu ritmo real. Assim você tem uma noção de quanto tempo o texto leva para ser falado."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu objetivo de palabras por minuto. Es la base de la estimación de duración hasta que hayas hablado lo suficiente de una toma para que On Cue mida tu ritmo real. Así te haces una idea de cuánto tarda en decirse el texto."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le tue parole al minuto obiettivo. È su questo che si basa la stima della durata finché non hai parlato abbastanza di una ripresa perché On Cue misuri il tuo ritmo reale. Ti dà un'idea di quanto tempo richiede dire il testo."
+          }
+        }
+      }
+    },
+    "brisk": {
+      "comment": "Reading pace name, shown as \"<name> pace\"",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "acelerado"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ágil"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sostenuto"
+          }
+        }
+      }
+    },
+    "natural": {
+      "comment": "Reading pace name, shown as \"<name> pace\"",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "natural"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "natural"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "naturale"
+          }
+        }
+      }
+    },
+    "relaxed": {
+      "comment": "Reading pace name, shown as \"<name> pace\"",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tranquilo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tranquilo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "rilassato"
+          }
+        }
+      }
+    },
+    "unknown error": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "erro desconhecido"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "error desconocido"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "errore sconosciuto"
+          }
+        }
+      }
+    },
+    "·": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

@@ -61,13 +61,14 @@ struct HelpSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                        .accessibilityIdentifier("done")
                 }
             }
         }
     }
 
     @ViewBuilder
-    private func explain(_ title: String, _ body: String) -> some View {
+    private func explain(_ title: LocalizedStringKey, _ body: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.subheadline.weight(.semibold))
             Text(body).font(.footnote).foregroundStyle(.secondary)

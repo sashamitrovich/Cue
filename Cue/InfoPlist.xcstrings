@@ -1,0 +1,126 @@
+{
+  "sourceLanguage": "en",
+  "version": "1.0",
+  "strings": {
+    "NSCameraUsageDescription": {
+      "comment": "Permission prompt (Info.plist)",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue uses the front camera to record your take."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O On Cue usa a câmera frontal para gravar o seu vídeo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue usa la fotocamera frontale per registrare la tua ripresa."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue usa la cámara frontal para grabar tu toma."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription": {
+      "comment": "Permission prompt (Info.plist)",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue listens to your voice to scroll the script as you speak."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O On Cue ouve a sua voz para rolar o roteiro enquanto você fala."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue ascolta la tua voce per far scorrere il copione mentre parli."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue escucha tu voz para desplazar el guion mientras hablas."
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryAddUsageDescription": {
+      "comment": "Permission prompt (Info.plist)",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue saves finished recordings to your Photos library."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O On Cue salva as gravações prontas no app Fotos."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue salva le registrazioni finite nella libreria Foto."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue guarda las grabaciones terminadas en tu fototeca."
+          }
+        }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription": {
+      "comment": "Permission prompt (Info.plist)",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue uses on-device speech recognition to track your place in the script."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O On Cue usa o reconhecimento de fala no aparelho para acompanhar onde você está no roteiro."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue usa il riconoscimento vocale sul dispositivo per seguire il punto del copione in cui sei."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue usa el reconocimiento de voz en el dispositivo para seguir por dónde vas en el guion."
+          }
+        }
+      }
+    }
+  }
+}

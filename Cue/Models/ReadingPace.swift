@@ -32,8 +32,13 @@ enum ReadingPace {
 
     /// The name for a speed — the nearest named pace, so a value nudged by
     /// the slider still reads as something rather than as a bare number.
+    /// Translated for display (#21); the stored `label` stays English.
     static func name(forWPM wpm: Double) -> String {
-        namedPaces.min { abs($0.wpm - wpm) < abs($1.wpm - wpm) }?.label ?? "natural"
+        switch namedPaces.min(by: { abs($0.wpm - wpm) < abs($1.wpm - wpm) })?.label ?? "natural" {
+        case "relaxed": String(localized: "relaxed", comment: "Reading pace name, shown as \"<name> pace\"")
+        case "brisk": String(localized: "brisk", comment: "Reading pace name, shown as \"<name> pace\"")
+        default: String(localized: "natural", comment: "Reading pace name, shown as \"<name> pace\"")
+        }
     }
 
     /// How long `count` words takes at `wpm`.

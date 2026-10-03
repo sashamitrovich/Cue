@@ -62,6 +62,7 @@ struct PrompterControlsSheet: View {
                     Button("Done") {
                         if let onClose { onClose() } else { dismiss() }
                     }
+                    .accessibilityIdentifier("done")
                 }
             }
         }
@@ -85,6 +86,7 @@ struct PrompterControlsSheet: View {
         Section {
             labelledSlider(
                 "Reading line",
+                id: "Reading line",
                 value: $state.cueLineFraction,
                 range: 0...1,
                 display: "\(Int(state.cueLineFraction * 100))%",
@@ -92,6 +94,7 @@ struct PrompterControlsSheet: View {
             )
             labelledSlider(
                 "Text size",
+                id: "Text size",
                 value: $state.fontSize,
                 range: 20...64,
                 step: 1,
@@ -100,6 +103,7 @@ struct PrompterControlsSheet: View {
             )
             labelledSlider(
                 "Already read text dimming",
+                id: "Already read text dimming",
                 value: $state.readTextFloor,
                 range: ReadTextFade.floorRange,
                 display: "\(Int(state.readTextFloor * 100))%",
@@ -107,6 +111,7 @@ struct PrompterControlsSheet: View {
             )
             labelledSlider(
                 "Side margins",
+                id: "Side margins",
                 value: $state.sideMargin,
                 range: ScriptMargins.range,
                 step: 4,
@@ -142,6 +147,7 @@ struct PrompterControlsSheet: View {
             .pickerStyle(.segmented)
             labelledSlider(
                 "Pace",
+                id: "Pace",
                 value: $state.targetWPM,
                 range: ReadingPace.wpmRange,
                 step: 5,
@@ -185,6 +191,7 @@ struct PrompterControlsSheet: View {
         Section {
             labelledSlider(
                 "Text",
+                id: "Text",
                 value: $state.textOpacity,
                 range: 0.3...1.0,
                 display: "\(Int(state.textOpacity * 100))%",
@@ -192,6 +199,7 @@ struct PrompterControlsSheet: View {
             )
             labelledSlider(
                 "Dim",
+                id: "Dim",
                 value: $state.cameraDimming,
                 range: 0.0...0.85,
                 display: "\(Int(state.cameraDimming * 100))%",
@@ -275,8 +283,11 @@ struct PrompterControlsSheet: View {
     /// A slider row in the shape iOS uses for these: title and current value
     /// on one line, the slider beneath it flanked by symbols showing which way
     /// is which.
+    /// `title` is shown translated; `id` is the slider's stable identifier for
+    /// the UI tests, kept as the English title so it never changes (#21).
     private func labelledSlider<V: BinaryFloatingPoint>(
-        _ title: String,
+        _ title: LocalizedStringKey,
+        id: String,
         value: Binding<V>,
         range: ClosedRange<V>,
         step: V.Stride? = nil,
@@ -302,7 +313,7 @@ struct PrompterControlsSheet: View {
                         Slider(value: value, in: range)
                     }
                 }
-                .accessibilityIdentifier(title)
+                .accessibilityIdentifier(id)
                 Image(systemName: icons.1)
                     .font(.caption)
                     .foregroundStyle(.secondary)

@@ -16,7 +16,7 @@ final class PrompterSmokeTests: XCTestCase {
         app.launchArguments = ["-uiTestingNoCamera"]
         app.launch()
 
-        let startButton = app.buttons["Start prompting →"]
+        let startButton = app.buttons["startPrompting"]
         XCTAssertTrue(startButton.waitForExistence(timeout: 5), "Setup screen should show the start button")
         // It must be reachable without scrolling — the script editor is sized
         // to leave room for it rather than pushing it below the fold.
@@ -27,14 +27,14 @@ final class PrompterSmokeTests: XCTestCase {
         )
         startButton.tap()
 
-        let listen = app.buttons["Listen"]
+        let listen = app.buttons["listen"]
         XCTAssertTrue(listen.waitForExistence(timeout: 5), "Prompter should show the Listen button")
         XCTAssertTrue(listen.isHittable, "Listen button must be tappable (on-screen, not clipped or covered)")
 
-        let restart = app.buttons["Restart"]
+        let restart = app.buttons["restart"]
         XCTAssertTrue(restart.exists && restart.isHittable, "Restart button must be visible and tappable")
 
-        let exit = app.buttons["Exit"]
+        let exit = app.buttons["exit"]
         XCTAssertTrue(exit.exists, "Exit control must be visible")
 
         // All bottom controls must sit within the visible window bounds.
@@ -50,11 +50,11 @@ final class PrompterSmokeTests: XCTestCase {
         app.launchArguments = ["-uiTestingNoCamera"]
         app.launch()
 
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
-        app.buttons["Exit"].tap()
-        XCTAssertTrue(app.buttons["Start prompting →"].waitForExistence(timeout: 5), "Exit should return to the setup screen")
+        app.buttons["exit"].tap()
+        XCTAssertTrue(app.buttons["startPrompting"].waitForExistence(timeout: 5), "Exit should return to the setup screen")
     }
 
     /// Landscape moves the take controls from a bottom bar to a side rail.
@@ -64,14 +64,14 @@ final class PrompterSmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
         app.launch()
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
         XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
 
-        let listen = app.buttons["Listen"]
-        let restart = app.buttons["Restart"]
+        let listen = app.buttons["listen"]
+        let restart = app.buttons["restart"]
         XCTAssertTrue(listen.waitForExistence(timeout: 5), "Listen must survive rotation")
         let window = app.windows.firstMatch.frame
         for control in [listen, restart] {
@@ -103,12 +103,12 @@ final class PrompterSmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
         app.launch()
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
         for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
             XCUIDevice.shared.orientation = orientation
-            XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
             let line = app.otherElements["readingLine"]
             XCTAssertTrue(line.waitForExistence(timeout: 5), "reading line must exist in \(orientation.rawValue)")
@@ -131,12 +131,12 @@ final class PrompterSmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
         app.launch()
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
         XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
         let window = app.windows.firstMatch.frame
         for name in ["Restart", "Listen"] {
@@ -158,14 +158,14 @@ final class PrompterSmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
         app.launch()
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
         XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
-        let rail = app.buttons["Listen"].frame
+        let rail = app.buttons["listen"].frame
         let window = app.windows.firstMatch.frame
 
         // Words from the script's opening sentence, each appearing exactly
@@ -205,13 +205,13 @@ final class PrompterSmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
         app.launch()
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
         let sequence: [UIDeviceOrientation] = [.landscapeLeft, .portrait, .landscapeRight, .portrait]
         for orientation in sequence {
             XCUIDevice.shared.orientation = orientation
-            XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
         }
         defer { XCUIDevice.shared.orientation = .portrait }
 
@@ -288,15 +288,15 @@ final class PrompterSmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
         app.launch()
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
         let word = app.staticTexts.matching(identifier: "Being").firstMatch
 
         /// Where the script's first word starts, in the given orientation.
         func wordLeadingEdge(in orientation: UIDeviceOrientation) -> CGFloat {
             XCUIDevice.shared.orientation = orientation
-            XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
             XCTAssertTrue(word.waitForExistence(timeout: 5))
             return word.frame.minX
         }
@@ -307,8 +307,8 @@ final class PrompterSmokeTests: XCTestCase {
         // Back to portrait to change the setting: the sheet there is a plain
         // presentation, which XCTest drives reliably.
         XCUIDevice.shared.orientation = .portrait
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
-        app.buttons["Prompter settings"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
+        app.buttons["prompterSettings"].tap()
         let slider = revealSlider(named: "Side margins", in: app)
         XCTAssertTrue(slider.exists && slider.isHittable, "margin slider must be reachable")
         // Deliberately a SMALL increase. A first version of this test used
@@ -316,7 +316,7 @@ final class PrompterSmokeTests: XCTestCase {
         // margin exceeds the ~47pt landscape inset and does move the text.
         // The defect lived in the bottom of the range.
         slider.adjust(toNormalizedSliderPosition: 0.25)
-        app.buttons["Done"].tap()
+        app.buttons["done"].tap()
 
         let widePortrait = wordLeadingEdge(in: .portrait)
         let wideLandscape = wordLeadingEdge(in: .landscapeLeft)
@@ -341,7 +341,7 @@ final class PrompterSmokeTests: XCTestCase {
         app.launchArguments = ["-uiTestingNoCamera"]
         app.launchEnvironment["UITEST_SCRIPT"] = "Oi, pessoal! Hoje eu trouxe três dicas simples para quem tem medo de falar em público. A primeira é respirar antes de começar."
         app.launch()
-        let language = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Speech recognition language'")).firstMatch
+        let language = app.buttons["languagePicker"]
         XCTAssertTrue(language.waitForExistence(timeout: 5))
         let portuguese = NSPredicate(format: "label CONTAINS 'Portuguese'")
         expectation(for: portuguese, evaluatedWith: language)
@@ -356,8 +356,8 @@ final class PrompterSmokeTests: XCTestCase {
         app.launchArguments = ["-uiTestingNoCamera"]
         app.launchEnvironment["UITEST_SCRIPT"] = "مرحباً بالجميع اليوم أقدّم لكم ثلاث نصائح بسيطة"
         app.launch()
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
         let first = app.staticTexts["مرحباً"], second = app.staticTexts["بالجميع"]
         XCTAssertTrue(first.waitForExistence(timeout: 5))
@@ -375,12 +375,37 @@ final class PrompterSmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
         app.launch()
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
         let first = app.staticTexts["Being"], second = app.staticTexts["told"]
         XCTAssertTrue(first.waitForExistence(timeout: 5))
         XCTAssertLessThan(first.frame.maxX, second.frame.minX)
         XCTAssertLessThan(first.frame.minX, app.windows.firstMatch.frame.width * 0.25)
+    }
+
+    /// #21: with the phone in Portuguese the interface is Portuguese, not just
+    /// the listening language. Fails if the string catalog isn't in the bundle
+    /// or a control still shows its English label. Controls are found by their
+    /// identifiers, so this asserts the visible labels themselves.
+    func testInterfaceFollowsThePhoneLanguage() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera", "-AppleLanguages", "(pt-BR)", "-AppleLocale", "pt_BR"]
+        app.launch()
+
+        let start = app.buttons["startPrompting"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        XCTAssertEqual(start.label, "Iniciar prompter →")
+
+        app.buttons["help"].tap()
+        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["How On Cue works"].exists, "help sheet title is still English")
+        app.buttons["done"].tap()
+
+        start.tap()
+        let listen = app.buttons["listen"]
+        XCTAssertTrue(listen.waitForExistence(timeout: 5))
+        XCTAssertEqual(listen.label, "Ouvir")
+        XCTAssertTrue(app.staticTexts["Toque em play para começar"].exists, "prompter status line is not Portuguese")
     }
 }

@@ -13,23 +13,23 @@ final class CaptureScreens: XCTestCase {
 
         attach(XCUIScreen.main.screenshot(), named: "01-setup")
 
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
         attach(XCUIScreen.main.screenshot(), named: "02-prompter")
 
-        app.buttons["Prompter settings"].tap()
+        app.buttons["prompterSettings"].tap()
         XCTAssertTrue(app.staticTexts["Reading line"].waitForExistence(timeout: 5))
         attach(XCUIScreen.main.screenshot(), named: "03-settings")
-        app.buttons["Done"].tap()
+        app.buttons["done"].tap()
 
         XCUIDevice.shared.orientation = .landscapeLeft
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
         attach(XCUIScreen.main.screenshot(), named: "04-landscape")
         XCUIDevice.shared.orientation = .portrait
 
-        app.buttons["Exit"].tap()
-        XCTAssertTrue(app.buttons["How On Cue works"].waitForExistence(timeout: 5))
-        app.buttons["How On Cue works"].tap()
+        app.buttons["exit"].tap()
+        XCTAssertTrue(app.buttons["help"].waitForExistence(timeout: 5))
+        app.buttons["help"].tap()
         XCTAssertTrue(app.staticTexts["The script follows your voice"].waitForExistence(timeout: 5))
         attach(XCUIScreen.main.screenshot(), named: "05-help")
     }
@@ -50,14 +50,14 @@ final class CaptureScreens: XCTestCase {
 
         // The setup screen matters visually too: the start button has to be
         // reachable without scrolling on every screen size.
-        XCTAssertTrue(app.buttons["Start prompting →"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["startPrompting"].waitForExistence(timeout: 5))
         let setupShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         setupShot.name = "setup"
         setupShot.lifetime = .keepAlways
         add(setupShot)
 
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "prompter"
@@ -66,7 +66,7 @@ final class CaptureScreens: XCTestCase {
 
         // Landscape lays the controls out as a side rail rather than a bar.
         XCUIDevice.shared.orientation = .landscapeLeft
-        _ = app.buttons["Listen"].waitForExistence(timeout: 5)
+        _ = app.buttons["listen"].waitForExistence(timeout: 5)
         let landscapeShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         landscapeShot.name = "prompter-landscape"
         landscapeShot.lifetime = .keepAlways

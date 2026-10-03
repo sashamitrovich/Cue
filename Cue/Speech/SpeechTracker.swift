@@ -104,7 +104,7 @@ final class SpeechTracker: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 guard let self, self.shouldRun else { return }
                 guard status == .authorized else {
-                    self.errorMessage = "Speech recognition permission was denied. Enable it in Settings → Privacy & Security → Speech Recognition → On Cue."
+                    self.errorMessage = String(localized: "Speech recognition permission was denied. Enable it in Settings → Privacy & Security → Speech Recognition → On Cue.")
                     self.isListening = false
                     return
                 }
@@ -114,7 +114,7 @@ final class SpeechTracker: NSObject, ObservableObject {
                         if granted {
                             self.startEngine()
                         } else {
-                            self.errorMessage = "Microphone access was denied. Enable it in Settings → Privacy & Security → Microphone → On Cue."
+                            self.errorMessage = String(localized: "Microphone access was denied. Enable it in Settings → Privacy & Security → Microphone → On Cue.")
                             self.isListening = false
                         }
                     }
@@ -210,7 +210,7 @@ final class SpeechTracker: NSObject, ObservableObject {
                 } else {
                     // iOS is telling us not to resume on our own — say so
                     // rather than leaving a dead prompter looking live.
-                    self.errorMessage = "Listening stopped when another app took the microphone. Tap play to carry on."
+                    self.errorMessage = String(localized: "Listening stopped when another app took the microphone. Tap play to carry on.")
                 }
             @unknown default:
                 break
@@ -225,7 +225,7 @@ final class SpeechTracker: NSObject, ObservableObject {
             // "isn't available right now" sends the reader looking for a
             // network problem instead.
             let name = SpeechLocales.label(for: Locale(identifier: localeIdentifier))
-            errorMessage = "Speech recognition isn't available for \(name) on this device. Pick another language in the prompter settings."
+            errorMessage = String(localized: "Speech recognition isn't available for \(name) on this device. Pick another language in the prompter settings.")
             return
         }
         stopEngine()
@@ -240,7 +240,7 @@ final class SpeechTracker: NSObject, ObservableObject {
         PrompterAudioSession.activate { [weak self] error in
             guard let self, self.startGeneration == generation, self.shouldRun else { return }
             if let error {
-                self.errorMessage = "Couldn't configure the audio session: \(error.localizedDescription)"
+                self.errorMessage = String(localized: "Couldn't configure the audio session: \(error.localizedDescription)")
                 self.isListening = false
                 self.settleAudioSession()
                 return
@@ -298,7 +298,7 @@ final class SpeechTracker: NSObject, ObservableObject {
         do {
             try audioEngine.start()
         } catch {
-            errorMessage = "Couldn't start the microphone: \(error.localizedDescription)"
+            errorMessage = String(localized: "Couldn't start the microphone: \(error.localizedDescription)")
             return
         }
 
@@ -360,7 +360,7 @@ final class SpeechTracker: NSObject, ObservableObject {
             startEngine()
             return
         }
-        errorMessage = "Speech recognition stopped: \((error as NSError).localizedDescription)"
+        errorMessage = String(localized: "Speech recognition stopped: \((error as NSError).localizedDescription)")
         stopEngine()
         isListening = false
     }

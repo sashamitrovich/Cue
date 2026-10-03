@@ -1,6 +1,9 @@
 name: Cue
 options:
   bundleIdPrefix: app.cueprompter
+  # English is the source language; Localizable.xcstrings / InfoPlist.xcstrings carry
+  # pt-BR, it and es (#21). Strings are extracted at build (SWIFT_EMIT_LOC_STRINGS).
+  developmentLanguage: en
   deploymentTarget:
     iOS: "16.0"
   # A fresh clone has no Signing.xcconfig — generation must still succeed.
@@ -20,7 +23,9 @@ configFiles:
 # ci_pre_xcodebuild.sh to stamp CFBundleVersion into both bundles.
 settings:
   base:
-    MARKETING_VERSION: "1.5.7"
+    SWIFT_EMIT_LOC_STRINGS: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    MARKETING_VERSION: "1.5.8"
 targets:
   Cue:
     type: application

@@ -101,6 +101,7 @@ struct SetupView: View {
                         Image(systemName: "questionmark.circle")
                     }
                     .accessibilityLabel("How On Cue works")
+                    .accessibilityIdentifier("help")
                 }
             }
         }
@@ -232,7 +233,9 @@ struct SetupView: View {
         let seconds = ReadingPace.seconds(forWords: count, wpm: state.targetWPM)
         return HStack(spacing: 6) {
             Image(systemName: "clock")
-            Text("\(count) word\(count == 1 ? "" : "s") · about \(ReadingPace.timeString(seconds)) at a")
+            // One key with plural variations in Localizable.xcstrings (#21): the old
+            // "word" + "s" suffix could not be translated.
+            Text("\(count) words · about \(ReadingPace.timeString(seconds)) at a")
             Menu {
                 Picker("Pace", selection: $state.targetWPM) {
                     ForEach(ReadingPace.namedPaces, id: \.wpm) { pace in
@@ -267,6 +270,7 @@ struct SetupView: View {
         .tint(PrompterView.accent)
         .foregroundStyle(.black)
         .disabled(scriptIsEmpty)
+        .accessibilityIdentifier("startPrompting")
     }
 
     /// Which language the prompter will listen in, before it matters rather
@@ -298,6 +302,7 @@ struct SetupView: View {
                 }
             }
             .accessibilityLabel("Speech recognition language, \(SpeechLocales.label(for: Locale(identifier: state.recognitionLocale)))")
+            .accessibilityIdentifier("languagePicker")
             Spacer(minLength: 0)
         }
         .font(.caption)
@@ -362,7 +367,7 @@ struct SetupView: View {
         importError = nil
         switch result {
         case .failure(let error):
-            importError = "Couldn't open that file: \(error.localizedDescription)"
+            importError = String(localized: "Couldn't open that file: \(error.localizedDescription)")
         case .success(let urls):
             guard let url = urls.first else { return }
             // Documents picked outside the app's container are security-scoped
@@ -373,14 +378,14 @@ struct SetupView: View {
                 let data = try Data(contentsOf: url)
                 guard let text = ScriptImporter.text(from: data, fileExtension: url.pathExtension),
                       !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    importError = "\(url.lastPathComponent) didn't contain any readable text."
+                    importError = String(localized: "\(url.lastPathComponent) didn't contain any readable text.")
                     return
                 }
                 pendingSave?.cancel()
                 openedFileURL = url
                 state.loadScript(text)
             } catch {
-                importError = "Couldn't read \(url.lastPathComponent): \(error.localizedDescription)"
+                importError = String(localized: "Couldn't read \(url.lastPathComponent): \(error.localizedDescription)")
             }
         }
     }
@@ -407,7 +412,7 @@ struct SetupView: View {
         do {
             try data.write(to: url, options: .atomic)
         } catch {
-            importError = "Couldn't save to \(url.lastPathComponent): \(error.localizedDescription)"
+            importError = String(localized: "Couldn't save to \(url.lastPathComponent): \(error.localizedDescription)")
         }
     }
 }

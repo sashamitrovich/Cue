@@ -71,7 +71,7 @@ final class CameraController: NSObject, ObservableObject {
             AVCaptureDevice.requestAccess(for: .audio) { audioOK in
                 DispatchQueue.main.async {
                     guard videoOK, audioOK else {
-                        self.errorMessage = "Camera and microphone access are required to record."
+                        self.errorMessage = String(localized: "Camera and microphone access are required to record.")
                         return
                     }
                     self.setup()
@@ -322,7 +322,7 @@ final class CameraController: NSObject, ObservableObject {
             capabilities.supportsHDR = device.activeFormat.isVideoHDRSupported
         } catch {
             session.commitConfiguration()
-            errorMessage = "Couldn't change quality: \(error.localizedDescription)"
+            errorMessage = String(localized: "Couldn't change quality: \(error.localizedDescription)")
         }
     }
 
@@ -337,7 +337,7 @@ final class CameraController: NSObject, ObservableObject {
             device.unlockForConfiguration()
             hdrEnabled = enabled
         } catch {
-            errorMessage = "Couldn't change HDR: \(error.localizedDescription)"
+            errorMessage = String(localized: "Couldn't change HDR: \(error.localizedDescription)")
         }
     }
 
@@ -356,7 +356,7 @@ final class CameraController: NSObject, ObservableObject {
             device.unlockForConfiguration()
             lowLightBoostEnabled = enabled
         } catch {
-            errorMessage = "Couldn't change low-light boost: \(error.localizedDescription)"
+            errorMessage = String(localized: "Couldn't change low-light boost: \(error.localizedDescription)")
         }
     }
 
@@ -477,7 +477,7 @@ extension CameraController: AVCaptureFileOutputRecordingDelegate {
         }
         if let error = error {
             DispatchQueue.main.async {
-                self.errorMessage = "Recording error: \(error.localizedDescription)"
+                self.errorMessage = String(localized: "Recording error: \(error.localizedDescription)")
             }
             Self.discard(outputFileURL)
             return
@@ -486,7 +486,7 @@ extension CameraController: AVCaptureFileOutputRecordingDelegate {
         PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
             guard status == .authorized || status == .limited else {
                 DispatchQueue.main.async {
-                    self.errorMessage = "Enable Photos access to save your take (it's still on disk as \(outputFileURL.lastPathComponent))."
+                    self.errorMessage = String(localized: "Enable Photos access to save your take (it's still on disk as \(outputFileURL.lastPathComponent)).")
                 }
                 return
             }
@@ -501,10 +501,10 @@ extension CameraController: AVCaptureFileOutputRecordingDelegate {
                         // whether minutes of talking had been kept was to
                         // leave and open Photos.
                         self.savedMessage = seconds >= 1
-                            ? "Take saved to Photos · \(Self.durationLabel(seconds))"
-                            : "Take saved to Photos"
+                            ? String(localized: "Take saved to Photos · \(Self.durationLabel(seconds))")
+                            : String(localized: "Take saved to Photos")
                     } else {
-                        self.errorMessage = "Couldn't save to Photos: \(error?.localizedDescription ?? "unknown error")"
+                        self.errorMessage = String(localized: "Couldn't save to Photos: \(error?.localizedDescription ?? String(localized: "unknown error"))")
                     }
                 }
                 // Photos has its own copy now. Leaving these behind meant

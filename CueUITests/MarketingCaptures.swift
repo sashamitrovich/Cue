@@ -138,8 +138,8 @@ final class MarketingCaptures: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera", "-uiTestingCursorAt", "18"]
         stage(app)
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
         attach(XCUIScreen.main.screenshot(), named: "m-listening")
     }
 
@@ -148,8 +148,8 @@ final class MarketingCaptures: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera", "-uiTestingCursorAt", "58", "-uiTestingMirrorOn"]
         stage(app)
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
         attach(XCUIScreen.main.screenshot(), named: "m-mirroring")
     }
 
@@ -158,8 +158,8 @@ final class MarketingCaptures: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera", "-uiTestingCursorAt", "18", "-uiTestingShowCountdown"]
         stage(app)
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Restart"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["restart"].waitForExistence(timeout: 5))
         attach(XCUIScreen.main.screenshot(), named: "m-leader")
     }
 
@@ -170,8 +170,8 @@ final class MarketingCaptures: XCTestCase {
         // of the same paragraph read as a duplicate in the App Store set.
         app.launchArguments = ["-uiTestingNoCamera", "-uiTestingCursorAt", "96", "-uiTestingShowRecording"]
         stage(app)
-        app.buttons["Start prompting →"].tap()
-        XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout: 5))
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["record"].waitForExistence(timeout: 5))
         attach(XCUIScreen.main.screenshot(), named: "m-recording")
     }
 
@@ -180,7 +180,29 @@ final class MarketingCaptures: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
         stage(app)
-        XCTAssertTrue(app.buttons["Start prompting →"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["startPrompting"].waitForExistence(timeout: 5))
         attach(XCUIScreen.main.screenshot(), named: "m-editor")
+    }
+
+    /// Review captures for #21: the settings sheet and help, where longer
+    /// translations are most likely to truncate. Not used for the App Store.
+    func testSettingsSheet() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera"]
+        stage(app)
+        app.buttons["startPrompting"].tap()
+        XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
+        app.buttons["prompterSettings"].tap()
+        XCTAssertTrue(app.buttons["done"].waitForExistence(timeout: 5))
+        attach(XCUIScreen.main.screenshot(), named: "r-settings")
+    }
+
+    func testHelpSheet() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera"]
+        stage(app)
+        app.buttons["help"].tap()
+        XCTAssertTrue(app.buttons["done"].waitForExistence(timeout: 5))
+        attach(XCUIScreen.main.screenshot(), named: "r-help")
     }
 }

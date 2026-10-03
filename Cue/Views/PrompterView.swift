@@ -1005,15 +1005,16 @@ struct PrompterView: View {
         glassButton(
             icon: state.cameraEnabled ? "video.fill" : "video.slash.fill",
             label: state.cameraEnabled ? "Turn camera off" : "Turn camera on",
+            id: "camera",
             tinted: state.cameraEnabled
         ) { toggleCamera() }
         .disabled(camera.isRecording)
 
-        glassButton(icon: "slider.horizontal.3", label: "Prompter settings") {
+        glassButton(icon: "slider.horizontal.3", label: "Prompter settings", id: "prompterSettings") {
             showSettings = true
         }
 
-        glassButton(icon: "xmark", label: "Exit") {
+        glassButton(icon: "xmark", label: "Exit", id: "exit") {
             pauseTake()
             camera.stop()
             dismiss()
@@ -1190,7 +1191,7 @@ struct PrompterView: View {
     @ViewBuilder
     private func controlButtons(compact: Bool = false) -> some View {
         Group {
-        takeButton(icon: "arrow.counterclockwise", label: "Restart", compact: compact) {
+        takeButton(icon: "arrow.counterclockwise", label: "Restart", id: "restart", compact: compact) {
             state.activeIndex = 0
             cursorJumped = true
             state.resyncMatcher()
@@ -1202,6 +1203,7 @@ struct PrompterView: View {
         takeButton(
             icon: countdownRemaining != nil ? "xmark" : (state.isListening ? "pause.fill" : "play.fill"),
             label: countdownRemaining != nil ? "Cancel" : (state.isListening ? "Pause" : "Listen"),
+            id: "listen",
             primary: true,
             compact: compact
         ) {
@@ -1218,6 +1220,7 @@ struct PrompterView: View {
             takeButton(
                 icon: camera.isRecording ? "stop.fill" : "circle.fill",
                 label: camera.isRecording ? "Stop" : "Record",
+                id: "record",
                 recording: camera.isRecording,
                 compact: compact
             ) {
@@ -1271,9 +1274,12 @@ struct PrompterView: View {
     /// size and weight, so the accent fill on the primary action is the only
     /// thing that stands out.
     @ViewBuilder
+    /// `label` is what's shown and read out, translated; `id` is the stable
+    /// accessibility identifier the UI tests find it by in any language (#21).
     private func takeButton(
         icon: String,
-        label: String,
+        label: LocalizedStringKey,
+        id: String,
         primary: Bool = false,
         on: Bool = false,
         recording: Bool = false,
@@ -1315,6 +1321,7 @@ struct PrompterView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+        .accessibilityIdentifier(id)
     }
 
     /// A one-time hint that the prompter takes spoken instructions. Sits
@@ -1626,8 +1633,8 @@ struct PrompterView: View {
     /// something that was demonstrably already running. `takeIsLive` covers
     /// recording as well, so a live take always reads as live.
     private var statusText: String {
-        if countdownRemaining != nil { return "Get ready…" }
-        return takeIsLive ? "Tap pause to stop listening" : "Tap play to begin"
+        if countdownRemaining != nil { return String(localized: "Get ready…") }
+        return takeIsLive ? String(localized: "Tap pause to stop listening") : String(localized: "Tap play to begin")
     }
 
     /// Starts a take, after the pre-roll if one is configured.
@@ -1785,7 +1792,7 @@ struct PrompterView: View {
     /// A small circular control for the things that aren't part of running a
     /// take: camera, settings, exit.
     @ViewBuilder
-    private func glassButton(icon: String, label: String, tinted: Bool = false, action: @escaping () -> Void) -> some View {
+    private func glassButton(icon: String, label: LocalizedStringKey, id: String, tinted: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .semibold))
@@ -1796,6 +1803,7 @@ struct PrompterView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+        .accessibilityIdentifier(id)
     }
 
     private func timeString(_ seconds: Int) -> String {
