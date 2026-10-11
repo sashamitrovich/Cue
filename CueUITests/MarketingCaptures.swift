@@ -20,6 +20,11 @@ final class MarketingCaptures: XCTestCase {
         if let script = Self.scripts[locale] {
             let appleLocale = ["pt-BR": "pt_BR", "it": "it_IT", "es-MX": "es_MX", "es-ES": "es_ES", "ru": "ru_RU", "uk": "uk_UA", "ar": "ar_SA", "de": "de_DE", "en-US": "en_US"][locale] ?? locale
             app.launchArguments += ["-AppleLanguages", "(\(locale))", "-AppleLocale", appleLocale]
+            // Languages with an on-device model on iOS 26 (#25): show their
+            // real "works offline" state rather than the simulator's.
+            if ["en-US", "de", "pt-BR", "it", "es-ES", "es-MX"].contains(locale) {
+                app.launchArguments.append("-uiTestingOfflineReady")
+            }
             app.launchEnvironment["UITEST_SCRIPT"] = script
         }
         app.launch()

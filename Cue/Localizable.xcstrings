@@ -2938,30 +2938,30 @@
         }
       }
     },
-    "Speech recognition runs on your device (uses the same local model for keyboard dictation). If it hasn't downloaded the speech model, iOS falls back to Apple's speech service and sends audio there to transcribe. Recordings are only ever saved to your own Photos library.": {
+    "Speech recognition runs on your device for most languages, so it's fast and works offline. Languages without a local model use Apple's server-based speech recognition, as Dictation does. Your script never leaves your device, and recordings are saved only to your own Photos library.": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "O reconhecimento de fala roda no seu dispositivo (usa o mesmo modelo local do ditado do teclado). Se o modelo de fala não tiver sido baixado, o iOS recorre ao serviço de fala da Apple e envia o áudio para lá para transcrição. As gravações são salvas somente na sua própria biblioteca do Fotos."
+            "value": "O reconhecimento de fala funciona no próprio dispositivo na maioria dos idiomas, por isso é rápido e funciona offline. Os idiomas sem modelo local usam o reconhecimento de fala em servidor da Apple, como o Ditado. Seu roteiro nunca sai do dispositivo, e as gravações são salvas só na sua própria Fototeca."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "El reconocimiento de voz se ejecuta en tu dispositivo (usa el mismo modelo local que el dictado del teclado). Si no se ha descargado el modelo de voz, iOS recurre al servicio de voz de Apple y le envía el audio para transcribirlo. Las grabaciones solo se guardan en tu propia fototeca de Fotos."
+            "value": "El reconocimiento de voz funciona en tu dispositivo en la mayoría de los idiomas, así que es rápido y funciona sin conexión. Los idiomas sin modelo local usan el reconocimiento de voz en servidor de Apple, como el dictado. Tu guion nunca sale de tu dispositivo, y las grabaciones solo se guardan en tu propia fototeca."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Il riconoscimento vocale funziona sul tuo dispositivo (usa lo stesso modello locale della dettatura da tastiera). Se non ha scaricato il modello vocale, iOS ripiega sul servizio vocale di Apple e invia lì l'audio per trascriverlo. Le registrazioni vengono salvate solo nella tua libreria Foto."
+            "value": "Il riconoscimento vocale funziona sul dispositivo nella maggior parte delle lingue, quindi è veloce e funziona anche offline. Le lingue senza un modello locale usano il riconoscimento vocale su server di Apple, come la dettatura. Il tuo copione non lascia mai il dispositivo e le registrazioni vengono salvate solo nella tua libreria Foto."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Spracherkennung läuft auf deinem Gerät (mit demselben lokalen Modell wie das Diktieren über die Tastatur). Ist das Sprachmodell nicht geladen, weicht iOS auf Apples Sprachdienst aus und sendet den Ton zur Transkription dorthin. Aufnahmen werden ausschließlich in deiner eigenen Fotos-Mediathek gespeichert."
+            "value": "Die Spracherkennung läuft bei den meisten Sprachen direkt auf deinem Gerät – schnell und auch offline. Sprachen ohne lokales Modell nutzen Apples serverbasierte Spracherkennung, wie die Diktierfunktion. Dein Skript verlässt dein Gerät nie, und Aufnahmen werden nur in deiner eigenen Fotomediathek gespeichert."
           }
         }
       }

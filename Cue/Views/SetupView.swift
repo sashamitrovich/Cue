@@ -395,7 +395,7 @@ struct SetupView: View {
     }
 
     private var footnote: some View {
-        Text("Speech recognition runs on your device (uses the same local model for keyboard dictation). If it hasn't downloaded the speech model, iOS falls back to Apple's speech service and sends audio there to transcribe. Recordings are only ever saved to your own Photos library.")
+        Text("Speech recognition runs on your device for most languages, so it's fast and works offline. Languages without a local model use Apple's server-based speech recognition, as Dictation does. Your script never leaves your device, and recordings are saved only to your own Photos library.")
             .font(.caption)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)

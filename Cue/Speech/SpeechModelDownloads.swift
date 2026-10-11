@@ -60,6 +60,14 @@ final class SpeechModelDownloads: ObservableObject {
     /// language change: a language already downloading is not started twice.
     func prepare(_ identifier: String) {
         statusIdentifier = identifier
+        // Store screenshots are taken on a simulator, which has no on-device
+        // speech at all and would label every language as server-only. The
+        // capture test passes this for the languages Apple has a local model
+        // for, so the editor shows what a real iOS 26 device shows.
+        if ProcessInfo.processInfo.arguments.contains("-uiTestingOfflineReady") {
+            status = .ready
+            return
+        }
         status = downloading.contains(identifier) ? status : .checking
         let classicOnly = SpeechTracker.forcesClassicEngine
         guard #available(iOS 26, *), !classicOnly else {
