@@ -2,7 +2,7 @@ name: Cue
 options:
   bundleIdPrefix: app.cueprompter
   # English is the source language; Localizable.xcstrings / InfoPlist.xcstrings carry
-  # pt-BR, it and es (#21). Strings are extracted at build (SWIFT_EMIT_LOC_STRINGS).
+  # pt-BR, it, es (#21) and de (#23). Strings are extracted at build (SWIFT_EMIT_LOC_STRINGS).
   developmentLanguage: en
   deploymentTarget:
     iOS: "16.0"

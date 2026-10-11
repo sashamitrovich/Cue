@@ -408,4 +408,22 @@ final class PrompterSmokeTests: XCTestCase {
         XCTAssertEqual(listen.label, "Ouvir")
         XCTAssertTrue(app.staticTexts["Toque em play para começar"].exists, "prompter status line is not Portuguese")
     }
+
+    /// #23: the same check in German, the longest of the interface languages,
+    /// so a missing `de` catalog entry or an English fallback fails here.
+    func testInterfaceInGerman() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestingNoCamera", "-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
+        app.launch()
+
+        let start = app.buttons["startPrompting"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        XCTAssertEqual(start.label, "Prompter starten →")
+
+        start.tap()
+        let listen = app.buttons["listen"]
+        XCTAssertTrue(listen.waitForExistence(timeout: 5))
+        XCTAssertEqual(listen.label, "Zuhören")
+        XCTAssertTrue(app.staticTexts["Tippe auf Play, um zu beginnen"].exists, "prompter status line is not German")
+    }
 }

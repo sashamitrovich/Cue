@@ -151,7 +151,8 @@ struct PrompterControlsSheet: View {
                 value: $state.targetWPM,
                 range: ReadingPace.wpmRange,
                 step: 5,
-                display: "\(Int(state.targetWPM)) wpm",
+                // The slider takes a plain String, so translate it here (#23).
+                display: String(localized: "\(Int(state.targetWPM)) wpm"),
                 icons: ("tortoise.fill", "hare.fill")
             )
         } header: {

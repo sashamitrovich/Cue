@@ -29,6 +29,12 @@
             "state": "translated",
             "value": "On Cue usa la cámara frontal para grabar tu toma."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue nutzt die Frontkamera, um deine Aufnahme zu filmen."
+          }
         }
       }
     },
@@ -58,6 +64,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "On Cue escucha tu voz para desplazar el guion mientras hablas."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue hört deine Stimme, um das Skript beim Sprechen mitzuscrollen."
           }
         }
       }
@@ -89,6 +101,12 @@
             "state": "translated",
             "value": "On Cue guarda las grabaciones terminadas en tu fototeca."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue speichert fertige Aufnahmen in deiner Fotos-Mediathek."
+          }
         }
       }
     },
@@ -118,6 +136,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "On Cue usa el reconocimiento de voz en el dispositivo para seguir por dónde vas en el guion."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue nutzt die Spracherkennung auf dem Gerät, um deine Stelle im Skript zu verfolgen."
           }
         }
       }

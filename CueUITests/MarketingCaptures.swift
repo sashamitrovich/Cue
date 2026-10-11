@@ -18,7 +18,7 @@ final class MarketingCaptures: XCTestCase {
     private func stage(_ app: XCUIApplication) {
         let locale = ProcessInfo.processInfo.environment["MARKETING_LOCALE"] ?? ""
         if let script = Self.scripts[locale] {
-            let appleLocale = ["pt-BR": "pt_BR", "it": "it_IT", "es-MX": "es_MX", "es-ES": "es_ES", "ru": "ru_RU", "uk": "uk_UA", "ar": "ar_SA", "en-US": "en_US"][locale] ?? locale
+            let appleLocale = ["pt-BR": "pt_BR", "it": "it_IT", "es-MX": "es_MX", "es-ES": "es_ES", "ru": "ru_RU", "uk": "uk_UA", "ar": "ar_SA", "de": "de_DE", "en-US": "en_US"][locale] ?? locale
             app.launchArguments += ["-AppleLanguages", "(\(locale))", "-AppleLocale", appleLocale]
             app.launchEnvironment["UITEST_SCRIPT"] = script
         }
@@ -38,6 +38,19 @@ final class MarketingCaptures: XCTestCase {
         You don't have to be perfect. Nobody remembers a small mistake; people remember how you made them feel.
 
         If these tips helped, tell me in the comments which one you'll try first. See you next time!
+        """,
+        "de": """
+        Hallo zusammen! Heute habe ich drei einfache Tipps für alle, die Angst davor haben, vor anderen zu sprechen.
+
+        Der erste: Atme durch, bevor du anfängst. Klingt selbstverständlich, aber kaum jemand macht es. Ein langsamer, tiefer Atemzug beruhigt die Stimme und gibt dir Zeit, den ersten Satz zu ordnen.
+
+        Der zweite Tipp: Sprich langsamer, als du glaubst, dass du musst. Wenn wir nervös sind, werden wir schneller, ohne es zu merken. Wer zuhört, braucht Zeit, um dem Gedanken zu folgen, und eine Pause an der richtigen Stelle ist mehr wert als jedes schwierige Wort.
+
+        Der dritte: Schau die Menschen an, nicht den Boden. Such dir ein freundliches Gesicht im Publikum und sprich mit ihm wie in einem Gespräch. Dann such dir das nächste. Nach ein paar Minuten hat der ganze Raum das Gefühl, dass du mit jedem Einzelnen sprichst.
+
+        Es muss nicht perfekt sein. Niemand erinnert sich an einen kleinen Fehler; die Leute erinnern sich daran, wie du ihnen das Gefühl gegeben hast.
+
+        Wenn dir diese Tipps geholfen haben, schreib in die Kommentare, welchen du zuerst ausprobierst. Bis zum nächsten Mal!
         """,
         "pt-BR": """
         Oi, pessoal! Hoje eu trouxe três dicas simples para quem tem medo de falar em público.

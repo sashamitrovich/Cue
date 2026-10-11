@@ -23,6 +23,12 @@
             "state": "translated",
             "value": "\"%@\" è stato condiviso con On Cue. Se lo usi, sostituisce lo script che hai qui."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ wurde mit On Cue geteilt. Wenn du es verwendest, ersetzt es dein aktuelles Skript."
+          }
         }
       }
     },
@@ -44,6 +50,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "\"scroll down\" o \"go on\""
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"scroll down\" oder \"go on\""
           }
         }
       }
@@ -67,6 +79,12 @@
             "state": "translated",
             "value": "\"scroll up\" o \"go back\""
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"scroll up\" oder \"go back\""
+          }
         }
       }
     },
@@ -88,6 +106,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ non può essere modificato qui"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ kann hier nicht bearbeitet werden"
           }
         }
       }
@@ -111,6 +135,12 @@
             "state": "translated",
             "value": "%@ non conteneva testo leggibile."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ enthielt keinen lesbaren Text."
+          }
         }
       }
     },
@@ -132,6 +162,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "ritmo %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@em Tempo"
           }
         }
       }
@@ -161,6 +197,12 @@
             "state": "translated",
             "value": "%@ · %lld ppm"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld W/min"
+          }
         }
       }
     },
@@ -189,6 +231,12 @@
             "state": "translated",
             "value": "%@%@ rimanenti"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%@ übrig"
+          }
         }
       }
     },
@@ -213,6 +261,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld percento"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Prozent"
           }
         }
       }
@@ -290,6 +344,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Wort · etwa %@ bei"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Wörter · etwa %@ bei"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -312,6 +384,12 @@
             "state": "translated",
             "value": "%lld ppm"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld W/min"
+          }
         }
       }
     },
@@ -330,6 +408,12 @@
           }
         },
         "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%llds"
+          }
+        },
+        "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%llds"
@@ -356,6 +440,12 @@
             "state": "translated",
             "value": "Un conto alla rovescia prima dell'ascolto, per controllare l'inquadratura e rilassarti prima di parlare. Tocca in un punto qualsiasi per annullare la partenza se non sei pronto."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Vorlauf, bevor das Zuhören beginnt, damit du den Bildausschnitt prüfen und dich sammeln kannst. Tippe irgendwo, um den Start abzubrechen, wenn du noch nicht bereit bist."
+          }
         }
       }
     },
@@ -377,6 +467,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Attenuazione del testo già letto"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gelesenen Text abdunkeln"
           }
         }
       }
@@ -400,6 +496,12 @@
             "state": "translated",
             "value": "Pronto"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereit"
+          }
         }
       }
     },
@@ -421,6 +523,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Prima di iniziare"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bevor du beginnst"
           }
         }
       }
@@ -444,6 +552,12 @@
             "state": "translated",
             "value": "Fotocamera"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamera"
+          }
         }
       }
     },
@@ -465,6 +579,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Per registrare serve l'accesso a fotocamera e microfono."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für die Aufnahme braucht On Cue Zugriff auf Kamera und Mikrofon."
           }
         }
       }
@@ -488,6 +608,12 @@
             "state": "translated",
             "value": "Annulla"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
+          }
         }
       }
     },
@@ -509,6 +635,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ripresa"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme"
           }
         }
       }
@@ -532,6 +664,12 @@
             "state": "translated",
             "value": "Impossibile cambiare HDR: %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HDR konnte nicht geändert werden: %@"
+          }
         }
       }
     },
@@ -553,6 +691,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Impossibile cambiare il potenziamento con poca luce: %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schwachlicht-Verstärkung konnte nicht geändert werden: %@"
           }
         }
       }
@@ -576,6 +720,12 @@
             "state": "translated",
             "value": "Impossibile cambiare la qualità: %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualität konnte nicht geändert werden: %@"
+          }
         }
       }
     },
@@ -598,6 +748,12 @@
             "state": "translated",
             "value": "Impossibile configurare la sessione audio: %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audiositzung konnte nicht eingerichtet werden: %@"
+          }
         }
       }
     },
@@ -619,6 +775,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Impossibile aprire il file: %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datei konnte nicht geöffnet werden: %@"
           }
         }
       }
@@ -648,6 +810,12 @@
             "state": "translated",
             "value": "Impossibile leggere %@: %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ konnte nicht gelesen werden: %@"
+          }
         }
       }
     },
@@ -676,6 +844,12 @@
             "state": "translated",
             "value": "Impossibile salvare in %@: %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speichern in %@ fehlgeschlagen: %@"
+          }
         }
       }
     },
@@ -697,6 +871,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Impossibile salvare in Foto: %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speichern in Fotos fehlgeschlagen: %@"
           }
         }
       }
@@ -720,6 +900,12 @@
             "state": "translated",
             "value": "Impossibile avviare il microfono: %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofon konnte nicht gestartet werden: %@"
+          }
         }
       }
     },
@@ -741,6 +927,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Conto alla rovescia"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Countdown"
           }
         }
       }
@@ -764,6 +956,12 @@
             "state": "translated",
             "value": "Oscura"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dimmen"
+          }
         }
       }
     },
@@ -785,6 +983,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fine"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
           }
         }
       }
@@ -808,6 +1012,12 @@
             "state": "translated",
             "value": "Fine modifica"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bearbeitung beenden"
+          }
         }
       }
     },
@@ -830,6 +1040,12 @@
             "state": "translated",
             "value": "Trascina lo script con il dito"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zieh das Skript mit dem Finger"
+          }
         }
       }
     },
@@ -851,6 +1067,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Modifica di %@ — le modifiche si salvano automaticamente"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ wird bearbeitet – Änderungen werden automatisch gespeichert"
           }
         }
       }
@@ -880,6 +1102,12 @@
             "state": "translated",
             "value": "Trascorso %@, circa %@ rimanenti"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ vergangen, noch etwa %@"
+          }
         }
       }
     },
@@ -901,6 +1129,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tempo di parlato trascorso, una stima di quello che resta e il tuo ritmo. La stima è contrassegnata da ~ finché On Cue non ha ascoltato abbastanza della ripresa da misurare quanto velocemente parli davvero."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vergangene Sprechzeit, eine Schätzung der Restzeit und dein Tempo. Die Schätzung ist mit ~ markiert, bis On Cue genug von der Aufnahme gehört hat, um zu messen, wie schnell du tatsächlich sprichst."
           }
         }
       }
@@ -924,6 +1158,12 @@
             "state": "translated",
             "value": "Attiva l'accesso a Foto per salvare la ripresa (è ancora sul dispositivo come %@)."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erlaube den Zugriff auf Fotos, um deine Aufnahme zu sichern (sie liegt noch als %@ auf dem Gerät)."
+          }
         }
       }
     },
@@ -945,6 +1185,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ritmo di lettura stimato: %lld parole al minuto"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geschätztes Lesetempo: %lld Wörter pro Minute"
           }
         }
       }
@@ -968,6 +1214,12 @@
             "state": "translated",
             "value": "Esci"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beenden"
+          }
         }
       }
     },
@@ -989,6 +1241,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Trova l'obiettivo"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blick zur Linse"
           }
         }
       }
@@ -1012,6 +1270,12 @@
             "state": "translated",
             "value": "Capovolge lo script dall'alto in basso per i teleprompter che riflettono lo schermo su un vetro davanti all'obiettivo; il riflesso lo rimette per il verso giusto. I controlli restano esattamente dove sono e si leggono normalmente, perché li guardi direttamente e non attraverso il vetro. Leggi direttamente dal telefono? Lascialo disattivato."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stellt das Skript auf den Kopf – für Teleprompter-Aufbauten, die den Bildschirm über eine Glasscheibe vor der Linse spiegeln; die Spiegelung dreht es wieder richtig herum. Die Bedienelemente bleiben genau, wo sie sind, und lesen sich normal, weil du sie direkt ansiehst und nicht durch das Glas. Liest du direkt vom Telefon? Dann lass es aus."
+          }
         }
       }
     },
@@ -1033,6 +1297,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Frequenza fotogrammi"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildrate"
           }
         }
       }
@@ -1056,6 +1326,12 @@
             "state": "translated",
             "value": "Da un'altra app — Note, Mail, File, Drive — tocca Condividi e scegli On Cue. Lo script aspetta qui e ti chiede conferma prima di sostituire quello che hai già. Un Documento Google si condivide come link e non come testo, quindi usa \"Invia una copia\" e scegli testo semplice o testo formattato."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe in einer anderen App – Notizen, Mail, Dateien, Drive – auf Teilen und wähle On Cue. Das Skript wartet hier auf dich, und On Cue fragt, bevor es dein vorhandenes Skript ersetzt. Ein Google-Dokument wird als Link statt als Text geteilt; nutze daher „Kopie senden“ und wähle Nur-Text oder Rich Text."
+          }
         }
       }
     },
@@ -1077,6 +1353,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Preparati…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gleich geht’s los …"
           }
         }
       }
@@ -1103,6 +1385,12 @@
             "state": "translated",
             "value": "Video HDR"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HDR-Video"
+          }
         }
       }
     },
@@ -1124,6 +1412,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Come funziona On Cue"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "So funktioniert On Cue"
           }
         }
       }
@@ -1147,6 +1441,12 @@
             "state": "translated",
             "value": "Importa"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importieren"
+          }
         }
       }
     },
@@ -1168,6 +1468,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "In orizzontale i controlli si spostano in una barra sul lato in cui si trovavano, così restano sotto lo stesso pollice e non occupano più l'altezza che serve allo script."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Querformat wandern die Bedienelemente in eine Leiste an der Seite, auf der sie schon waren – so bleiben sie unter demselben Daumen und nehmen dem Skript keine Höhe weg."
           }
         }
       }
@@ -1191,6 +1497,12 @@
             "state": "translated",
             "value": "In modalità ascolto, riporta lo script indietro di una riga sullo schermo e sposta il cursore con esso, così quella riga risulta di nuovo da leggere. Ripetilo per tornare ancora indietro."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Zuhören springt das Skript eine Bildschirmzeile zurück, und die Markierung wandert mit, sodass diese Zeile wieder als ungelesen gilt. Sag es noch einmal, um weiter zurückzugehen."
+          }
         }
       }
     },
@@ -1212,6 +1524,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nel teleprompter"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Prompter"
           }
         }
       }
@@ -1235,6 +1553,12 @@
             "state": "translated",
             "value": "Usa il modello vocale del tuo telefono"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es nutzt das Sprachmodell deines Telefons"
+          }
         }
       }
     },
@@ -1256,6 +1580,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Torna alla prima parola e riavvia il conteggio del tempo."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Springt zum ersten Wort zurück und startet die Zeitmessung neu."
           }
         }
       }
@@ -1279,6 +1609,12 @@
             "state": "translated",
             "value": "Tieni il mio"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meins behalten"
+          }
         }
       }
     },
@@ -1300,6 +1636,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lingua"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprache"
           }
         }
       }
@@ -1323,6 +1665,12 @@
             "state": "translated",
             "value": "Ascolta"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zuhören"
+          }
         }
       }
     },
@@ -1344,6 +1692,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ascolta / Pausa"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zuhören / Pause"
           }
         }
       }
@@ -1367,6 +1721,12 @@
             "state": "translated",
             "value": "In ascolto in"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hört zu auf"
+          }
         }
       }
     },
@@ -1388,6 +1748,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "L'ascolto si è interrotto perché un'altra app ha preso il microfono. Tocca play per continuare."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Zuhören wurde beendet, weil eine andere App das Mikrofon übernommen hat. Tippe auf Play, um weiterzumachen."
           }
         }
       }
@@ -1411,6 +1777,12 @@
             "state": "translated",
             "value": "Carica uno script da File o iCloud Drive — .txt, .md o .rtf. Le interruzioni di riga e le righe vuote vengono mantenute, quindi lascia una riga vuota dove vuoi spazio per improvvisare. Puoi modificare lo script per i ritocchi finali e le modifiche si salvano automaticamente."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lade ein Skript aus Dateien oder iCloud Drive – .txt, .md oder .rtf. Zeilenumbrüche und Leerzeilen bleiben erhalten; lass also eine Leerzeile, wo du Raum zum Improvisieren willst. Du kannst das Skript für den letzten Schliff bearbeiten, Änderungen werden automatisch gespeichert."
+          }
         }
       }
     },
@@ -1432,6 +1804,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Potenziamento con poca luce"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schwachlicht-Verstärkung"
           }
         }
       }
@@ -1455,6 +1833,12 @@
             "state": "translated",
             "value": "L'accesso al microfono è stato negato. Attivalo in Impostazioni → Privacy e sicurezza → Microfono → On Cue."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Zugriff auf das Mikrofon wurde verweigert. Aktiviere ihn unter Einstellungen → Datenschutz & Sicherheit → Mikrofon → On Cue."
+          }
         }
       }
     },
@@ -1477,6 +1861,12 @@
             "state": "translated",
             "value": "Specchio"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiegeln"
+          }
         }
       }
     },
@@ -1498,6 +1888,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nessuno"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus"
           }
         }
       }
@@ -1524,6 +1920,12 @@
             "state": "translated",
             "value": "On Cue segue il tuo script nella lingua impostata qui; una nuova ripresa la usa. Di' \"scroll up\" per tornare indietro di una riga, o \"scroll down\" per andare avanti di una riga — ripeti per andare oltre. Le parole dei comandi non vengono lette come script. Se il tuo script stesso contiene una di queste frasi in quel punto, viene letta e non eseguita; disattiva questa opzione se continua a darti fastidio. I comandi vocali sono riconosciuti solo in inglese, qualunque sia la lingua dello script."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Cue folgt deinem Skript in der hier eingestellten Sprache; eine neue Aufnahme verwendet sie. Sag \"scroll up\", um eine Zeile zurückzugehen, oder \"scroll down\" für eine Zeile vor – wiederhole es, um weiterzugehen. Befehlswörter werden nicht als Skript gelesen. Steht eine dieser Wendungen an dieser Stelle selbst im Skript, wird sie gelesen statt ausgeführt; schalte die Funktion aus, wenn sie trotzdem stört. Sprachbefehle werden nur auf Englisch erkannt, egal in welcher Sprache das Skript ist."
+          }
         }
       }
     },
@@ -1545,6 +1947,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apri"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnen"
           }
         }
       }
@@ -1568,6 +1976,12 @@
             "state": "translated",
             "value": "Apri un file di script"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriptdatei öffnen"
+          }
         }
       }
     },
@@ -1589,6 +2003,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sopra la fotocamera"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Über dem Kamerabild"
           }
         }
       }
@@ -1612,6 +2032,12 @@
             "state": "translated",
             "value": "Ritmo"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tempo"
+          }
         }
       }
     },
@@ -1633,6 +2059,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pausa"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause"
           }
         }
       }
@@ -1656,6 +2088,12 @@
             "state": "translated",
             "value": "Teleprompter"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prompter"
+          }
         }
       }
     },
@@ -1677,6 +2115,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Impostazioni del teleprompter"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prompter-Einstellungen"
           }
         }
       }
@@ -1700,6 +2144,12 @@
             "state": "translated",
             "value": "Aumenta Oscura per scurire l'immagine dietro le parole. Abbassa Testo per vederti di più attraverso di esse."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erhöhe Dimmen, um das Bild hinter den Wörtern abzudunkeln. Senke Text, um mehr von dir durch sie hindurch zu sehen."
+          }
         }
       }
     },
@@ -1721,6 +2171,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lettura"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lesen"
           }
         }
       }
@@ -1744,6 +2200,12 @@
             "state": "translated",
             "value": "Riga di lettura"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leselinie"
+          }
         }
       }
     },
@@ -1765,6 +2227,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Posizione della riga di lettura"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Position der Leselinie"
           }
         }
       }
@@ -1788,6 +2256,12 @@
             "state": "translated",
             "value": "Registra"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme"
+          }
         }
       }
     },
@@ -1809,6 +2283,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Registra con la fotocamera frontale"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit der Frontkamera aufnehmen"
           }
         }
       }
@@ -1832,6 +2312,12 @@
             "state": "translated",
             "value": "Errore di registrazione: %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmefehler: %@"
+          }
         }
       }
     },
@@ -1853,6 +2339,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dimensione e frequenza fotogrammi della registrazione, offerte solo nei limiti di ciò che supporta la fotocamera frontale del tuo dispositivo. Interrompi la registrazione per cambiarle."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auflösung und Bildrate der Aufnahme – angeboten, soweit die Frontkamera deines Geräts sie unterstützt. Beende die Aufnahme, um sie zu ändern."
           }
         }
       }
@@ -1876,6 +2368,12 @@
             "state": "translated",
             "value": "Registra una ripresa dalla fotocamera. La registrazione viene salvata in Foto quando ti fermi."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nimmt mit der Kamera auf. Die Aufnahme wird in Fotos gespeichert, sobald du stoppst."
+          }
         }
       }
     },
@@ -1897,6 +2395,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Riavvia"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neustart"
           }
         }
       }
@@ -1920,6 +2424,12 @@
             "state": "translated",
             "value": "Salvato nella tua libreria Foto al termine."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird am Ende in deiner Fotos-Mediathek gespeichert."
+          }
         }
       }
     },
@@ -1941,6 +2451,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Di' **\"scroll up\"** per tornare indietro di una riga"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sag **\"scroll up\"**, um eine Zeile zurückzugehen"
           }
         }
       }
@@ -1964,6 +2480,12 @@
             "state": "translated",
             "value": "Script"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skript"
+          }
         }
       }
     },
@@ -1985,6 +2507,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Condividi uno script con On Cue"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Skript an On Cue teilen"
           }
         }
       }
@@ -2008,6 +2536,12 @@
             "state": "translated",
             "value": "Mostra il tempo"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeiten anzeigen"
+          }
         }
       }
     },
@@ -2029,6 +2563,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Margini laterali"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seitenränder"
           }
         }
       }
@@ -2052,6 +2592,12 @@
             "state": "translated",
             "value": "Dimensione"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Größe"
+          }
         }
       }
     },
@@ -2073,6 +2619,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Il riconoscimento vocale non è disponibile per %@ su questo dispositivo. Scegli un'altra lingua nelle impostazioni del teleprompter."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spracherkennung ist für %@ auf diesem Gerät nicht verfügbar. Wähle in den Prompter-Einstellungen eine andere Sprache."
           }
         }
       }
@@ -2096,6 +2648,12 @@
             "state": "translated",
             "value": "Lingua del riconoscimento vocale, %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprache der Spracherkennung, %@"
+          }
         }
       }
     },
@@ -2117,6 +2675,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "L'autorizzazione al riconoscimento vocale è stata negata. Attivala in Impostazioni → Privacy e sicurezza → Riconoscimento vocale → On Cue."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Berechtigung zur Spracherkennung wurde verweigert. Aktiviere sie unter Einstellungen → Datenschutz & Sicherheit → Spracherkennung → On Cue."
           }
         }
       }
@@ -2140,6 +2704,12 @@
             "state": "translated",
             "value": "Il riconoscimento vocale funziona sul tuo dispositivo (usa lo stesso modello locale della dettatura da tastiera). Se non ha scaricato il modello vocale, iOS ripiega sul servizio vocale di Apple e invia lì l'audio per trascriverlo. Le registrazioni vengono salvate solo nella tua libreria Foto."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Spracherkennung läuft auf deinem Gerät (mit demselben lokalen Modell wie das Diktieren über die Tastatur). Ist das Sprachmodell nicht geladen, weicht iOS auf Apples Sprachdienst aus und sendet den Ton zur Transkription dorthin. Aufnahmen werden ausschließlich in deiner eigenen Fotos-Mediathek gespeichert."
+          }
         }
       }
     },
@@ -2161,6 +2731,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Il riconoscimento vocale funziona sul tuo dispositivo. Se non ha scaricato il modello vocale offline (Impostazioni → Generali → Tastiera → Dettatura), iOS ripiega sul servizio vocale di Apple, il che significa che l'audio viene inviato ad Apple per essere trascritto — come fa la dettatura. Con il modello locale, il tuo script e le tue registrazioni non lasciano mai il dispositivo. I video vengono salvati direttamente solo nella tua libreria Foto."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Spracherkennung läuft auf deinem Gerät. Ist das Offline-Sprachmodell nicht geladen (Einstellungen → Allgemein → Tastatur → Diktierfunktion), weicht iOS auf Apples Sprachdienst aus – der Ton wird dann zur Transkription an Apple gesendet, genau wie beim Diktieren. Mit dem lokalen Modell verlassen dein Skript und deine Aufnahmen das Gerät nie. Videos werden ausschließlich direkt in deiner Fotos-Mediathek gespeichert."
           }
         }
       }
@@ -2184,6 +2760,12 @@
             "state": "translated",
             "value": "Riconoscimento vocale interrotto: %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spracherkennung gestoppt: %@"
+          }
         }
       }
     },
@@ -2205,6 +2787,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stabilizzazione"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stabilisierung"
           }
         }
       }
@@ -2228,6 +2816,12 @@
             "state": "translated",
             "value": "Inizia a leggere →"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prompter starten →"
+          }
         }
       }
     },
@@ -2249,6 +2843,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Si parte tra %lld secondi"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start in %lld Sekunden"
           }
         }
       }
@@ -2272,6 +2872,12 @@
             "state": "translated",
             "value": "Avvia e interrompe il tracciamento della voce. Con la pausa mantieni il punto in cui sei e il cronometro si ferma."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startet und stoppt das Mitlesen per Stimme. Eine Pause behält deine Stelle und hält die Uhr an."
+          }
         }
       }
     },
@@ -2293,6 +2899,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Va avanti di una riga, allo stesso modo."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geht auf dieselbe Weise eine Zeile vor."
           }
         }
       }
@@ -2316,6 +2928,12 @@
             "state": "translated",
             "value": "Stop"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopp"
+          }
         }
       }
     },
@@ -2337,6 +2955,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Attiva la fotocamera frontale per registrare."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schalte die Frontkamera für die Aufnahme ein."
           }
         }
       }
@@ -2360,6 +2984,12 @@
             "state": "translated",
             "value": "Ripresa salvata in Foto"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Fotos gespeichert"
+          }
         }
       }
     },
@@ -2381,6 +3011,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ripresa salvata in Foto · %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Fotos gespeichert · %@"
           }
         }
       }
@@ -2404,6 +3040,12 @@
             "state": "translated",
             "value": "Tocca Ascolta e inizia a parlare. On Cue confronta ciò che sente con il tuo script e scorre per tenere la riga in cui sei alla riga di lettura. Se smetti di parlare, aspetta. Se parafrasi, salti una parola o ricominci una frase, ti resta dietro."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe auf Zuhören und fang an zu sprechen. On Cue gleicht das Gehörte mit deinem Skript ab und scrollt so, dass deine aktuelle Zeile auf der Leselinie bleibt. Hörst du auf zu sprechen, wartet es. Formulierst du um, lässt ein Wort aus oder beginnst einen Satz neu, bleibt es bei dir."
+          }
         }
       }
     },
@@ -2425,6 +3067,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tocca in un punto qualsiasi per annullare"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Irgendwo tippen zum Abbrechen"
           }
         }
       }
@@ -2448,6 +3096,12 @@
             "state": "translated",
             "value": "Tocca pausa per smettere di ascoltare"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe auf Pause, um das Zuhören zu beenden"
+          }
         }
       }
     },
@@ -2469,6 +3123,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tocca play per iniziare"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe auf Play, um zu beginnen"
           }
         }
       }
@@ -2492,6 +3152,12 @@
             "state": "translated",
             "value": "Testo"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text"
+          }
         }
       }
     },
@@ -2513,6 +3179,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Allineamento del testo"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Textausrichtung"
           }
         }
       }
@@ -2536,6 +3208,12 @@
             "state": "translated",
             "value": "Testo e Oscura"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text und Dimmen"
+          }
         }
       }
     },
@@ -2557,6 +3235,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Testo rende lo script più trasparente, così si vede di più la fotocamera; Oscura scurisce l'immagine dietro di esso. Con i due puoi mantenere le parole leggibili su qualsiasi sfondo."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text blendet das Skript aus, damit mehr vom Kamerabild durchscheint; Dimmen dunkelt das Bild dahinter ab. Mit beiden zusammen bleiben die Wörter auf jedem Hintergrund lesbar."
           }
         }
       }
@@ -2580,6 +3264,12 @@
             "state": "translated",
             "value": "Dimensione del testo"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Textgröße"
+          }
         }
       }
     },
@@ -2601,6 +3291,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "La riga evidenziata da cui leggono i tuoi occhi. Regolala quando vuoi dal pulsante delle impostazioni, per tenerla il più vicino possibile all'obiettivo."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die markierte Zeile, von der deine Augen lesen. Stell sie jederzeit über die Einstellungen ein, damit sie so nah wie möglich an der Linse liegt."
           }
         }
       }
@@ -2624,6 +3320,12 @@
             "state": "translated",
             "value": "Lo schermo resta acceso finché il teleprompter è aperto."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bildschirm bleibt an, solange der Prompter geöffnet ist."
+          }
         }
       }
     },
@@ -2645,6 +3347,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lo script segue la tua voce"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Skript folgt deiner Stimme"
           }
         }
       }
@@ -2668,6 +3376,12 @@
             "state": "translated",
             "value": "Tempo"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeiten"
+          }
         }
       }
     },
@@ -2689,6 +3403,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Suggerimento: di' scroll up per tornare indietro di una riga"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tipp: Sag scroll up, um eine Zeile zurückzugehen"
           }
         }
       }
@@ -2712,6 +3432,12 @@
             "state": "translated",
             "value": "Disattiva la fotocamera"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamera ausschalten"
+          }
         }
       }
     },
@@ -2733,6 +3459,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Attiva la fotocamera"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamera einschalten"
           }
         }
       }
@@ -2756,6 +3488,12 @@
             "state": "translated",
             "value": "Girare il telefono"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Querformat"
+          }
         }
       }
     },
@@ -2777,6 +3515,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Attiva o disattiva l'immagine dal vivo della fotocamera dietro lo script."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schaltet das Live-Kamerabild hinter dem Skript ein oder aus."
           }
         }
       }
@@ -2800,6 +3544,12 @@
             "state": "translated",
             "value": "Usalo"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwenden"
+          }
         }
       }
     },
@@ -2821,6 +3571,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Usare lo script condiviso?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geteiltes Skript verwenden?"
           }
         }
       }
@@ -2844,6 +3600,12 @@
             "state": "translated",
             "value": "Qualità video"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Videoqualität"
+          }
         }
       }
     },
@@ -2865,6 +3627,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qualità video %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Videoqualität %@"
           }
         }
       }
@@ -2888,6 +3656,12 @@
             "state": "translated",
             "value": "Comandi vocali"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprachbefehle"
+          }
         }
       }
     },
@@ -2909,6 +3683,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Controllo vocale"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprachsteuerung"
           }
         }
       }
@@ -2932,6 +3712,12 @@
             "state": "translated",
             "value": "Funziona sempre, in ascolto o no — trascina per scorrere a mano e il tracciamento della voce riprende da dove lasci, con la parola successiva da dire evidenziata."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funktioniert immer, ob On Cue zuhört oder nicht – zieh zum Scrollen mit der Hand, und das Mitlesen per Stimme setzt dort wieder ein, wo du loslässt; das nächste zu sprechende Wort ist hervorgehoben."
+          }
         }
       }
     },
@@ -2954,6 +3740,12 @@
             "state": "translated",
             "value": "Il tuo ritmo obiettivo guida la stima finché non hai letto abbastanza di una ripresa perché On Cue misuri il tuo ritmo reale."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Zieltempo bestimmt die Schätzung, bis du genug von einer Aufnahme gelesen hast, damit On Cue dein echtes Tempo messen kann."
+          }
         }
       }
     },
@@ -2975,6 +3767,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Le tue parole al minuto obiettivo. È su questo che si basa la stima della durata finché non hai parlato abbastanza di una ripresa perché On Cue misuri il tuo ritmo reale. Ti dà un'idea di quanto tempo richiede dire il testo."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Ziel-Wörter pro Minute. Darauf beruht die geschätzte Dauer, bis du genug von einer Aufnahme gesprochen hast, damit On Cue dein echtes Tempo messen kann. So bekommst du ein Gefühl dafür, wie lange der Text gesprochen dauert."
           }
         }
       }
@@ -2999,6 +3797,12 @@
             "state": "translated",
             "value": "sostenuto"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zügig"
+          }
         }
       }
     },
@@ -3021,6 +3825,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "naturale"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "natürlich"
           }
         }
       }
@@ -3045,6 +3855,12 @@
             "state": "translated",
             "value": "rilassato"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "entspannt"
+          }
         }
       }
     },
@@ -3067,6 +3883,12 @@
             "state": "translated",
             "value": "errore sconosciuto"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unbekannter Fehler"
+          }
         }
       }
     },
@@ -3085,6 +3907,12 @@
           }
         },
         "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·"
+          }
+        },
+        "de": {
           "stringUnit": {
             "state": "translated",
             "value": "·"
