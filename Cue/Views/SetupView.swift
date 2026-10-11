@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 /// nothing competing with the thing you came here to do.
 struct SetupView: View {
     @ObservedObject var state: TeleprompterState
+    @ObservedObject private var downloads = SpeechModelDownloads.shared
     @State private var showPrompter = false
     @State private var showImporter = false
     @State private var showHelp = false
@@ -63,6 +64,12 @@ struct SetupView: View {
             // Keep "Listening in" matched to the script as it's typed, pasted
             // or opened — not only at Start (#17). Restarts on every change, so
             // it settles once typing pauses rather than flickering per key.
+            // Check, and fetch if needed, the language's on-device model the
+            // moment it is picked or detected (#25) — here, where the choice
+            // is made, rather than at the first take.
+            .task(id: state.recognitionLocale) {
+                downloads.prepare(state.recognitionLocale)
+            }
             .task(id: state.scriptText) {
                 try? await Task.sleep(for: .milliseconds(400))
                 guard !Task.isCancelled else { return }
@@ -107,6 +114,7 @@ struct SetupView: View {
         }
         .preferredColorScheme(.dark)
         .tint(PrompterView.accent)
+        .onAppear(perform: stageCapture)
         .fullScreenCover(isPresented: $showPrompter) {
             PrompterView(state: state)
                 // The prompter is used in both orientations — landscape is
@@ -283,30 +291,68 @@ struct SetupView: View {
     /// watched their script sit motionless is not going to go hunting through
     /// a settings sheet to find out why.
     private var languageNotice: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            languageRow
+            offlineStatus
+        }
+    }
+
+    private var languageRow: some View {
         HStack(spacing: 7) {
             Image(systemName: "waveform")
             Text("Listening in")
             Menu {
-                Picker("Language", selection: Binding(
+                LanguagePickerContent(selection: Binding(
                     get: { state.recognitionLocale },
                     set: { state.selectLocaleManually($0) }
-                )) {
-                    ForEach(SpeechLocales.available(), id: \.identifier) { locale in
-                        Text(SpeechLocales.label(for: locale)).tag(locale.identifier)
-                    }
-                }
+                ))
             } label: {
-                HStack(spacing: 2) {
+                HStack(spacing: 3) {
                     Text(SpeechLocales.label(for: Locale(identifier: state.recognitionLocale)))
-                    Image(systemName: "chevron.down").font(.caption2)
+                        .fontWeight(.semibold)
+                    Image(systemName: "chevron.down").font(.footnote)
                 }
             }
             .accessibilityLabel("Speech recognition language, \(SpeechLocales.label(for: Locale(identifier: state.recognitionLocale)))")
+            // A menu opening upwards lists its items bottom-to-top by
+            // default, which turned the A-Z list into Z-A down here.
+            .menuOrder(.fixed)
             .accessibilityIdentifier("languagePicker")
             Spacer(minLength: 0)
         }
-        .font(.caption)
+        .font(.body)
         .foregroundStyle(.secondary)
+    }
+
+    /// Whether the chosen language works offline here (#25). On Cue never
+    /// listens through a server, so this is also whether it can listen at all.
+    @ViewBuilder
+    private var offlineStatus: some View {
+        if downloads.statusIdentifier == state.recognitionLocale {
+            Group {
+                switch downloads.status {
+                case .checking:
+                    EmptyView()
+                case .ready:
+                    Label("Works offline on this device", systemImage: "checkmark.circle")
+                case .downloading(let fraction):
+                    HStack(spacing: 8) {
+                        ProgressView(value: fraction).frame(width: 60)
+                        Text("Downloading for offline use — \(fraction.formatted(.percent.precision(.fractionLength(0))))")
+                    }
+                case .server:
+                    Label("Not available as a local service on the device, so On Cue uses Apple's server-based speech recognition, the same service iOS uses for Dictation. Needs an internet connection.", systemImage: "cloud")
+                case .failed:
+                    HStack(spacing: 6) {
+                        Label("Download didn't finish.", systemImage: "exclamationmark.circle")
+                        Button("Try again") { downloads.prepare(state.recognitionLocale) }
+                    }
+                }
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("offlineStatus")
+        }
     }
 
     /// The thing a first-time user most needs to know before tapping start,
@@ -416,3 +462,29 @@ struct SetupView: View {
         }
     }
 }
+
+extension SetupView {
+    /// Mac App Store captures (#24), driven by launch arguments so the app can
+    /// be photographed in the background, without a UI test taking over the
+    /// Mac's mouse and keyboard: open the prompter straight away, and fix the
+    /// window to a size that captures at exactly the store's pixel size.
+    fileprivate func stageCapture() {
+        let args = ProcessInfo.processInfo.arguments
+        #if targetEnvironment(macCatalyst)
+        if let raw = args.drop(while: { $0 != "-uiTestingWindowSize" }).dropFirst().first {
+            let parts = raw.split(separator: "x").compactMap { Double($0) }
+            if parts.count == 2,
+               let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                let size = CGSize(width: parts[0], height: parts[1])
+                scene.sizeRestrictions?.minimumSize = size
+                scene.sizeRestrictions?.maximumSize = size
+            }
+        }
+        #endif
+        if args.contains("-uiTestingOpenPrompter") {
+            state.buildWords()
+            showPrompter = true
+        }
+    }
+}
+

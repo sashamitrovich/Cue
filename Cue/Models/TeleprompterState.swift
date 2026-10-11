@@ -192,6 +192,13 @@ final class TeleprompterState: ObservableObject {
         if !persistsSettings, let script = ProcessInfo.processInfo.environment["UITEST_SCRIPT"] {
             scriptText = script
         }
+        // Store captures of the narrow centre column (#24) need the margin set
+        // without opening the settings sheet; saved settings are off here.
+        if !persistsSettings, let raw = ProcessInfo.processInfo.arguments
+            .drop(while: { $0 != "-uiTestingSideMargin" }).dropFirst().first,
+           let value = Double(raw) {
+            sideMargin = CGFloat(value)
+        }
         guard persistsSettings else { return }
         fontSize = CGFloat(settings.double(.fontSize, default: Double(fontSize)))
         mirror = settings.bool(.mirror, default: mirror)

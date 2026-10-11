@@ -41,16 +41,16 @@
       <dl class="faq">
 
         <dt>The script lags behind my voice.</dt>
-        <dd>On Cue uses Apple’s on-device speech recognition, which is roughly ten times quicker than the network one. If your iPhone has not downloaded the offline speech model, iOS transcribes over the network instead and the script trails what you say. Turn on <strong>Settings ▸ General ▸ Keyboard ▸ Enable Dictation</strong>, and make sure Siri is enabled, then give the device a few minutes on Wi-Fi to fetch the model. Version 1.5.2 and later try harder to reach the on-device path before giving up on it.</dd>
+        <dd>On iOS 26 and later, On Cue uses Apple’s newest on-device speech recognition for about 45 languages. The first time you pick one of them, On Cue downloads Apple’s speech model for that language and shows the progress on the setup screen. After that it listens on the device: fast, and it works offline. On older iOS, or for languages without that model, On Cue uses Apple’s on-device recognizer if your iPhone has the language. If the script trails what you say, turn on <strong>Settings ▸ General ▸ Keyboard ▸ Enable Dictation</strong>, and make sure Siri is enabled, then give the device a few minutes on Wi-Fi to fetch the language.</dd>
 
         <dt>It is not following me at all.</dt>
         <dd>Check that On Cue has microphone and speech-recognition permission in <strong>Settings ▸ Privacy &amp; Security</strong>. Then check the language: On Cue detects the language of the script you load and shows it on the setup screen ("Listening in …"); you can change it there, and it has to be one your device can recognise. Reading English text while it is set to another language will not match.</dd>
 
         <dt>Which languages does it support?</dt>
-        <dd>Whatever your device supports for speech recognition — the setup screen lists exactly those. Note that iOS has no Serbian recognition; writing in Latin script and selecting Croatian works well in practice.</dd>
+        <dd>About 45 languages run on the device on iOS 26 and later, including English, German, French, Italian, Spanish, Portuguese, Japanese, Korean, Chinese and many Indian languages. Languages with no on-device model, such as Catalan, Czech, Croatian, Ukrainian and Arabic, still work: On Cue uses Apple’s server-based speech recognition, the same service iOS uses for Dictation. The setup screen lists the on-device languages first. Note that iOS has no Serbian recognition; writing in Latin script and selecting Croatian works well in practice.</dd>
 
         <dt>Can I use it without an internet connection?</dt>
-        <dd>Yes, once the offline speech model is on your device. That is also the fastest way to run it. Nothing you write or record is ever uploaded by On Cue.</dd>
+        <dd>Yes, for languages that run on the device: once Apple’s speech model for your language is downloaded, On Cue listens offline, for example in Airplane Mode. Languages without an on-device model use Apple’s server-based recognition and need an internet connection; the setup screen says so. Nothing you write or record is ever uploaded by On Cue.</dd>
 
         <dt>Where do my recordings go?</dt>
         <dd>Straight to your Photos library, as an ordinary video. They are never sent anywhere.</dd>

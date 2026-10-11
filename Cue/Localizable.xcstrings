@@ -144,6 +144,118 @@
         }
       }
     },
+    "%@ is on this device. From your next take, On Cue listens offline.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ está neste dispositivo. A partir da próxima gravação, o On Cue escuta offline."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ya está en este dispositivo. Desde tu próxima toma, On Cue escucha sin conexión."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ è su questo dispositivo. Dalla prossima ripresa On Cue ascolta offline."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ist jetzt auf diesem Gerät. Ab der nächsten Aufnahme hört On Cue offline zu."
+          }
+        }
+      }
+    },
+    "%@ is still downloading, so this take uses Apple's server-based speech recognition, the same service iOS uses for Dictation. From your next take, On Cue listens on this device.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ainda está sendo baixado, então esta gravação usa o reconhecimento de fala em servidor da Apple, o mesmo serviço que o iOS usa para o Ditado. A partir da próxima gravação, o On Cue escuta neste dispositivo."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ todavía se está descargando, así que esta toma usa el reconocimiento de voz en servidor de Apple, el mismo servicio que iOS usa para el dictado. Desde tu próxima toma, On Cue escucha en este dispositivo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ è ancora in download, quindi questa ripresa usa il riconoscimento vocale su server di Apple, lo stesso servizio che iOS usa per la dettatura. Dalla prossima ripresa On Cue ascolta su questo dispositivo."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ wird noch geladen, deshalb nutzt diese Aufnahme die serverbasierte Spracherkennung von Apple – denselben Dienst, den iOS für die Diktierfunktion verwendet. Ab der nächsten Aufnahme hört On Cue auf diesem Gerät zu."
+          }
+        }
+      }
+    },
+    "%@ isn't available as a local service on the device, and Apple's server-based speech recognition can't be reached. Check your internet connection, or pick another language.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ não está disponível como serviço local no dispositivo, e não foi possível acessar o reconhecimento de fala em servidor da Apple. Verifique sua conexão com a internet ou escolha outro idioma."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ no está disponible como servicio local en el dispositivo y no se puede acceder al reconocimiento de voz en servidor de Apple. Revisa tu conexión a internet o elige otro idioma."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ non è disponibile come servizio locale sul dispositivo e non è possibile raggiungere il riconoscimento vocale su server di Apple. Controlla la connessione a internet o scegli un’altra lingua."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ist nicht als lokaler Dienst auf dem Gerät verfügbar, und die serverbasierte Spracherkennung von Apple ist nicht erreichbar. Prüfe deine Internetverbindung oder wähle eine andere Sprache."
+          }
+        }
+      }
+    },
+    "%@ isn't available as a local service on the device, so On Cue uses Apple's server-based speech recognition, the same service iOS uses for Dictation. It needs an internet connection.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ não está disponível como serviço local no dispositivo, então o On Cue usa o reconhecimento de fala em servidor da Apple, o mesmo serviço que o iOS usa para o Ditado. É preciso conexão com a internet."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ no está disponible como servicio local en el dispositivo, así que On Cue usa el reconocimiento de voz en servidor de Apple, el mismo servicio que iOS usa para el dictado. Necesita conexión a internet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ non è disponibile come servizio locale sul dispositivo, quindi On Cue usa il riconoscimento vocale su server di Apple, lo stesso servizio che iOS usa per la dettatura. Serve una connessione a internet."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ist nicht als lokaler Dienst auf dem Gerät verfügbar, deshalb nutzt On Cue die serverbasierte Spracherkennung von Apple – denselben Dienst, den iOS für die Diktierfunktion verwendet. Dafür ist eine Internetverbindung nötig."
+          }
+        }
+      }
+    },
     "%@ pace": {
       "localizations": {
         "pt-BR": {
@@ -1021,6 +1133,90 @@
         }
       }
     },
+    "Downloading %@ so On Cue can listen offline — %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baixando %1$@ para o On Cue escutar offline — %2$@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descargando %1$@ para que On Cue escuche sin conexión — %2$@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download di %1$@ per l’ascolto offline di On Cue — %2$@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ wird geladen, damit On Cue offline zuhören kann — %2$@"
+          }
+        }
+      }
+    },
+    "Downloading for offline use — %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baixando para uso offline — %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descargando para usar sin conexión — %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download per l’uso offline — %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird für die Offline-Nutzung geladen — %@"
+          }
+        }
+      }
+    },
+    "Download didn't finish.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O download não terminou."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La descarga no terminó."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il download non è terminato."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Download wurde nicht abgeschlossen."
+          }
+        }
+      }
+    },
     "Drag the script with your finger": {
       "localizations": {
         "pt-BR": {
@@ -1758,6 +1954,34 @@
         }
       }
     },
+    "Listens on the device": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escuta no dispositivo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escucha en el dispositivo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ascolta sul dispositivo"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hört auf dem Gerät zu"
+          }
+        }
+      }
+    },
     "Load a script from Files or iCloud Drive — .txt, .md or .rtf. Line breaks and blank lines carry through, so leave a blank line where you want ad-lib room. You can edit the script for finishing touches and the changes save automatically.": {
       "localizations": {
         "pt-BR": {
@@ -1866,6 +2090,63 @@
           "stringUnit": {
             "state": "translated",
             "value": "Spiegeln"
+          }
+        }
+      }
+    },
+    "None": {
+      "comment": "Side margins slider value at zero",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhuma"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ninguno"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessuno"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine"
+          }
+        }
+      }
+    },
+    "Not available as a local service on the device, so On Cue uses Apple's server-based speech recognition, the same service iOS uses for Dictation. Needs an internet connection.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não disponível como serviço local no dispositivo, então o On Cue usa o reconhecimento de fala em servidor da Apple, o mesmo serviço que o iOS usa para o Ditado. Precisa de conexão com a internet."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No disponible como servicio local en el dispositivo, así que On Cue usa el reconocimiento de voz en servidor de Apple, el mismo servicio que iOS usa para el dictado. Necesita conexión a internet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non disponibile come servizio locale sul dispositivo, quindi On Cue usa il riconoscimento vocale su server di Apple, lo stesso servizio che iOS usa per la dettatura. Serve una connessione a internet."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht als lokaler Dienst auf dem Gerät verfügbar, deshalb nutzt On Cue die serverbasierte Spracherkennung von Apple – denselben Dienst, den iOS für die Diktierfunktion verwendet. Braucht eine Internetverbindung."
           }
         }
       }
@@ -2597,34 +2878,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Größe"
-          }
-        }
-      }
-    },
-    "Speech recognition isn't available for %@ on this device. Pick another language in the prompter settings.": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "O reconhecimento de fala não está disponível para %@ neste dispositivo. Escolha outro idioma nos ajustes do prompter."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El reconocimiento de voz no está disponible para %@ en este dispositivo. Elige otro idioma en los ajustes del prompter."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Il riconoscimento vocale non è disponibile per %@ su questo dispositivo. Scegli un'altra lingua nelle impostazioni del teleprompter."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Spracherkennung ist für %@ auf diesem Gerät nicht verfügbar. Wähle in den Prompter-Einstellungen eine andere Sprache."
           }
         }
       }
@@ -3413,6 +3666,34 @@
         }
       }
     },
+    "Try again": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tentar de novo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reintentar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riprova"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut versuchen"
+          }
+        }
+      }
+    },
     "Turn camera off": {
       "localizations": {
         "pt-BR": {
@@ -3581,6 +3862,34 @@
         }
       }
     },
+    "Uses Apple's server": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa o servidor da Apple"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa el servidor de Apple"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa il server di Apple"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzt den Server von Apple"
+          }
+        }
+      }
+    },
     "Video quality": {
       "localizations": {
         "pt-BR": {
@@ -3717,6 +4026,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Funktioniert immer, ob On Cue zuhört oder nicht – zieh zum Scrollen mit der Hand, und das Mitlesen per Stimme setzt dort wieder ein, wo du loslässt; das nächste zu sprechende Wort ist hervorgehoben."
+          }
+        }
+      }
+    },
+    "Works offline on this device": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funciona offline neste dispositivo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funciona sin conexión en este dispositivo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funziona offline su questo dispositivo"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funktioniert offline auf diesem Gerät"
           }
         }
       }

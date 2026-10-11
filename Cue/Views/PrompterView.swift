@@ -21,6 +21,7 @@ struct PrompterView: View {
     @State private var leaderSweeping = false
 
     @StateObject private var speech = SpeechTracker()
+    @ObservedObject private var downloads = SpeechModelDownloads.shared
     @StateObject private var camera = CameraController()
 
     @State private var wordFrames: [Int: CGRect] = [:]
@@ -39,6 +40,10 @@ struct PrompterView: View {
     /// from `errorMessage` so success never renders in the failure colour.
     @State private var noticeMessage: String?
     @State private var noticeWorkItem: DispatchWorkItem?
+    @State private var showingDownload = false
+    /// The icon for `noticeMessage`: a tick for something done, an arrow
+    /// while a language downloads.
+    @State private var noticeIcon = "checkmark.circle.fill"
     @State private var showSettings = false
     /// Speaking time only — paused stretches are excluded so the measured pace
     /// reflects time actually spent talking.
@@ -264,6 +269,13 @@ struct PrompterView: View {
     /// deliberately: if these two drift apart the ceiling is quietly wrong,
     /// and nothing on screen would say so.
     static let scriptLineSpacing: CGFloat = 6
+
+    /// How far below `cueY` the reading line is drawn: into the gap under the
+    /// row being read. `cueY` is the middle of that row, so a line drawn there
+    /// struck through the current word.
+    static func readingLineDrop(fontSize: CGFloat) -> CGFloat {
+        UIFont.systemFont(ofSize: fontSize, weight: .bold).lineHeight / 2 + scriptLineSpacing / 2
+    }
     /// Past this, the cursor didn't advance — it was *moved* (a restart, a
     /// drag, a rotation, a voice command). Travelling that at speaking pace
     /// would take tens of seconds, so the target goes straight there and the
@@ -529,6 +541,35 @@ struct PrompterView: View {
                 DispatchQueue.main.async { syncInterfaceOrientation() }
             }
             .onReceive(speech.$errorMessage.compactMap { $0 }) { showError($0) }
+            // A language model downloading for the on-device engine (#25):
+            // shown for as long as it runs, so the reader knows why this take
+            // may still be on the older engine and that the next one won't be.
+            .onReceive(downloads.$current) { download in
+                if let download {
+                    noticeWorkItem?.cancel()
+                    noticeIcon = "arrow.down.circle.fill"
+                    let percent = download.fraction.formatted(.percent.precision(.fractionLength(0)))
+                    noticeMessage = String(localized: "Downloading \(download.language) so On Cue can listen offline — \(percent)")
+                    showingDownload = true
+                } else if showingDownload {
+                    showingDownload = false
+                    noticeMessage = nil
+                    noticeIcon = "checkmark.circle.fill"
+                }
+            }
+            .task(id: state.recognitionLocale) {
+                downloads.prepare(state.recognitionLocale)
+            }
+            .onReceive(speech.$noticeMessage.compactMap { $0 }) { msg in
+                // Never over the download's own progress banner, which says
+                // the same thing with a number in it.
+                if !showingDownload { showNotice(msg, icon: "cloud.fill", seconds: 8) }
+            }
+            // dropFirst: a download that finished on the setup screen was already
+            // announced there, and @Published replays it on subscribe.
+            .onReceive(downloads.$finished.dropFirst().compactMap { $0 }) { language in
+                showNotice(String(localized: "\(language) is on this device. From your next take, On Cue listens offline."))
+            }
             .onReceive(camera.$errorMessage.compactMap { $0 }) { showError($0) }
             .onReceive(camera.$savedMessage.compactMap { $0 }) { msg in
                 showNotice(msg)
@@ -573,6 +614,14 @@ struct PrompterView: View {
                 // it tracks this exactly.
                 if listening { clock.start(at: Date()) } else { clock.pause(at: Date()) }
             }
+            #if DEBUG
+            // A/B for #25. Driven by the engine itself: following
+            // `isListening` missed it, because Play sets that before the
+            // engine has started.
+            .onReceive(speech.$engineDescription.compactMap { $0 }) { engine in
+                showNotice("Engine: \(engine)", icon: "waveform")
+            }
+            #endif
             // Portrait presents the controls as a sheet; landscape slides
             // them in beside the script instead.
             //
@@ -704,6 +753,9 @@ struct PrompterView: View {
         geo.size.height + insets.top + insets.bottom
     }
 
+    /// Width of the dark outline around the script's words, in points.
+    private var outlineWidth: CGFloat { max(1, state.fontSize * 0.022) }
+
     private func scriptLayer(geo: GeometryProxy, insets: EdgeInsets, cueY: CGFloat) -> some View {
         // The flow reports a height far taller than the screen, and a ZStack
         // sizes itself to its largest child — without pinning this to the
@@ -714,14 +766,15 @@ struct PrompterView: View {
             topInset: cueY,
             bottomInset: fullHeight(geo: geo, insets: insets) * 0.6,
             // The frame is full-bleed, so the script clears the safe areas
-            // itself. The reader's margin is a floor over the inset, never
-            // added to it.
+            // itself. The reader's margin is added on top of the safe area.
             leadingInset: ScriptMargins.inset(
                 safeArea: insets.leading, margin: state.sideMargin,
-                rail: isLandscape && railOnLeading ? Self.railWidth : 0),
+                rail: isLandscape && railOnLeading ? Self.railWidth : 0,
+                width: geo.size.width + insets.leading + insets.trailing, fontSize: state.fontSize),
             trailingInset: ScriptMargins.inset(
                 safeArea: insets.trailing, margin: state.sideMargin,
-                rail: isLandscape && !railOnLeading ? Self.railWidth : 0)
+                rail: isLandscape && !railOnLeading ? Self.railWidth : 0,
+                width: geo.size.width + insets.leading + insets.trailing, fontSize: state.fontSize)
         )
         .coordinateSpace(name: "flow")
         // Dimmed while the pre-roll runs, so the leader can be read without a
@@ -750,6 +803,21 @@ struct PrompterView: View {
             alignment: .top
         )
         .clipped()
+        // Words sit over live video, so they need a dark edge — a flat colour
+        // alone disappears against faces, windows and anything bright behind
+        // them. A thin outline of four HARD (radius 0) shadows, drawn ONCE for
+        // the whole clipped script rather than on each word. Per word it was
+        // ~430 x 4 shadow layers recomposited over every camera frame: the
+        // blurred version of that was #11 (recording dropped frames), and even
+        // the hard version made the Mac preview choppy on a large window (#24).
+        // As one group it is a handful of screen-sized passes. A shadow adds no
+        // accessibility element, so each word stays a single
+        // `staticTexts[word]` for VoiceOver and the reading-line UI tests.
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.9), radius: 0, x:  outlineWidth, y:  outlineWidth)
+        .shadow(color: .black.opacity(0.9), radius: 0, x: -outlineWidth, y:  outlineWidth)
+        .shadow(color: .black.opacity(0.9), radius: 0, x:  outlineWidth, y: -outlineWidth)
+        .shadow(color: .black.opacity(0.9), radius: 0, x: -outlineWidth, y: -outlineWidth)
         // A full 180° turn, not just a left-right mirror: a rig applies its
         // own 180° flip to whatever the app renders, so the script needs to
         // pre-compensate with the same flip — the chrome stays untouched
@@ -787,7 +855,8 @@ struct PrompterView: View {
         // screen while the active word it's meant to mark moved to the
         // raw bottom, so the two only lined up before mirroring existed.
         .overlay(alignment: .top) {
-            readingLine(cueY: cueY, insets: insets, height: fullHeight(geo: geo, insets: insets))
+            readingLine(cueY: cueY, insets: insets, height: fullHeight(geo: geo, insets: insets),
+                        width: geo.size.width + insets.leading + insets.trailing)
                 .scaleEffect(x: 1, y: state.mirror ? -1 : 1)
         }
         .overlay(alignment: .top) {
@@ -805,10 +874,14 @@ struct PrompterView: View {
     /// line can be moved mid-take without opening settings. This replaces the
     /// floating chevrons, which sat on top of the words they were meant to
     /// help you read.
-    private func readingLine(cueY: CGFloat, insets: EdgeInsets, height: CGFloat) -> some View {
+    ///
+    /// It sits just *under* the row being read, and the handle is a dimmed
+    /// amber: drawn through the middle of the row at full amber, it read as a
+    /// strike-through in the same colour as the word being read.
+    private func readingLine(cueY: CGFloat, insets: EdgeInsets, height: CGFloat, width: CGFloat) -> some View {
         HStack(spacing: 6) {
             Capsule()
-                .fill(Self.accent)
+                .fill(Self.accent.opacity(isDraggingLine ? 1 : 0.55))
                 .frame(width: 26, height: isDraggingLine ? 6 : 4)
                 .overlay {
                     Capsule().stroke(.black.opacity(0.25), lineWidth: 0.5)
@@ -819,8 +892,10 @@ struct PrompterView: View {
                         .onChanged { value in
                             isDraggingLine = true
                             guard height > 0 else { return }
+                            // The finger is on the line, which is drawn below
+                            // the row it marks.
                             state.cueLineFraction = Self.cueFraction(
-                                y: value.location.y,
+                                y: value.location.y - Self.readingLineDrop(fontSize: state.fontSize),
                                 fullHeight: height,
                                 topInset: readingLineTopInset(insets: insets),
                                 bottomInset: readingLineBottomInset(insets: insets),
@@ -836,7 +911,7 @@ struct PrompterView: View {
                     state.cueLineFraction = min(1, max(0, state.cueLineFraction + delta))
                 }
             Rectangle()
-                .fill(.white.opacity(0.22))
+                .fill(.white.opacity(0.14))
                 .frame(height: 1)
                 .allowsHitTesting(false)
         }
@@ -845,14 +920,14 @@ struct PrompterView: View {
         // margin paddings below keep their physical sides.
         .environment(\.layoutDirection, state.isRightToLeft ? .rightToLeft : .leftToRight)
         .frame(maxHeight: .infinity, alignment: .top)
-        .padding(.top, cueY)
+        .padding(.top, cueY + Self.readingLineDrop(fontSize: state.fontSize))
         // Same rule as the script, so the line starts and ends with the words.
         .padding(.leading, ScriptMargins.inset(
             safeArea: insets.leading, margin: state.sideMargin,
-            rail: isLandscape && railOnLeading ? Self.railWidth : 0))
+            rail: isLandscape && railOnLeading ? Self.railWidth : 0, width: width, fontSize: state.fontSize))
         .padding(.trailing, ScriptMargins.inset(
             safeArea: insets.trailing, margin: state.sideMargin,
-            rail: isLandscape && !railOnLeading ? Self.railWidth : 0))
+            rail: isLandscape && !railOnLeading ? Self.railWidth : 0, width: width, fontSize: state.fontSize))
         .frame(maxHeight: .infinity, alignment: .top)
         .accessibilityIdentifier("readingLine")
     }
@@ -1161,7 +1236,7 @@ struct PrompterView: View {
                 .padding(.bottom, 12)
         }
         if let msg = noticeMessage {
-            banner(msg, tint: Color.black.opacity(0.6), icon: "checkmark.circle.fill")
+            banner(msg, tint: Color.black.opacity(0.6), icon: noticeIcon)
                 .padding(.bottom, 12)
         }
     }
@@ -1571,8 +1646,15 @@ struct PrompterView: View {
             startListeningNow()
         }
         // Only publish a new date when the displayed second changes, rather
-        // than every frame for a readout that can't show it.
-        if Int(now.timeIntervalSince1970) != Int(displayNow.timeIntervalSince1970) {
+        // than every frame for a readout that can't show it. During a
+        // pre-roll that is the countdown's own second, counted from its
+        // deadline (#26); the wall clock's second boundaries fall anywhere in
+        // it, which showed each number for an uneven slice of time.
+        let countdownSecondChanged = countdownDeadline.map {
+            PreRoll.remaining(until: $0, at: now) != PreRoll.remaining(until: $0, at: displayNow)
+        } ?? false
+        if countdownSecondChanged
+            || Int(now.timeIntervalSince1970) != Int(displayNow.timeIntervalSince1970) {
             displayNow = now
             #if DEBUG
             RenderCost.report()
@@ -1582,7 +1664,8 @@ struct PrompterView: View {
             // down. Tapped out instead. `startListeningNow` above has already
             // cleared the deadline by the final tick, so this doesn't fire on
             // the beat the take actually starts — that gets its own.
-            if countdownDeadline != nil { Haptics.countdownTick() }
+            // Only on the countdown's own second, not the wall clock's too.
+            if countdownSecondChanged { Haptics.countdownTick() }
         }
 
         // Full rate while the take is live or something is actually moving.
@@ -1620,7 +1703,7 @@ struct PrompterView: View {
     /// Whole seconds still to run on the pre-roll, or nil when none is running.
     private var countdownRemaining: Int? {
         guard let deadline = countdownDeadline else { return nil }
-        return max(1, Int(deadline.timeIntervalSince(displayNow).rounded(.up)))
+        return PreRoll.remaining(until: deadline, at: displayNow)
     }
 
     /// The status line doubles as the only instruction on screen, so it has to
@@ -1640,8 +1723,11 @@ struct PrompterView: View {
     /// Starts a take, after the pre-roll if one is configured.
     private func beginTake() {
         if state.countdownSeconds > 0 {
-            displayNow = Date()
-            countdownDeadline = Date().addingTimeInterval(Double(state.countdownSeconds))
+            // One clock read for both (#26): two reads put the deadline a few
+            // microseconds past `displayNow`, and 3 + ε rounded up showed 4.
+            let start = Date()
+            displayNow = start
+            countdownDeadline = start.addingTimeInterval(Double(state.countdownSeconds))
         } else {
             startListeningNow()
         }
@@ -1781,12 +1867,13 @@ struct PrompterView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: item)
     }
 
-    private func showNotice(_ msg: String) {
+    private func showNotice(_ msg: String, icon: String = "checkmark.circle.fill", seconds: Double = 4) {
         noticeMessage = msg
+        noticeIcon = icon
         noticeWorkItem?.cancel()
         let item = DispatchWorkItem { noticeMessage = nil }
         noticeWorkItem = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: item)
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: item)
     }
 
     /// A small circular control for the things that aren't part of running a
@@ -1909,24 +1996,11 @@ private struct ScrollFlow: View {
         // glance, which is the whole job here — you read this in your
         // peripheral vision while looking at a lens.
         let wordWeight: Font.Weight = wordState == .spoken ? .semibold : .bold
-        // Words sit over live video, so they need a dark edge — a flat colour
-        // alone disappears against faces, windows and anything bright behind
-        // them. This is a thin outline made of four HARD (radius 0) shadows, NOT
-        // the two blurred `.shadow` halos it replaces: those had blur radii 2 and
-        // 8, and ~430 recomposited Gaussian-blur layers over live video were the
-        // cause of #11 (recording drops frames whenever the script moves).
-        // radius-0 shadows skip the offscreen blur pass entirely, and — unlike an
-        // outline built from duplicate `Text` copies — a shadow adds no
-        // accessibility element, so each word stays a single `staticTexts[word]`
-        // for VoiceOver and the reading-line UI tests.
-        let edge = max(1, state.fontSize * 0.022)
+        // The dark edge that keeps words readable over video is drawn once
+        // for the whole script in `scriptLayer`, not here per word (#24).
         Text(word.raw)
             .font(.system(size: state.fontSize, weight: wordWeight, design: .default))
             .foregroundStyle(color(for: wordState, wordsBehind: wordsBehind))
-            .shadow(color: .black.opacity(0.9), radius: 0, x:  edge, y:  edge)
-            .shadow(color: .black.opacity(0.9), radius: 0, x: -edge, y:  edge)
-            .shadow(color: .black.opacity(0.9), radius: 0, x:  edge, y: -edge)
-            .shadow(color: .black.opacity(0.9), radius: 0, x: -edge, y: -edge)
             // Reserve the word's width at its widest (bold) rendering. Without
             // this, a word narrowing to semibold the moment it's marked spoken
             // frees up row space, and FlowLayout can pull the next — still
@@ -1973,3 +2047,4 @@ private struct ScrollFlow: View {
         return width
     }
 }
+

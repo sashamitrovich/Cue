@@ -2,9 +2,9 @@
 
 *(repo name: `Cue`; App Store listing: "On Cue Teleprompter")*
 
-A voice-controlled teleprompter for iPhone. The script scrolls as you speak — stop talking and it waits for you — while the front camera records your take.
+A voice-controlled teleprompter for iPhone, iPad and Mac. The script scrolls as you speak — stop talking and it waits for you — while the front camera records your take.
 
-Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription and no account. Speech recognition prefers Apple's on-device recogniser; if the phone hasn't downloaded the offline speech model, iOS falls back to Apple's speech service, which transcribes server-side. Scripts and recordings never leave the device.
+Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription and no account. Speech recognition runs on the device wherever it can, so it is fast and works offline. On iOS 26 and later it uses Apple's `SpeechAnalyzer` and downloads the language's model itself the first time it is picked; otherwise `SFSpeechRecognizer` on-device. For a language with no on-device model on the phone (Catalan, Czech…) it falls back to Apple's server-based speech recognition — the same service iOS uses for Dictation — and says so. Scripts and recordings never leave the device.
 
 ## What it does
 
@@ -18,10 +18,10 @@ Built with SwiftUI, Apple's Speech framework and AVFoundation. No subscription a
 - **Counts you in.** An optional 3, 5 or 10 second pre-roll before listening starts, shown as a film leader — a sweeping ring and the count — so you can settle and find the lens. If a recording is queued behind it, the indicator reads *armed* until the take actually starts. Tap anywhere to cancel it.
 - **Adapts to the device.** Zoom, HDR, stabilisation and low-light boost appear as controls only if the connected iPhone's front camera actually supports them. Recording quality is a Camera.app-style pair of toggles — HD or 4K, and the frame rates that size offers (24/25/30/60, as far as the camera supports) — right on the prompter.
 - **Gets out of the way without going away.** Once a take is running the controls dim back, leaving the script the whole screen — but they stay on screen and stay tappable, so you never have to guess where they went. A tap anywhere brings them back to full strength. Where you are, how long is left and the recording indicator never hide at all.
-- **Set to your eyes.** Text size, side margins, left/center/right/justified alignment and the reading line all adjust from the prompter, where you can see the script change as you drag.
+- **Set to your eyes.** Text size, side margins (up to a narrow column in the middle, under the lens), left/center/right/justified alignment and the reading line all adjust from the prompter, where you can see the script change as you drag.
 - **Reads like an instrument, not a form.** The script is set in the face iOS draws for legibility at a glance; everything around it — labels, timings, readouts — is condensed and quiet so it stays out of the way. The whole app sits on a near-black ground, so the amber marks read as light rather than decoration.
 
-- **Stays readable over video.** Adjustable text opacity and camera dimming, with per-word contrast shadows so words survive against a bright background.
+- **Stays readable over video.** Adjustable text opacity and camera dimming, with a thin dark outline around the words so they survive against a bright background.
 - **Keeps your formatting.** Line breaks and blank lines carry over from the editor, so you can leave deliberate gaps as ad-lib room.
 - **Opens and edits scripts.** The setup screen's editor fills nearly the whole screen (and steps its controls aside entirely once the keyboard is up), and doubles as a real editor for anything opened from Files or iCloud Drive (`.txt`, `.md`, `.rtf`) — edits save back to the file automatically as you type. Scripts can also arrive by sharing text to On Cue from any app — Notes, Mail, Drive; shared scripts are offered on your next visit rather than overwriting what you were working on.
 - **Drag to scroll, any time.** No mode to turn on — drag the script with your finger whether you're listening or not, and voice tracking picks up from wherever you let go, so pausing to scroll ahead to a later scene and resuming picks tracking back up from there instead of wherever it was left off.
@@ -48,7 +48,7 @@ Repeat a command to go further. Short commands are harder for speech recognition
 
 ## Requirements
 
-- iOS 16.0 or later
+- iOS 16.0 or later; on the Mac, a Mac Catalyst build of the same target (same bundle id, so one purchase covers all three)
 - Xcode (developed against Xcode 26)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 

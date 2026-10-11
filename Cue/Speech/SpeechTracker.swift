@@ -45,10 +45,14 @@ final class SpeechTracker: NSObject, ObservableObject {
     /// Airplane Mode) spent every take on the slow path.
     ///
     /// So the failure path is a ladder rather than a latch. Each rung drops
-    /// one thing that might be the obstacle, and the last is the old
-    /// behaviour. `contextualStrings` is second because it is the request's
-    /// only unusual ingredient and the likeliest thing an on-device model
-    /// refuses.
+    /// one thing that might be the obstacle. `contextualStrings` goes first
+    /// because it is the request's only unusual ingredient and the likeliest
+    /// thing an on-device model refuses.
+    ///
+    /// The last rung is Apple's server-based speech recognition. It keeps
+    /// languages with no on-device model here (Catalan, Czech…) working, and
+    /// the reader is told when a take uses it, since it needs a network and
+    /// sends the audio to Apple.
     enum Stage: String {
         case onDeviceWithContext
         case onDeviceNoContext
@@ -65,6 +69,39 @@ final class SpeechTracker: NSObject, ObservableObject {
         var isOnDevice: Bool { self != .server }
         var usesContextualStrings: Bool { self != .onDeviceNoContext }
     }
+
+    /// The phrases the voice commands listen for, offered to either engine.
+    static let commandPhrases = ["scroll up", "scroll down", "scroll back", "go back", "go on"]
+
+    /// Something the reader should know that is not a failure: this take
+    /// uses Apple's server-based speech recognition.
+    @Published var noticeMessage: String?
+    /// Which engine the take is using, for the DEBUG A/B switch and logs.
+    @Published private(set) var usingAnalyzer = false
+    /// The engine and path the take is running on, e.g. "New (SpeechAnalyzer)"
+    /// or "Classic, server". Changes only when that changes, not on the
+    /// per-minute task restart, so the DEBUG banner shows once per switch.
+    @Published private(set) var engineDescription: String?
+
+    /// DEBUG A/B switch: `true` keeps every take on `SFSpeechRecognizer`.
+    static let classicEngineKey = "debugClassicSpeechEngine"
+    /// The switch is DEBUG-only; a release build always picks the best engine.
+    static var forcesClassicEngine: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: classicEngineKey)
+        #else
+        return false
+        #endif
+    }
+
+    /// The iOS 26 engine, as `AnyObject` so this class still builds for iOS 16.
+    private var analyzerEngine: AnyObject?
+    /// Set when the analyzer failed this take, so the restart uses the classic
+    /// engine instead of failing the same way again.
+    private var analyzerFailedThisTake = false
+    /// Whether this take already said it is using the server. iOS restarts
+    /// the recognition task about every minute; the notice should not.
+    private var announcedServer = false
 
     private var stage: Stage = .onDeviceWithContext
     /// Called once the shared audio session has been configured and activated
@@ -99,6 +136,9 @@ final class SpeechTracker: NSObject, ObservableObject {
         }
         shouldRun = true
         stage = .onDeviceWithContext
+        analyzerFailedThisTake = false
+        announcedServer = false
+        engineDescription = nil
         observeInterruptions()
         SFSpeechRecognizer.requestAuthorization { [weak self] status in
             DispatchQueue.main.async {
@@ -219,15 +259,6 @@ final class SpeechTracker: NSObject, ObservableObject {
     }
 
     private func startEngine() {
-        guard let recognizer = recognizer, recognizer.isAvailable else {
-            // Naming the language matters: the most likely cause is that this
-            // device has no model for the one that was picked, and
-            // "isn't available right now" sends the reader looking for a
-            // network problem instead.
-            let name = SpeechLocales.label(for: Locale(identifier: localeIdentifier))
-            errorMessage = String(localized: "Speech recognition isn't available for \(name) on this device. Pick another language in the prompter settings.")
-            return
-        }
         stopEngine()
 
         startGeneration &+= 1
@@ -246,8 +277,125 @@ final class SpeechTracker: NSObject, ObservableObject {
                 return
             }
             self.settleAudioSession()
-            self.startRecognition(recognizer: recognizer)
+            self.chooseEngineAndStart(generation: generation)
         }
+    }
+
+    /// The iOS 26 analyzer when it has this language on the phone; otherwise
+    /// the classic engine, on the device only. A language the analyzer could
+    /// download starts downloading now, for the next take.
+    private func chooseEngineAndStart(generation: Int) {
+        let classicOnly = Self.forcesClassicEngine
+        guard #available(iOS 26, *), !classicOnly, !analyzerFailedThisTake else {
+            startClassic()
+            return
+        }
+        let identifier = localeIdentifier
+        Task { @MainActor [weak self] in
+            let availability = await OnDeviceSpeechModels.availability(for: identifier)
+            guard let self, self.startGeneration == generation, self.shouldRun else { return }
+            switch availability {
+            case .ready(let locale):
+                self.startAnalyzer(locale: locale, generation: generation)
+            case .downloadable:
+                SpeechModelDownloads.shared.prepare(identifier)
+                self.startClassic()
+            case .unsupported:
+                self.startClassic()
+            }
+        }
+    }
+
+    private func startClassic() {
+        usingAnalyzer = false
+        guard let recognizer, recognizer.isAvailable else {
+            // Naming the language matters: "isn't available right now" alone
+            // sends the reader looking for a different problem.
+            let name = SpeechLocales.label(for: Locale(identifier: localeIdentifier))
+            errorMessage = String(localized: "\(name) isn't available as a local service on the device, and Apple's server-based speech recognition can't be reached. Check your internet connection, or pick another language.")
+            isListening = false
+            return
+        }
+        // No on-device model for this language: go straight to the server
+        // rather than spending two failed requests finding that out.
+        if !recognizer.supportsOnDeviceRecognition { stage = .server }
+        if stage == .server && !announcedServer {
+            announcedServer = true
+            let name = SpeechLocales.label(for: Locale(identifier: localeIdentifier))
+            if SpeechModelDownloads.shared.isDownloading(localeIdentifier) {
+                noticeMessage = String(localized: "\(name) is still downloading, so this take uses Apple's server-based speech recognition, the same service iOS uses for Dictation. From your next take, On Cue listens on this device.")
+            } else {
+                noticeMessage = String(localized: "\(name) isn't available as a local service on the device, so On Cue uses Apple's server-based speech recognition, the same service iOS uses for Dictation. It needs an internet connection.")
+            }
+        }
+        startRecognition(recognizer: recognizer)
+    }
+
+    @available(iOS 26, *)
+    private func startAnalyzer(locale: Locale, generation: Int) {
+        let engine = AnalyzerEngine()
+        analyzerEngine = engine
+        delta.reset()
+        receivedAnyResult = false
+
+        let input = audioEngine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        Task { @MainActor [weak self] in
+            do {
+                try await engine.start(
+                    locale: locale,
+                    inputFormat: format,
+                    contextualStrings: Self.commandPhrases,
+                    onTranscript: { [weak self] words in
+                        guard let self, self.analyzerEngine === engine else { return }
+                        #if DEBUG
+                        if !self.receivedAnyResult { print("[speech] first result on engine=analyzer") }
+                        #endif
+                        self.receivedAnyResult = true
+                        let appended = self.delta.newWords(in: words)
+                        if !appended.isEmpty { self.onTranscript?(appended) }
+                    },
+                    onError: { [weak self] error in
+                        guard let self, self.analyzerEngine === engine else { return }
+                        self.analyzerFailed(error)
+                    }
+                )
+            } catch {
+                guard let self, self.analyzerEngine === engine else { return }
+                self.analyzerFailed(error)
+            }
+        }
+        input.removeTap(onBus: 0)
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+            engine.append(buffer)
+        }
+        tapInstalled = true
+        audioEngine.prepare()
+        do {
+            try audioEngine.start()
+        } catch {
+            errorMessage = String(localized: "Couldn't start the microphone: \(error.localizedDescription)")
+            return
+        }
+        usingAnalyzer = true
+        isListening = true
+        if engineDescription != "New (SpeechAnalyzer)" { engineDescription = "New (SpeechAnalyzer)" }
+        #if DEBUG
+        print("[speech] engine=analyzer locale=\(locale.identifier) — on-device, offline-capable")
+        #endif
+    }
+
+    /// The analyzer gave up mid-take. Carry on with the classic engine rather
+    /// than leaving the reader with a prompter that stopped following.
+    private func analyzerFailed(_ error: Error) {
+        guard shouldRun, !interrupted else { return }
+        #if DEBUG
+        let ns = error as NSError
+        print("[speech] analyzer failed: domain=\(ns.domain) code=\(ns.code) \(ns.localizedDescription) — using classic for this take")
+        #endif
+        analyzerFailedThisTake = true
+        stopEngine()
+        startClassic()
     }
 
     /// The half of starting a take that must be on main: `AVAudioEngine`, the
@@ -260,27 +408,22 @@ final class SpeechTracker: NSObject, ObservableObject {
         // no surrounding context to disambiguate them, which is why they come
         // back less reliably than the script does — especially in an accent.
         if stage.usesContextualStrings {
-            req.contextualStrings = ["scroll up", "scroll down", "scroll back", "go back", "go on"]
+            req.contextualStrings = Self.commandPhrases
         }
-        if stage.isOnDevice && recognizer.supportsOnDeviceRecognition {
-            req.requiresOnDeviceRecognition = true
-        }
+        req.requiresOnDeviceRecognition = stage.isOnDevice
         #if DEBUG
-        // Which path a take actually runs on is invisible otherwise, and the
-        // two differ by an order of magnitude in latency (roughly 30-50ms
-        // on-device against 300-800ms server-based). A take that silently
-        // fell back reads as "the scrolling got laggy" with nothing in the
-        // UI to say why.
+        // Which engine and rung a take actually runs on is invisible otherwise.
         #if targetEnvironment(simulator)
-        let host = "SIMULATOR — on-device recognition is not available here, so a server fallback says nothing about a phone"
+        let host = "SIMULATOR — on-device recognition is not available here, so nothing here says anything about a phone"
         #else
         let host = "device"
         #endif
         print("[speech] host=\(host) locale=\(localeIdentifier) stage=\(stage.rawValue) " +
-              "path=\(req.requiresOnDeviceRecognition ? "on-device" : "server") " +
-              "contextualStrings=\(stage.usesContextualStrings) " +
+              "engine=classic path=\(stage.isOnDevice ? "on-device" : "server") contextualStrings=\(stage.usesContextualStrings) " +
               "supportsOnDevice=\(recognizer.supportsOnDeviceRecognition)")
         #endif
+        let description = "Classic, \(stage.isOnDevice ? "on-device" : "server")"
+        if engineDescription != description { engineDescription = description }
         request = req
         receivedAnyResult = false
         // A fresh task means a fresh cumulative transcript.
@@ -360,12 +503,20 @@ final class SpeechTracker: NSObject, ObservableObject {
             startEngine()
             return
         }
+        #if DEBUG
+        let failed = error as NSError
+        print("[speech] on-device recognition failed on every rung: domain=\(failed.domain) code=\(failed.code)")
+        #endif
         errorMessage = String(localized: "Speech recognition stopped: \((error as NSError).localizedDescription)")
         stopEngine()
         isListening = false
     }
 
     private func stopEngine() {
+        if #available(iOS 26, *), let engine = analyzerEngine as? AnalyzerEngine {
+            engine.stop()
+        }
+        analyzerEngine = nil
         task?.cancel()
         task = nil
         request?.endAudio()

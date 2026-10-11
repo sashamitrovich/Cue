@@ -115,12 +115,16 @@ final class PrompterSmokeTests: XCTestCase {
             let firstWord = app.staticTexts["Being"]
             XCTAssertTrue(firstWord.waitForExistence(timeout: 5), "first word must be on screen in \(orientation.rawValue)")
 
-            let drift = abs(line.frame.midY - firstWord.frame.midY)
-            XCTAssertLessThan(
-                drift, 26,
-                "reading line \(line.frame) vs word \(firstWord.frame) — off by \(Int(drift))pt "
-                + "in window \(app.windows.firstMatch.frame) (orientation \(orientation.rawValue))"
-            )
+            // The line sits in the gap just under the row being read, not
+            // through it: below the word's middle, no further than a few
+            // points past its bottom edge.
+            let below = line.frame.midY - firstWord.frame.maxY
+            XCTAssertGreaterThan(line.frame.midY, firstWord.frame.midY,
+                "reading line \(line.frame) must be under word \(firstWord.frame), not through it "
+                + "(orientation \(orientation.rawValue))")
+            XCTAssertLessThan(abs(below), 12,
+                "reading line \(line.frame) vs word \(firstWord.frame) — \(Int(below))pt from its bottom edge "
+                + "in window \(app.windows.firstMatch.frame) (orientation \(orientation.rawValue))")
         }
         XCUIDevice.shared.orientation = .portrait
     }
@@ -228,8 +232,8 @@ final class PrompterSmokeTests: XCTestCase {
             window.contains(firstWord.frame),
             "opening line at \(firstWord.frame) drifted outside the window \(window)"
         )
-        let drift = abs(line.frame.midY - firstWord.frame.midY)
-        XCTAssertLessThan(drift, 26, "after rotating back and forth the line is \(Int(drift))pt off the word")
+        let below = line.frame.midY - firstWord.frame.maxY
+        XCTAssertLessThan(abs(below), 12, "after rotating back and forth the line is \(Int(below))pt off the word's bottom edge")
     }
 
     /// Finds a settings slider, scrolling the sheet if the section it lives in

@@ -9,6 +9,9 @@ import SwiftUI
 struct PrompterControlsSheet: View {
     @ObservedObject var camera: CameraController
     @ObservedObject var state: TeleprompterState
+    #if DEBUG
+    @AppStorage(SpeechTracker.classicEngineKey) private var classicSpeechEngine = false
+    #endif
     /// Set when this is shown as the landscape side panel rather than as a
     /// sheet. `@Environment(\.dismiss)` does nothing in an overlay, so
     /// without this the panel has a Done button that cannot close it.
@@ -115,7 +118,9 @@ struct PrompterControlsSheet: View {
                 value: $state.sideMargin,
                 range: ScriptMargins.range,
                 step: 4,
-                display: state.sideMargin == 0 ? "None" : "+\(Int(state.sideMargin))",
+                display: state.sideMargin == 0
+                    ? String(localized: "None", comment: "Side margins slider value at zero")
+                    : "\(ScriptMargins.percent(state.sideMargin))%",
                 icons: ("arrow.right.and.line.vertical.and.arrow.left", "arrow.left.and.line.vertical.and.arrow.right")
             )
             Picker("Text alignment", selection: $state.textAlignment) {
@@ -166,15 +171,22 @@ struct PrompterControlsSheet: View {
 
     private var voiceSection: some View {
         Section {
-            Picker("Language", selection: Binding(
+            LanguagePickerContent(selection: Binding(
                 get: { state.recognitionLocale },
                 set: { state.selectLocaleManually($0) }
-            )) {
-                ForEach(SpeechLocales.available(), id: \.identifier) { locale in
-                    Text(SpeechLocales.label(for: locale)).tag(locale.identifier)
-                }
-            }
+            ))
             Toggle("Voice commands", isOn: $state.voiceCommandsEnabled)
+            #if DEBUG
+            // A/B for #25: the next take uses the engine picked here.
+            Toggle(isOn: $classicSpeechEngine) {
+                Text(verbatim: "DEBUG: classic speech engine")
+            }
+            Button {
+                SpeechModelDownloads.shared.releaseAllForTesting()
+            } label: {
+                Text(verbatim: "DEBUG: release downloaded languages")
+            }
+            #endif
         } header: {
             Text("Voice control")
         } footer: {

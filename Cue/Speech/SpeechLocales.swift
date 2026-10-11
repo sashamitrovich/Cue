@@ -24,6 +24,21 @@ enum SpeechLocales {
             .sorted { label(for: $0) < label(for: $1) }
     }
 
+    /// The picker's two groups (#25): languages Apple has an on-device model
+    /// for — downloaded yet or not — then the rest, which use Apple's
+    /// server-based recognition. Each A-Z, as `locales` already is.
+    /// `local` holds identifiers in either `pt_BR` or `pt-BR` form.
+    static func grouped(_ locales: [Locale], local: Set<String>) -> (onDevice: [Locale], server: [Locale]) {
+        let wanted = Set(local.map(normalizedIdentifier))
+        let onDevice = locales.filter { wanted.contains(normalizedIdentifier($0.identifier)) }
+        let server = locales.filter { !wanted.contains(normalizedIdentifier($0.identifier)) }
+        return (onDevice, server)
+    }
+
+    static func normalizedIdentifier(_ identifier: String) -> String {
+        identifier.replacingOccurrences(of: "_", with: "-")
+    }
+
     /// How a locale is named in the picker: the language, then the region
     /// where the same language appears more than once — "English (United
     /// Kingdom)" — since the distinction between those is exactly what the

@@ -18,7 +18,7 @@ Takes recorded with the front camera are saved to your own Photos library and no
 
 ## Speech recognition
 
-On Cue uses Apple's Speech framework to follow your place in the script. It asks for on-device recognition, which keeps the audio on your device.
+On Cue uses Apple's Speech framework to follow your place in the script. It asks for on-device recognition, which keeps the audio on your device. On iOS 26 and later, the first time you pick a language On Cue may download Apple's on-device speech model for it; the download contains no information about you.
 
 If your device has not downloaded the offline speech model — it arrives when you enable Dictation in Settings → General → Keyboard, or set up Siri — iOS falls back to Apple's speech service, and audio is sent to Apple to be transcribed. This is the same processing that Dictation performs, and it is governed by [Apple's Privacy Policy](https://www.apple.com/legal/privacy/). On Cue receives only the resulting text and stores none of it.
 
