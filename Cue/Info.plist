@@ -22,6 +22,8 @@
 	<string>4</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
 	<key>NSCameraUsageDescription</key>
 	<string>On Cue uses the front camera to record your take.</string>
 	<key>NSMicrophoneUsageDescription</key>

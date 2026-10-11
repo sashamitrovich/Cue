@@ -44,6 +44,9 @@ targets:
         # rejects a build number it has already seen.
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "4"
+        # Required for the Mac App Store (Mac Catalyst) submission; matches the
+        # PRODUCTIVITY primary category set in App Store Connect.
+        LSApplicationCategoryType: public.app-category.productivity
         # Cue makes no network connections and uses no encryption beyond
         # what the OS provides, so this answers the export-compliance
         # question up front instead of on every upload.
