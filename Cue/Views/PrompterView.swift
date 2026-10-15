@@ -29,9 +29,6 @@ struct PrompterView: View {
     /// invalidate this view. See `ScrollState` — `@State` stores without
     /// subscribing, which is the whole point.
     @State private var scroll = ScrollState()
-    #if DEBUG
-    @State private var pursuitDiagnostics = PursuitDiagnostics()
-    #endif
     /// The live reading-line position, for the ticker — see the `onChange`
     /// that maintains it.
     @State private var errorMessage: String?
@@ -151,39 +148,19 @@ struct PrompterView: View {
     /// Light output smoothing for the normal (following) path, in seconds.
     ///
     /// `smoothingTau` eases *jumps*; this is a much smaller filter that takes
-    /// the edge off the pursuit's own motion. Recognition still arrives in
-    /// bursts, so the pursuit's target accelerates and brakes abruptly as each
-    /// burst opens and closes the gap — at this tuning the bursts read as a
-    /// lurch, not a glide. A small low-pass smooths those velocity changes
-    /// while adding only tens of milliseconds.
+    /// the edge off the reading position's own motion, so its velocity changes
+    /// read as a glide rather than a lurch.
     private static let followTau: CGFloat = 0.03
-    /// Seconds the pursuit would take to close the gap if nothing capped it.
-    /// This is what keeps the active word *on* the reading line rather than
-    /// somewhere below it.
-    private static let pursuitResponse: CGFloat = 0.10
-    /// Ceiling on the pursuit, in **lines of script a second** — what stops a
-    /// burst of recognised words being covered instantly.
-    ///
-    /// Measured against lines rather than against the speaking pace, because
-    /// what this protects is the reader's eye: how much text may sweep past
-    /// before they lose their place. That is perceptual, and a line is the
-    /// unit the eye tracks in. The previous form, `pointsPerWord * wpm/60 *
-    /// 4`, depended on two measured quantities that both moved about on their
-    /// own — a whole-take average pace that collapses during a pause, and a
-    /// per-word spacing estimate that was really counting line breaks in a
-    /// lookahead window. Instrumented on a 16e over one take, the resulting
-    /// speed limit ranged from 1.2 to 4.7 lines a second while nothing about
-    /// the reading had changed.
-    ///
-    /// 8 is a deliberate raise from 4: `PursuitDiagnostics` showed the ceiling
-    /// binding on 20-84% of frames, which means it was *setting* the speed
-    /// rather than guarding it — the active word sat permanently below the
-    /// reading line while the ceiling throttled the catch-up. Still a knob to
-    /// re-measure, not a number to defend.
-    private static let pursuitMaxLinesPerSecond: CGFloat = 8
-    /// Floor for the pursuit speed — the opening frames of a take, before the
-    /// layout has been measured and there is a line height to work from.
-    private static let pursuitMinSpeed: CGFloat = 40
+    /// Past this many words the cursor did not advance — it re-anchored (an
+    /// off-script recovery, a restart, a drag, a voice command). Walking there
+    /// at speaking pace would take as long as reading it, so the reading
+    /// position snaps. Normal recognition bursts (a handful of words) fall
+    /// under this and are smoothed instead.
+    private static let wordSnapDistance: Double = 16
+    /// Exponential time constant for the reading position's glide toward the
+    /// cursor, in seconds. Small enough that the active word stays within a
+    /// word of the cursor, large enough to smooth recognition's jitter.
+    private static let readingTau: Double = 0.25
     /// How far below the safe area the reading line may sit at its highest,
     /// as a multiple of the script's type size. A row is about 1.2x the type
     /// size and the active word is centred on the line, so a little over half
@@ -265,9 +242,8 @@ struct PrompterView: View {
         return Double(min(1, max(0, (y - highest) / (lowest - highest))))
     }
     /// The gap between rows of script, shared by the layout that draws them
-    /// and the `lineHeight` the pursuit ceiling is measured in. One constant
-    /// deliberately: if these two drift apart the ceiling is quietly wrong,
-    /// and nothing on screen would say so.
+    /// and the reading-line drop. One constant deliberately: if the two drift
+    /// apart the line sits at the wrong height and nothing on screen says so.
     static let scriptLineSpacing: CGFloat = 6
 
     /// How far below `cueY` the reading line is drawn: into the gap under the
@@ -493,16 +469,16 @@ struct PrompterView: View {
             // at full precision the sub-pixel difference on each pass is
             // enough to keep that cycle running forever, pinning the CPU at
             // 100% and preventing layout from ever settling.
-            .onChange(of: wordFrames[state.activeIndex].map { ($0.midY / 4).rounded() }) { _ in
-                // This key also changes when the *cursor* moves, since it
+            .onChange(of: wordFrames[state.displayIndex].map { ($0.midY / 4).rounded() }) { _ in
+                // This key also changes when the *display* advances, since it
                 // then reads a different word's frame — and that case is the
-                // paced pursuit's business, not an immediate re-target.
+                // reading position's business, not an immediate re-target.
                 // Only act when the same word's frame moved underneath us,
                 // which is what a relayout looks like.
-                if state.activeIndex == lastFrameKeyIndex {
+                if state.displayIndex == lastFrameKeyIndex {
                     recomputeTarget(cueY: cueY, animated: false)
                 }
-                lastFrameKeyIndex = state.activeIndex
+                lastFrameKeyIndex = state.displayIndex
             }
             .onChange(of: state.cueLineFraction) { _ in
                 // Same clamp as the layout above, or the script would scroll
@@ -1537,20 +1513,21 @@ struct PrompterView: View {
     /// deciding not to write it is nearly free; writing it 60 times a second
     /// for movement too small to see is what made a parked prompter as
     /// expensive as a scrolling one.
-    /// The script's row pitch: one line of text plus the gap to the next.
-    ///
-    /// Taken from the active word's own measured frame, which is a row's
-    /// height, plus `FlowLayout`'s line spacing — so it follows the reader's
-    /// type size without depending on how the text wraps. That independence
-    /// is the point: the estimate it replaced divided a lookahead window's
-    /// height by a word count, so it really counted line breaks and swung
-    /// fourfold as the cursor crossed them.
-    ///
-    /// Zero until the first layout pass has measured a word, which
-    /// `ScrollPursuit.speed` handles by falling back to its floor.
-    private var lineHeight: CGFloat {
-        guard let frame = wordFrames[state.activeIndex] else { return 0 }
-        return frame.height + Self.scriptLineSpacing
+    /// The scroll offset that puts the current reading position on the reading
+    /// line, interpolated between the two words the fractional position sits
+    /// between. Interpolation is what makes the scroll glide *through* a line
+    /// break instead of stepping over it: raw word frames are line-stepped
+    /// (every word in a row shares a y), so a target taken straight from one
+    /// frame jumps a whole line at each boundary.
+    private func interpolatedWant(cueY: CGFloat) -> CGFloat? {
+        let pos = scroll.readingPosition
+        let i0 = max(0, min(state.words.count - 1, Int(pos)))
+        guard let f0 = wordFrames[i0] else { return nil }
+        let i1 = min(state.words.count - 1, i0 + 1)
+        let f1 = wordFrames[i1] ?? f0
+        let frac = CGFloat(pos - Double(i0))
+        let y = f0.midY + (f1.midY - f0.midY) * frac
+        return cueY - y
     }
 
     private func tick(now: Date) {
@@ -1561,71 +1538,50 @@ struct PrompterView: View {
         let dt = min(max(now.timeIntervalSince(scroll.lastTick ?? now), 0), 0.1)
         scroll.lastTick = now
 
-        // Follow the reading cursor, at the speed the words are being spoken.
+        // Follow the reading cursor in *word space*, then drive both the
+        // highlight and the scroll from that smoothed position.
         //
-        // Recognition does not arrive a word at a time: SFSpeechRecognizer
-        // reports partial results every few hundred milliseconds, each of
-        // which can match several words at once. Setting the target straight
-        // to the newly recognised word therefore asked the script to cover
-        // two seconds of speech in a third of a second, and then hold still
-        // until the next result — the stall-then-jump. Moving the target at
-        // the speaking pace instead turns the same bursts into continuous
-        // motion, without the display ever running ahead of what was
-        // actually heard.
-        //
-        // It stops dead when it arrives, so silence is still stillness: with
-        // no new words there is no new target, and nothing moves.
-        //
-        // This also does the old self-heal's job — a rotation or a font
-        // change leaves a stale offset that no discrete event corrects, and
-        // the pursuit walks it back onto the reading line. Safe as a
-        // continuous check because these frames are in the flow's own space
-        // and don't move when the offset does.
-        var targetJumped = cursorJumped
-        if !isDraggingScript, !isDraggingLine, let frame = wordFrames[state.activeIndex] {
-            let want = cueY - frame.midY
-            #if DEBUG
-            pursuitDiagnostics.record(
-                now: now,
-                gap: want - scroll.target,
-                lineHeight: lineHeight,
-                maxLinesPerSecond: Self.pursuitMaxLinesPerSecond,
-                response: Self.pursuitResponse
-            )
-            #endif
-            // A jump is a deliberate move (`cursorJumped`) or a re-anchor too
-            // far to pace. Either snaps the target, and a snap is the one
-            // thing the offset should ease into rather than track directly.
+        // Recognition does not arrive a word at a time — the iOS 26 analyzer
+        // lands words in bursts a few wide, a second or so apart. Setting the
+        // highlight straight to the cursor skips the words inside each burst,
+        // and the scroll chases the same jumps. Advancing a continuous
+        // `readingPosition` toward the cursor at the speaking pace turns those
+        // bursts into a steady word-by-word walk: every word lights up in
+        // turn, and the scroll glides instead of lurching.
+        let cursor = Double(state.activeIndex)
+        let wordGap = cursor - scroll.readingPosition
+        let jumped = cursorJumped || wordGap < 0 || abs(wordGap) > Self.wordSnapDistance
+        scroll.readingPosition = ScrollState.advance(
+            position: scroll.readingPosition,
+            toward: cursor,
+            dt: dt,
+            tau: Self.readingTau,
+            jumped: jumped,
+            snapDistance: Self.wordSnapDistance
+        )
+        cursorJumped = false
+
+        let displayIndex = max(0, min(state.words.count - 1, Int(scroll.readingPosition)))
+        if displayIndex != state.displayIndex {
+            state.displayIndex = displayIndex
+        }
+
+        var targetJumped = jumped
+        if !isDraggingScript, !isDraggingLine, let want = interpolatedWant(cueY: cueY) {
+            // A relayout (rotation, type size) moves the target a long way in
+            // one frame; that is a jump to ease, not to follow.
             targetJumped = targetJumped || abs(want - scroll.target) > Self.pursuitSnapDistance
-            let next = ScrollPursuit.step(
-                target: scroll.target,
-                toward: want,
-                speed: ScrollPursuit.speed(
-                    gap: want - scroll.target,
-                    lineHeight: lineHeight,
-                    maxLinesPerSecond: Self.pursuitMaxLinesPerSecond,
-                    response: Self.pursuitResponse,
-                    minimum: Self.pursuitMinSpeed
-                ),
-                dt: dt,
-                snapDistance: Self.pursuitSnapDistance,
-                jumped: cursorJumped
-            )
-            cursorJumped = false
-            if next != scroll.target {
-                scroll.target = next
-                scroll.dragStart = next
-            }
+            scroll.target = want
+            scroll.dragStart = want
         }
         if targetJumped { scroll.easing = true }
 
-        // Apply the offset. The pursuit moves the target continuously but not
-        // smoothly — recognition arrives in bursts, so the target's speed
-        // changes abruptly as each burst opens and closes the gap. Following
-        // passes it through a light low-pass (`followTau`) so those speed
-        // changes read as a glide; a jump is eased with the slower
-        // `smoothingTau`. Either way the final write is what lets the view
-        // stop being invalidated.
+        // Apply the offset. The reading position advances continuously but
+        // not perfectly smoothly, so the target's speed changes a little as
+        // each burst arrives; following passes it through a light low-pass
+        // (`followTau`) so those speed changes read as a glide. A jump is
+        // eased with the slower `smoothingTau`. Either way the final write is
+        // what lets the view stop being invalidated.
         let gap = scroll.target - scroll.offset
         if scroll.easing {
             if abs(gap) > Self.settleThreshold {
@@ -1827,8 +1783,7 @@ struct PrompterView: View {
     }
 
     private func recomputeTarget(cueY: CGFloat, animated: Bool = true) {
-        guard let frame = wordFrames[state.activeIndex] else { return }
-        let newTarget = cueY - frame.midY
+        guard let newTarget = interpolatedWant(cueY: cueY) else { return }
         // A change too small to see is not worth a state write — writing one
         // re-enters layout, which is how the feedback loop starts.
         guard abs(newTarget - scroll.target) > 0.5 || scroll.offset == 0 else { return }
@@ -1991,7 +1946,7 @@ private struct ScrollFlow: View {
     @ViewBuilder
     private func wordView(_ word: ScriptWord) -> some View {
         let wordState = state.state(for: word.id)
-        let wordsBehind = state.activeIndex - word.id
+        let wordsBehind = state.displayIndex - word.id
         // System type, not a serif: SF is drawn for screen legibility at a
         // glance, which is the whole job here — you read this in your
         // peripheral vision while looking at a lens.

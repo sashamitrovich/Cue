@@ -61,6 +61,11 @@ final class TeleprompterState: ObservableObject {
     /// the script's own letters, never from the listening locale (#20).
     @Published var isRightToLeft = false
     @Published var activeIndex: Int = 0
+    /// The word the prompter shows as active. Chases `activeIndex` smoothly
+    /// (driven by `ScrollState.readingPosition` in the prompter's tick), so the
+    /// highlight walks word-by-word even when recognition advances the cursor
+    /// in bursts.
+    @Published var displayIndex: Int = 0
     @Published var fontSize: CGFloat = 32 {
         didSet { if persistsSettings { settings.set(.fontSize, Double(fontSize)) } }
     }
@@ -291,6 +296,7 @@ final class TeleprompterState: ObservableObject {
         lines = built
         isRightToLeft = ScriptDirection.isRightToLeft(normalized)
         activeIndex = 0
+        displayIndex = 0
         unmatchedWords = 0
 
         applyAutoLocaleIfNeeded()
@@ -312,6 +318,8 @@ final class TeleprompterState: ObservableObject {
         } ?? 0
         let target = min(max(current + delta, 0), populated.count - 1)
         activeIndex = populated[target].words.first?.id ?? 0
+        // A deliberate move, not recognition: snap the display cursor too.
+        displayIndex = activeIndex
     }
 
     /// The normalized words at and just after the cursor, so a spoken command
@@ -358,8 +366,8 @@ final class TeleprompterState: ObservableObject {
     }
 
     func state(for index: Int) -> WordState {
-        if index < activeIndex { return .spoken }
-        if index == activeIndex { return .active }
+        if index < displayIndex { return .spoken }
+        if index == displayIndex { return .active }
         return .upcoming
     }
 

@@ -52,6 +52,36 @@ final class ScrollState: ObservableObject {
     /// The reading line's position, captured for the ticker's callback, which
     /// is registered once and so cannot close over a fresh `cueY` each frame.
     var cueY: CGFloat = 0
+
+    /// The fractional word index the display currently shows. Advanced toward
+    /// `TeleprompterState.activeIndex` each tick (see the prompter's `tick`),
+    /// so the highlight and scroll follow one continuous position rather than
+    /// the raw recognition cursor, which advances in bursts.
+    var readingPosition: Double = 0
+}
+
+extension ScrollState {
+    /// Advances a fractional reading position toward the cursor. Pure and
+    /// date-injected so the smoothing can be unit tested.
+    ///
+    /// - A deliberate move (`jumped`), a backward cursor, or a gap past
+    ///   `snapDistance` snaps straight there.
+    /// - Otherwise it glides toward the cursor with an exponential time
+    ///   constant `tau` — tight enough that the active word stays on the
+    ///   reading line, smooth enough that each recognised word arrives as a
+    ///   glide rather than a step.
+    static func advance(
+        position: Double,
+        toward cursor: Double,
+        dt: Double,
+        tau: Double,
+        jumped: Bool,
+        snapDistance: Double
+    ) -> Double {
+        let gap = cursor - position
+        if jumped || gap < 0 || abs(gap) > snapDistance { return cursor }
+        return position + gap * (1 - exp(-dt / tau))
+    }
 }
 
 /// Applies the scroll offset, and is the only thing that redraws when it

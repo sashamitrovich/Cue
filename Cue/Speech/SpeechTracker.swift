@@ -286,6 +286,16 @@ final class SpeechTracker: NSObject, ObservableObject {
     /// download starts downloading now, for the next take.
     private func chooseEngineAndStart(generation: Int) {
         let classicOnly = Self.forcesClassicEngine
+        // Prefer the classic engine's on-device path when this language has
+        // one: it delivers partial results steadily (~200-300ms apart), which
+        // follows a reader smoothly. The analyzer (#25) lands words in ~1s
+        // bursts, so it is reserved for languages the classic engine can only
+        // serve over the network — there its app-downloaded model is what
+        // keeps the take on-device and offline.
+        if recognizer?.supportsOnDeviceRecognition == true, !classicOnly {
+            startClassic()
+            return
+        }
         guard #available(iOS 26, *), !classicOnly, !analyzerFailedThisTake else {
             startClassic()
             return

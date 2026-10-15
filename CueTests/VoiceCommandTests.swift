@@ -160,10 +160,11 @@ final class CursorLineMovementTests: XCTestCase {
     }
 
     func testMovingBackMakesTheTextUnreadAgain() {
-        // The cursor drives the colours, so stepping back is also what
+        // The display cursor drives the colours, so stepping back is also what
         // "resets" already-spoken text.
         let s = state("one two three\nfour five six")
         s.activeIndex = 4
+        s.displayIndex = 4
         XCTAssertEqual(s.state(for: 1), .spoken)
         s.moveCursor(lines: -1)
         XCTAssertEqual(s.state(for: 1), .upcoming)

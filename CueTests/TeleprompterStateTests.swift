@@ -361,7 +361,7 @@ final class TeleprompterStateTests: XCTestCase {
 
     func testStateForClassifiesSpokenActiveUpcoming() {
         let state = makeState("one two three four five")
-        state.activeIndex = 2
+        state.displayIndex = 2
 
         XCTAssertEqual(state.state(for: 0), .spoken)
         XCTAssertEqual(state.state(for: 1), .spoken)
@@ -378,10 +378,18 @@ final class TeleprompterStateTests: XCTestCase {
 
     // MARK: - integration: ingest driving state(for:) end to end
 
-    func testIngestThenStateForReflectsProgress() {
+    func testIngestAdvancesCursorWhileDisplayFollowsSeparately() {
         let state = makeState("the quick brown fox jumps over the lazy dog")
         state.ingest(transcriptWords: ["the", "quick", "brown"])
 
+        // Recognition advances the matcher cursor…
+        XCTAssertEqual(state.activeIndex, 3)
+        // …but the display cursor is advanced separately, by the prompter's
+        // tick, which chases the matcher smoothly.
+        XCTAssertEqual(state.displayIndex, 0)
+
+        // Once the display has caught up, `state(for:)` classifies from it.
+        state.displayIndex = 3
         XCTAssertEqual(state.state(for: 0), .spoken)
         XCTAssertEqual(state.state(for: 1), .spoken)
         XCTAssertEqual(state.state(for: 2), .spoken)
