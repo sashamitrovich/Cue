@@ -107,6 +107,11 @@ targets:
     platform: iOS
     sources:
       - path: CueTests
+        # Private replay fixtures (gitignored) are read from disk by path, never
+        # bundled: a bundled copy would ship script text into the test bundle and
+        # break the build as soon as the file is moved or removed.
+        excludes:
+          - "LocalFixtures/**"
     dependencies:
       - target: Cue
     settings:
