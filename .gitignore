@@ -17,3 +17,6 @@ __pycache__/
 
 # Local signing (team ID) — copy Signing.xcconfig.example to create it
 Signing.xcconfig
+
+# Local-only replay fixtures (contain private script text); never commit
+CueTests/LocalFixtures/

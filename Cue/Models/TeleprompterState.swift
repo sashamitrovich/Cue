@@ -427,6 +427,42 @@ final class TeleprompterState: ObservableObject {
     /// path) are longer than this; short words re-anchor only within the window.
     private static let minimumAnchorLength = 4
 
+    /// How many heard words in a row must have found nothing before a common
+    /// word may be taken at a distance (see `acceptsLostCommonWord`): a single
+    /// miss is covered by `fillerReach`; past the upper bound the reader is
+    /// off-script, not mis-heard, and common words stay guarded as before.
+    private static let lostRunForCommonWord = 2...6
+
+    /// Extra words of distance allowed beyond the count of misses: a mishearing
+    /// does not replace script words one for one — "ran. ledger reconciliation
+    /// checks" was heard as "legend wrecking", four script words for two heard.
+    private static let lostRunSlack = 2
+
+    /// Whether a *common* word found `found - cursor` words ahead may still be
+    /// taken because the reader has demonstrably just lost their place — a few
+    /// words in a row matched nothing — rather than wandered off (#29).
+    ///
+    /// The recogniser mishears a run of script words ("ledger reconciliation" →
+    /// "legend wrecking"), so the next correct word is usually a common one
+    /// ("whether") up to four words past the cursor, and `fillerReach`
+    /// refused it until a distinctive word arrived: 3–9 s of a frozen script,
+    /// then a lurch. A common word is accepted here only when it cannot be
+    /// confused with another: an exact match, the only occurrence of that word
+    /// in the ordinary window, and no further ahead than the misses account
+    /// for (`lost + lostRunSlack` words). That last bound is what keeps ad-lib
+    /// and double-backs guarded: a couple of off-script words open this rule
+    /// too, but only to a word a few places ahead, never across the window.
+    private func acceptsLostCommonWord(_ word: String, found: Int, cursor: Int, lost: Int) -> Bool {
+        guard Self.lostRunForCommonWord.contains(lost),
+              found - cursor <= lost + Self.lostRunSlack,
+              found - cursor < Self.window,
+              words[found].norm == word else { return false }
+        let end = min(words.count, cursor + Self.window)
+        var occurrences = 0
+        for k in cursor..<end where words[k].norm == word { occurrences += 1 }
+        return occurrences == 1
+    }
+
     /// Heard words that have found nothing since the cursor last moved.
     ///
     /// Drives the widening above. Skipping a sentence, paraphrasing a clause
@@ -455,6 +491,9 @@ final class TeleprompterState: ObservableObject {
         guard !words.isEmpty else { return }
         var cursor = activeIndex
         var considered = 0
+        // Heard words in a row that found nothing, counting those from earlier
+        // calls (words arrive about one per call). Reset by any advance.
+        var lost = unmatchedWords
         for rawWord in heard {
             let word = Self.normalize(rawWord)
             guard !word.isEmpty else { continue }
@@ -474,8 +513,10 @@ final class TeleprompterState: ObservableObject {
                 }
                 j += 1
             }
-            guard found >= 0 else { continue }
-            if found - cursor > Self.fillerReach && isCommon(word) {
+            guard found >= 0 else { lost += 1; continue }
+            if found - cursor > Self.fillerReach && isCommon(word),
+               !acceptsLostCommonWord(word, found: found, cursor: cursor, lost: lost) {
+                lost += 1
                 continue
             }
             // Past the ordinary window this is no longer sequential reading —
@@ -487,9 +528,11 @@ final class TeleprompterState: ObservableObject {
             // on a word that is neither common in this script nor too short.
             if found - cursor > Self.window,
                isCommon(word) || word.count < Self.minimumAnchorLength {
+                lost += 1
                 continue
             }
             cursor = found + 1
+            lost = 0
         }
         if cursor > activeIndex {
             activeIndex = min(cursor, words.count - 1)

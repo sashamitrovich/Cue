@@ -11,6 +11,15 @@ import XCTest
 /// repeated long words — not just at confirming a guard fires.
 final class FillerWordJumpTests: XCTestCase {
 
+    /// Same, but pinned to English: the lost-run tests need "then", "there" and
+    /// "the" to be function words, which depends on the recognition language
+    /// that auto-detection would otherwise pick on the test host.
+    private func makeEnglishState(_ script: String) -> TeleprompterState {
+        let state = makeState(script)
+        state.recognitionLocale = "en-US"
+        return state
+    }
+
     private func makeState(_ script: String) -> TeleprompterState {
         let state = TeleprompterState()
         state.scriptText = script
@@ -273,5 +282,102 @@ final class FillerWordJumpTests: XCTestCase {
         state.ingest(transcriptWords: ["three"])
         state.ingest(transcriptWords: ["four"])
         XCTAssertEqual(state.activeIndex, 2, "At the last word the cursor must clamp, not run off the end")
+    }
+
+    // MARK: a run of misheard words must not freeze the script (#29)
+
+    // "ledger reconciliation checks" heard as "legend wrecking": the next correct word,
+    // "then" (standing in for the real "whether", which is common because it
+    // recurs in that script), is a common word a few places past the cursor.
+    private let lostScript = "the job ran ledger reconciliation checks then results are still right now you are tracing it"
+
+    func testRunOfMisheardWordsDoesNotFreezeBeforeACommonWord() {
+        let state = makeEnglishState(lostScript)
+        state.activeIndex = 3   // "data"
+        state.ingest(transcriptWords: ["legend"])
+        state.ingest(transcriptWords: ["wrecking"])
+        state.ingest(transcriptWords: ["then"])
+        XCTAssertEqual(state.activeIndex, 7, "Two misheard words in a row must not leave the script frozen on 'data'")
+    }
+
+    /// One miss is still covered by `fillerReach`; a common word two or more
+    /// places ahead needs a real run of misses before it is believed.
+    func testASingleMissDoesNotLetACommonWordJump() {
+        let state = makeEnglishState(lostScript)
+        state.activeIndex = 3
+        state.ingest(transcriptWords: ["legend"])
+        state.ingest(transcriptWords: ["then"])
+        XCTAssertEqual(state.activeIndex, 3)
+    }
+
+    /// If the word occurs twice in the look-ahead it cannot say which one the
+    /// reader means, however lost they are.
+    func testAmbiguousCommonWordNeverJumps() {
+        let state = makeEnglishState("a ran ledger reconciliation checks the result of the thing still right")
+        state.activeIndex = 2   // "data"
+        state.ingest(transcriptWords: ["legend"])
+        state.ingest(transcriptWords: ["wrecking"])
+        state.ingest(transcriptWords: ["the"])
+        XCTAssertEqual(state.activeIndex, 2, "'the' appears twice ahead - guessing which is how a prompter runs away")
+    }
+
+    /// Ad-lib is a long run of words the script never contains. Past the
+    /// lost-run bound a common word is guarded exactly as before.
+    func testWanderingReaderDoesNotJumpOnACommonWord() {
+        let state = makeEnglishState(lostScript)
+        state.activeIndex = 3
+        for junk in ["zzxq", "qqwz", "wxzq", "zqwx", "xwzq", "qzxw", "wzqx"] {
+            state.ingest(transcriptWords: [junk])
+        }
+        state.ingest(transcriptWords: ["then"])
+        XCTAssertEqual(state.activeIndex, 3)
+    }
+
+    /// Only an exact word counts: a common word that merely starts the script
+    /// word ("there" against "therefore") is not enough to be believed at a
+    /// distance.
+    func testLostRunDoesNotAcceptAPrefixMatchOnACommonWord() {
+        let state = makeEnglishState("a ran ledger reconciliation checks therefore results arrive")
+        state.activeIndex = 2
+        state.ingest(transcriptWords: ["legend"])
+        state.ingest(transcriptWords: ["wrecking"])
+        state.ingest(transcriptWords: ["there"])
+        XCTAssertEqual(state.activeIndex, 2)
+    }
+
+    /// The reviewer's failing case: a short ad-lib (two words the script does
+    /// not contain) must not let a once-only function word nine places ahead
+    /// pull the cursor across the window.
+    func testShortAdLibDoesNotJumpToADistantFunctionWord() {
+        let state = makeEnglishState(lostScript)
+        state.activeIndex = 3
+        state.ingest(transcriptWords: ["basically"])
+        state.ingest(transcriptWords: ["meaning"])
+        state.ingest(transcriptWords: ["you"])   // script has "you" at index 12
+        XCTAssertEqual(state.activeIndex, 3)
+    }
+
+    /// The bound itself: with two misses a common word may sit at most four
+    /// places ahead; five is refused even though it is unique in the window.
+    func testLostRunCommonWordTooFarAheadIsRefused() {
+        let state = makeEnglishState("a ran ledger reconciliation checks b c then results arrive")
+        state.activeIndex = 2          // "data"; "then" is five places ahead
+        state.ingest(transcriptWords: ["legend"])
+        state.ingest(transcriptWords: ["wrecking"])
+        state.ingest(transcriptWords: ["then"])
+        XCTAssertEqual(state.activeIndex, 2)
+    }
+
+    /// The recorded case that justified a slack of two: four script words were
+    /// missed but only two heard, so the next correct word sat four places
+    /// ahead with two misses. A slack of one would refuse it and bring the
+    /// freeze back.
+    func testLostRunAcceptsACommonWordFourPlacesAheadAfterTwoMisses() {
+        let state = makeEnglishState("a ran ledger reconciliation checks b then results arrive")
+        state.activeIndex = 2          // "data"; "then" is four places ahead
+        state.ingest(transcriptWords: ["legend"])
+        state.ingest(transcriptWords: ["wrecking"])
+        state.ingest(transcriptWords: ["then"])
+        XCTAssertEqual(state.activeIndex, 7)
     }
 }

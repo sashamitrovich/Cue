@@ -474,7 +474,7 @@ final class SpeechTracker: NSObject, ObservableObject {
                     #endif
                     self.receivedAnyResult = true
                     let words = transcript.split(separator: " ").map(String.init)
-                    let appended = self.delta.newWords(in: words)
+                    let appended = self.delta.newWords(in: words, detectsReset: true)
                     if !appended.isEmpty {
                         self.onTranscript?(appended)
                     }
