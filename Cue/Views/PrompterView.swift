@@ -95,6 +95,14 @@ struct PrompterView: View {
     /// Gap between those three. They sit next to the screen edge and next to
     /// each other, and "exit" beside "settings" is a bad pair to mis-hit.
     static let glassButtonGap: CGFloat = 10
+    /// Spacing between the take buttons in the phone strip. Four circles share
+    /// it now, so it has to fit the narrowest phone: portrait, 4 × 52 + 3 × 36
+    /// = 316pt of a 393pt picture and of the 375pt screen the 16:9 fallback
+    /// floats the same row over (29.5pt clear a side); landscape, 4 × 42 + 3 ×
+    /// 16 = 216pt of the picture height, which is 393pt less the strips'
+    /// insets. Neither needs tightening, so these are the original gaps.
+    static let stripRowSpacing: CGFloat = 36
+    static let stripColumnSpacing: CGFloat = 16
 
     static let railWidth: CGFloat = 56
     /// Breathing room for the rail on a screen edge with no cutout of its own.
@@ -1687,12 +1695,12 @@ struct PrompterView: View {
         let size = landscape ? Self.railButtonSize : Self.takeButtonSize
         if let strip = frame.strip {
             if landscape {
-                VStack(spacing: 16) {
+                VStack(spacing: Self.stripColumnSpacing) {
                     controlButtons(compact: true, size: size, showsCaptions: false)
                 }
                 .position(x: strip.midX, y: strip.midY)
             } else {
-                HStack(spacing: 36) {
+                HStack(spacing: Self.stripRowSpacing) {
                     controlButtons(compact: true, size: size, showsCaptions: false)
                 }
                 .position(x: strip.midX, y: strip.midY)
@@ -1704,14 +1712,14 @@ struct PrompterView: View {
             let x = frame.stripOnLeading
                 ? pic.minX + max(frame.safeOverlap.leading, Self.edgeGap / 2) + half
                 : pic.maxX - max(frame.safeOverlap.trailing, Self.edgeGap / 2) - half
-            VStack(spacing: 16) {
+            VStack(spacing: Self.stripColumnSpacing) {
                 controlButtons(compact: true, size: size, showsCaptions: false)
             }
             .position(x: x, y: pic.midY)
         } else {
             let pic = frame.picture
             let y = pic.maxY - max(frame.safeOverlap.bottom, 8) - size / 2 - 8
-            HStack(spacing: 36) {
+            HStack(spacing: Self.stripRowSpacing) {
                 controlButtons(compact: true, size: size, showsCaptions: false)
             }
             .position(x: pic.midX, y: y)
@@ -1743,8 +1751,9 @@ struct PrompterView: View {
 
     // MARK: - Take controls
 
-    /// The same three controls in both orientations, in the same order, at
-    /// the same weight — only the axis changes.
+    /// The same controls in both orientations, in the same order, at the same
+    /// weight — only the axis changes. The flip button joins them only where
+    /// both cameras exist; it is the fourth in the phone strip, after Record.
     ///
     /// `size` and `showsCaptions` default to the legacy layout's choice,
     /// which reads the latched `isLandscape`: the old bar and rail are only
@@ -1801,6 +1810,29 @@ struct PrompterView: View {
                     pendingRecordOnListen = false
                 } else {
                     beginRecordingTake()
+                }
+            }
+            // Only where a flip can actually happen: both cameras, camera on.
+            // In the strip it sits beside Record, like Camera.app's own flip.
+            if camera.capabilities.hasBothCameras {
+                takeButton(
+                    icon: "arrow.triangle.2.circlepath.camera",
+                    label: "Flip camera",
+                    id: "flipCamera",
+                    size: size,
+                    showsCaptions: showsCaptions,
+                    compact: compact,
+                    // The input cannot be swapped mid-file, so the button
+                    // stays put and greys out for the take rather than
+                    // disappearing.
+                    disabled: camera.isRecording
+                ) {
+                    let target = camera.position.other
+                    state.cameraPosition = target
+                    if !camera.switchCamera(to: target) {
+                        // Keep the old camera and put the saved preference back.
+                        state.cameraPosition = camera.position
+                    }
                 }
             }
         }
@@ -1864,6 +1896,9 @@ struct PrompterView: View {
         /// Sized to its content rather than spreading, so it can share a row
         /// with the utility buttons instead of pushing them off the edge.
         compact: Bool = false,
+        /// Visible but inert: switching the camera input mid-recording would
+        /// tear down the file, so the flip button is dimmed rather than hidden.
+        disabled: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button {
@@ -1888,6 +1923,11 @@ struct PrompterView: View {
                         .font(ChromeType.label(10))
                         .tracking(ChromeType.labelTracking(10))
                         .textCase(.uppercase)
+                        // "Flip camera" is longer than the other captions;
+                        // without this it wraps inside the 64pt slot and the
+                        // legacy bar grows a line taller. Shrink, never wrap.
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                         .foregroundStyle(on ? Self.accent : .white.opacity(0.65))
                 }
             }
@@ -1895,6 +1935,10 @@ struct PrompterView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(disabled)
+        // The same 35% the disabled quality pills use, rather than a control
+        // that vanishes — nothing in the prompter chrome hides.
+        .opacity(disabled ? 0.35 : 1)
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
     }

@@ -39,6 +39,22 @@ final class CameraPositionTests: XCTestCase {
         XCTAssertEqual(CameraPosition.resolvedPosition(requested: .front, hasBackCamera: true), .front)
     }
 
+    // MARK: - Flipping
+
+    func testFrontFlipsToBack() {
+        XCTAssertEqual(CameraPosition.front.other, .back)
+    }
+
+    func testBackFlipsToFront() {
+        XCTAssertEqual(CameraPosition.back.other, .front)
+    }
+
+    func testFlippingTwiceReturnsToTheSameCamera() {
+        for position in CameraPosition.allCases {
+            XCTAssertEqual(position.other.other, position)
+        }
+    }
+
     // MARK: - Widest 16:9 format choice
 
     func testPreferredDimensionsPicksWidestWidescreenFormat() {

@@ -33,6 +33,10 @@ enum CameraPosition: String, CaseIterable, Identifiable, Equatable {
     /// both, so the flip is preview-only and decided here.
     var previewIsMirrored: Bool { self == .front }
 
+    /// The camera a flip switches to. Pure, so the dock button's target and
+    /// the preference it saves are one testable rule.
+    var other: CameraPosition { self == .front ? .back : .front }
+
     /// A saved "back" is honoured only on a device that actually has a back
     /// camera; anything else falls back to the front camera. Pure so the rule
     /// can be unit tested without hardware.

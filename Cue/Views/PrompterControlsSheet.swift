@@ -24,23 +24,6 @@ struct PrompterControlsSheet: View {
             || camera.capabilities.supportsLowLightBoost
     }
 
-    /// The front/back row, shown only on devices that actually have both
-    /// cameras. Switching reconfigures the running session, so it is disabled
-    /// while a take is recording — exactly like the quality pills.
-    private var cameraPosition: Binding<CameraPosition> {
-        Binding(
-            get: { state.cameraPosition },
-            set: { newValue in
-                guard newValue != state.cameraPosition else { return }
-                state.cameraPosition = newValue
-                if !camera.switchCamera(to: newValue) {
-                    // Keep the old camera and put the saved preference back.
-                    state.cameraPosition = camera.position
-                }
-            }
-        )
-    }
-
     /// Fraction of the screen the sheet is allowed. Deliberately under half:
     /// the reading line sits high on the screen by design, so what stays
     /// uncovered is the part being read.
@@ -63,9 +46,6 @@ struct PrompterControlsSheet: View {
                 timingSection
                 voiceSection
                 if state.cameraEnabled {
-                    if camera.capabilities.hasBothCameras {
-                        cameraSection
-                    }
                     legibilitySection
                     qualitySection
                     if hasAdjustableCapture { captureSection }
@@ -246,18 +226,6 @@ struct PrompterControlsSheet: View {
     }
 
     // MARK: - Camera
-
-    private var cameraSection: some View {
-        Section("Camera") {
-            Picker("Camera", selection: cameraPosition) {
-                ForEach(CameraPosition.allCases) { option in
-                    Text(option == .front ? "Front" : "Back").tag(option)
-                }
-            }
-            .pickerStyle(.segmented)
-            .disabled(camera.isRecording)
-        }
-    }
 
     @ViewBuilder
     private var qualitySection: some View {
