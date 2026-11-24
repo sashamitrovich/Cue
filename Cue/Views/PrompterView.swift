@@ -6,8 +6,8 @@ import Combine
 /// Design brief: behave like a first-party capture app. The content is the
 /// script and the speaker's face, so the chrome defers to it — translucent
 /// materials rather than opaque slabs, one accent colour used only where it
-/// carries meaning, and controls that recede once a take is running and
-/// brighten again on a tap — without ever leaving the screen.
+/// carries meaning. Nothing in the chrome fades or hides: the status readout
+/// and the take controls stay where they are for the whole take.
 struct PrompterView: View {
     @ObservedObject var state: TeleprompterState
     @Environment(\.dismiss) private var dismiss
@@ -167,17 +167,86 @@ struct PrompterView: View {
     /// of that keeps the word clear of the Dynamic Island rather than tucked
     /// behind it.
     private static let readingLineClearance: CGFloat = 0.75
-    /// The landscape settings panel takes half the width, leaving the other
-    /// half of the script — including the reading line — visible and live
-    /// while a setting is being changed. It sits on the edge *opposite* the
-    /// control rail, so it never covers the buttons that opened it.
-    private var settingsPanelWidth: CGFloat {
-        // Was half. Half squeezed twenty rows into a column narrow enough
-        // that reaching the lower ones took a long scroll, and a slider half
-        // as wide is half as precise to set — and this panel is mostly
-        // sliders. 62% still leaves a live strip of script with the reading
-        // line on it, which is the whole point of not using a sheet.
-        UIScreen.main.bounds.width * 0.62
+    /// The landscape settings panel covers the outer ~62% of the picture and
+    /// whatever black space lies beyond it, so the other part of the script —
+    /// including the reading line — stays visible and live while a setting is
+    /// being changed. It sits on the edge *opposite* the control strip or
+    /// rail, so it never covers the buttons that opened it.
+    ///
+    /// Half squeezed twenty rows into a column narrow enough that reaching
+    /// the lower ones took a long scroll, and a slider half as wide is half
+    /// as precise to set — and this panel is mostly sliders. From live
+    /// geometry, not `UIScreen`: the picture is not the screen any more.
+    ///
+    /// The result excludes the safe inset the panel adds on its outer edge.
+    private func settingsPanelWidth(frame: PrompterFrame, insets: EdgeInsets) -> CGFloat {
+        let picture = frame.picture
+        let keep = picture.width * 0.38
+        if railOnLeading {
+            // Panel on the trailing edge.
+            return max(0, frame.fullSize.width - picture.minX - keep - insets.trailing)
+        }
+        return max(0, picture.maxX - keep - insets.leading)
+    }
+
+    /// Whether this device gets the picture frame (iPhone only).
+    private var usesPictureFrame: Bool {
+        PrompterFrame.usesPictureFrame(idiom: UIDevice.current.userInterfaceIdiom)
+    }
+
+    /// The one frame for this render, from live geometry: the full size is
+    /// `geo.size` plus the safe-area insets, because the prompter's container
+    /// ignores the safe area. Never from the latched `isLandscapeLayout`,
+    /// which is written one pass late.
+    private func makeFrame(geo: GeometryProxy, insets: EdgeInsets) -> PrompterFrame {
+        let full = CGSize(width: geo.size.width + insets.leading + insets.trailing,
+                          height: geo.size.height + insets.top + insets.bottom)
+        return usesPictureFrame
+            ? PrompterFrame.make(fullSize: full, safeArea: insets, railOnLeading: railOnLeading)
+            : PrompterFrame.fullScreen(fullSize: full, safeArea: insets, railOnLeading: railOnLeading)
+    }
+
+    /// Everything the script path needs, in the picture's own coordinate
+    /// space (origin at the picture's top-left). One value, so the layout and
+    /// the reading-line drag cannot disagree about what the line may clear.
+    private struct ScriptSpace {
+        /// The picture's size: the script's frame and clip.
+        let size: CGSize
+        /// What the reading line has to clear at its highest and lowest.
+        let topInset: CGFloat
+        let bottomInset: CGFloat
+        /// `ScriptMargins` results, already symmetric in the picture case.
+        let leadingInset: CGFloat
+        let trailingInset: CGFloat
+    }
+
+    private func scriptSpace(frame: PrompterFrame, insets: EdgeInsets) -> ScriptSpace {
+        let width = frame.picture.width
+        if usesPictureFrame {
+            let margins = Self.pictureMargins(frame: frame)
+            let side = ScriptMargins.inset(
+                safeArea: margins.safeArea, margin: state.sideMargin, rail: margins.rail,
+                width: width, fontSize: state.fontSize)
+            return ScriptSpace(
+                size: frame.picture.size,
+                topInset: Self.pictureReadingLineTopInset(frame: frame, showsTiming: state.showTiming),
+                bottomInset: Self.pictureReadingLineBottomInset(frame: frame),
+                leadingInset: side, trailingInset: side)
+        }
+        // iPad and Mac keep the full-bleed layout: the "picture" is the whole
+        // screen, and the script clears the safe areas and the rail itself.
+        return ScriptSpace(
+            size: frame.picture.size,
+            topInset: readingLineTopInset(insets: insets),
+            bottomInset: readingLineBottomInset(insets: insets),
+            leadingInset: ScriptMargins.inset(
+                safeArea: insets.leading, margin: state.sideMargin,
+                rail: isLandscape && railOnLeading ? Self.railWidth : 0,
+                width: width, fontSize: state.fontSize),
+            trailingInset: ScriptMargins.inset(
+                safeArea: insets.trailing, margin: state.sideMargin,
+                rail: isLandscape && !railOnLeading ? Self.railWidth : 0,
+                width: width, fontSize: state.fontSize))
     }
 
     /// Where the reading line sits, from the setting.
@@ -286,32 +355,45 @@ struct PrompterView: View {
             // enough room for the word itself, which is what "as high as it
             // can go" actually means. `fontSize` is a setting rather than a
             // measurement, so this stays a pure function of geometry.
+            //
+            // In picture space: the script, its reading line and its band
+            // all live in the recorded frame, not the screen.
+            let frame = makeFrame(geo: geo, insets: insets)
+            let space = scriptSpace(frame: frame, insets: insets)
             let cueY = Self.cueY(
                 fraction: state.cueLineFraction,
-                fullHeight: fullHeight(geo: geo, insets: insets),
-                topInset: readingLineTopInset(insets: insets),
-                bottomInset: readingLineBottomInset(insets: insets),
+                fullHeight: space.size.height,
+                topInset: space.topInset,
+                bottomInset: space.bottomInset,
                 fontSize: state.fontSize
             )
 
             ZStack {
                 Self.ground
-                cameraLayer
-                scriptLayer(geo: geo, insets: insets, cueY: cueY)
+                // At the BOTTOM of the stack so it can never shadow a button
+                // for `isHittable`. A leaf, so the script's words stay their
+                // own accessibility elements.
+                if usesPictureFrame { pictureFrameElement(frame: frame) }
+                cameraLayer(frame: frame)
+                scriptLayer(frame: frame, space: space, cueY: cueY)
 
-                // The status bar is information — where you are, how long is
-                // left, whether it's recording — and stays put through a take.
-                // Only the buttons fade, because only the buttons are in the
-                // way. Hiding the readout meant touching the screen to find
-                // out where you were, which defeats a hands-free prompter.
-                chrome(geo: geo, insets: insets)
+                if usesPictureFrame {
+                    pictureTicks(frame: frame)
+                    // The status chip is information — where you are, how
+                    // long is left, whether it's recording — and stays put
+                    // through a take, as the old status bar did.
+                    pictureChrome(frame: frame)
+                } else {
+                    // iPad and Mac keep the full-bleed bar and rail.
+                    chrome(geo: geo, insets: insets)
+                }
 
                 if showVoiceTip {
-                    voiceCommandTip(insets: insets)
+                    voiceCommandTip(frame: frame, insets: insets)
                 }
 
                 if let remaining = countdownRemaining {
-                    countdownOverlay(remaining)
+                    countdownOverlay(remaining, frame: frame)
                 }
             }
             // The whole prompter bleeds to the edges — a camera app shows the
@@ -622,7 +704,7 @@ struct PrompterView: View {
                     // Both dimensions, explicitly, so the panel is sized by
                     // the screen rather than by whatever the Form inside it
                     // would otherwise negotiate with an overlay.
-                    .frame(width: settingsPanelWidth, height: geo.size.height + insets.top + insets.bottom)
+                    .frame(width: settingsPanelWidth(frame: frame, insets: insets), height: frame.fullSize.height)
                     // The prompter bleeds to the edges, so without this the
                     // panel's own controls run under the rounded corner and
                     // the buttons nearest the edge are clipped.
@@ -644,16 +726,28 @@ struct PrompterView: View {
     // MARK: - Content layers
 
     @ViewBuilder
-    private var cameraLayer: some View {
+    private func cameraLayer(frame: PrompterFrame) -> some View {
         if state.cameraEnabled {
             // No pinch-to-zoom, deliberately. The camera stays at its widest
             // field of view: a digital zoom on a front camera only crops the
             // picture, and the script is drawn over this, so a stray pinch
             // while reaching for the screen used to crop the shot with
             // nothing on screen to say it had happened.
-            CameraPreviewView(session: camera.session)
-                .scaleEffect(x: -1, y: 1)
-            Color.black.opacity(state.cameraDimming)
+            //
+            // Framed to the picture and shown whole (aspect FIT): what is on
+            // screen is what is recorded. The mirror and the dimming belong
+            // to the picture, so they are applied before it is placed; the
+            // flip then pivots on the picture's own centre. `Self.ground`
+            // fills the rest of the screen.
+            ZStack {
+                CameraPreviewView(session: camera.session, aspectFit: usesPictureFrame)
+                    .scaleEffect(x: -1, y: 1)
+                Color.black.opacity(state.cameraDimming)
+            }
+            .frame(width: frame.picture.width, height: frame.picture.height)
+            .clipped()
+            .position(x: frame.picture.midX, y: frame.picture.midY)
+            .frame(width: frame.fullSize.width, height: frame.fullSize.height)
         }
     }
 
@@ -725,32 +819,73 @@ struct PrompterView: View {
         safeAreaBottom
     }
 
-    private func fullHeight(geo: GeometryProxy, insets: EdgeInsets) -> CGFloat {
-        geo.size.height + insets.top + insets.bottom
+    // MARK: Reading line in picture space
+
+    /// Where the chip row starts, from the top of the picture (or from the
+    /// safe-area top when the picture is the whole screen).
+    static let chipTopPadding: CGFloat = 8
+    /// How far from the picture's top edge the chip row reaches, with and
+    /// without the timing row in the status chip: its top padding plus the
+    /// taller of the two chips. Two constants, as `landscapeBarHeight(WithTiming)`
+    /// are for the legacy bar, and for the same reason: stated, never
+    /// measured. Measured on the real chips (iPhone 15 Pro, simulator, status
+    /// chip frames from the accessibility tree): see the report; if the chip
+    /// layout changes, re-measure these.
+    static let chipClearance: CGFloat = 71
+    static let chipClearanceWithTiming: CGFloat = 78
+
+    /// The bottom of the chip row in picture space. In the fallback the
+    /// picture is the whole screen, so the chips start below the safe-area
+    /// top and this moves down by it.
+    static func chipRowBottom(frame: PrompterFrame, showsTiming: Bool) -> CGFloat {
+        (frame.isFallback ? frame.safeOverlap.top : 0)
+            + (showsTiming ? chipClearanceWithTiming : chipClearance)
+    }
+
+    /// What the reading line has to clear at its highest, measured from the
+    /// picture's top edge: the chip row. When the picture is the whole screen
+    /// (the 16:9-phone fallback) the row starts below the safe-area top, so
+    /// the script never scrolls under the Dynamic Island either.
+    static func pictureReadingLineTopInset(frame: PrompterFrame, showsTiming: Bool) -> CGFloat {
+        chipRowBottom(frame: frame, showsTiming: showsTiming)
+    }
+
+    /// What it has to clear at its lowest: the home indicator, where the
+    /// picture reaches the bottom edge (landscape), otherwise nothing. Same
+    /// asymmetry with the top as `readingLineBottomInset`.
+    static func pictureReadingLineBottomInset(frame: PrompterFrame) -> CGFloat {
+        frame.safeOverlap.bottom
+    }
+
+    /// Inputs to `ScriptMargins.inset` for the picture, the same on both
+    /// sides: the script is centred on the picture. Where the picture stays
+    /// clear of the safe areas (every case with a strip) the safe area adds
+    /// nothing and the rail is not in the picture. In the fallback the
+    /// picture is the screen: the safe area counts, and in landscape the take
+    /// buttons float over the thumb edge, so both sides clear a rail's width
+    /// to stay symmetric.
+    static func pictureMargins(frame: PrompterFrame) -> (safeArea: CGFloat, rail: CGFloat) {
+        (max(frame.safeOverlap.leading, frame.safeOverlap.trailing),
+         frame.isFallback && frame.isLandscape ? railWidth : 0)
     }
 
     /// Width of the dark outline around the script's words, in points.
     private var outlineWidth: CGFloat { max(1, state.fontSize * 0.022) }
 
-    private func scriptLayer(geo: GeometryProxy, insets: EdgeInsets, cueY: CGFloat) -> some View {
+    private func scriptLayer(frame: PrompterFrame, space: ScriptSpace, cueY: CGFloat) -> some View {
         // The flow reports a height far taller than the screen, and a ZStack
         // sizes itself to its largest child — without pinning this to the
-        // screen's frame the whole prompter lays out oversized.
+        // picture's frame the whole prompter lays out oversized.
         ScrollFlow(
             state: state,
             wordFrames: $wordFrames,
             topInset: cueY,
-            bottomInset: fullHeight(geo: geo, insets: insets) * 0.6,
-            // The frame is full-bleed, so the script clears the safe areas
-            // itself. The reader's margin is added on top of the safe area.
-            leadingInset: ScriptMargins.inset(
-                safeArea: insets.leading, margin: state.sideMargin,
-                rail: isLandscape && railOnLeading ? Self.railWidth : 0,
-                width: geo.size.width + insets.leading + insets.trailing, fontSize: state.fontSize),
-            trailingInset: ScriptMargins.inset(
-                safeArea: insets.trailing, margin: state.sideMargin,
-                rail: isLandscape && !railOnLeading ? Self.railWidth : 0,
-                width: geo.size.width + insets.leading + insets.trailing, fontSize: state.fontSize)
+            bottomInset: space.size.height * 0.6,
+            // The margins are in picture space and already include whatever
+            // the script has to clear (see `scriptSpace`). The reader's margin
+            // is added on top.
+            leadingInset: space.leadingInset,
+            trailingInset: space.trailingInset
         )
         .coordinateSpace(name: "flow")
         // Dimmed while the pre-roll runs, so the leader can be read without a
@@ -768,16 +903,15 @@ struct PrompterView: View {
         .modifier(ScrollOffset(scroll: scroll))
         // Pinned to an explicit frame — the flow is 2-3x taller than the
         // screen and an unpinned ZStack sizes to it, pushing the controls off
-        // screen entirely. The frame is the *full* screen, insets included:
-        // the container ignores the safe area, so a child sized to the inset
-        // `geo` height gets centred and lands ~(top+bottom)/2 below the origin
-        // the reading line measures from — which is why the line sat a line
-        // and a half above the words it marks.
-        .frame(
-            width: geo.size.width + insets.leading + insets.trailing,
-            height: fullHeight(geo: geo, insets: insets),
-            alignment: .top
-        )
+        // screen entirely. The frame is the *picture*: in the legacy layout
+        // that is the full screen, insets included (the container ignores the
+        // safe area, so a child sized to the inset `geo` height gets centred
+        // and lands ~(top+bottom)/2 below the origin the reading line measures
+        // from — which is why the line sat a line and a half above the words
+        // it marks). Everything below is laid out in the picture's own
+        // coordinate space, origin at its top-left; it is moved to its place
+        // on the screen only at the very end.
+        .frame(width: space.size.width, height: space.size.height, alignment: .top)
         .clipped()
         // Words sit over live video, so they need a dark edge — a flat colour
         // alone disappears against faces, windows and anything bright behind
@@ -831,8 +965,7 @@ struct PrompterView: View {
         // screen while the active word it's meant to mark moved to the
         // raw bottom, so the two only lined up before mirroring existed.
         .overlay(alignment: .top) {
-            readingLine(cueY: cueY, insets: insets, height: fullHeight(geo: geo, insets: insets),
-                        width: geo.size.width + insets.leading + insets.trailing)
+            readingLine(cueY: cueY, space: space)
                 .scaleEffect(x: 1, y: state.mirror ? -1 : 1)
         }
         .overlay(alignment: .top) {
@@ -843,7 +976,21 @@ struct PrompterView: View {
                 .frame(height: max(0, cueY * 0.7))
                 .allowsHitTesting(false)
         }
+        // Placed on the screen last, after the mirror flip above: the flip
+        // pivots on the picture's own centre, and a reflection about a box's
+        // own centre maps the box onto itself. Positioning first would make
+        // the flip pivot on an offset frame and relocate the picture. The
+        // outer frame is the full screen, so `position` is in screen
+        // coordinates (origin at the screen's top-left).
+        .position(x: frame.picture.midX, y: frame.picture.midY)
+        .frame(width: frame.fullSize.width, height: frame.fullSize.height)
     }
+
+    /// The grab handle's height at rest (it grows while dragged).
+    private static let readingLineHandleHeight: CGFloat = 4
+
+    /// Name of the coordinate space the reading-line drag is measured in.
+    private static let readingLineSpace = "readingLineSpace"
 
     /// A hairline with a grab handle at the leading edge — enough to find with
     /// your eye, not a rule drawn through the sentence, and draggable so the
@@ -854,27 +1001,30 @@ struct PrompterView: View {
     /// It sits just *under* the row being read, and the handle is a dimmed
     /// amber: drawn through the middle of the row at full amber, it read as a
     /// strike-through in the same colour as the word being read.
-    private func readingLine(cueY: CGFloat, insets: EdgeInsets, height: CGFloat, width: CGFloat) -> some View {
+    private func readingLine(cueY: CGFloat, space: ScriptSpace) -> some View {
         HStack(spacing: 6) {
             Capsule()
                 .fill(Self.accent.opacity(isDraggingLine ? 1 : 0.55))
-                .frame(width: 26, height: isDraggingLine ? 6 : 4)
+                .frame(width: 26, height: isDraggingLine ? 6 : Self.readingLineHandleHeight)
                 .overlay {
                     Capsule().stroke(.black.opacity(0.25), lineWidth: 0.5)
                 }
                 .contentShape(Rectangle().inset(by: -22))
                 .gesture(
-                    DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                    DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.readingLineSpace))
                         .onChanged { value in
                             isDraggingLine = true
-                            guard height > 0 else { return }
-                            // The finger is on the line, which is drawn below
-                            // the row it marks.
+                            guard space.size.height > 0 else { return }
+                            // The finger is on the handle, which is drawn below
+                            // the row it marks, and its middle is half its
+                            // height under the line's top. Without that half
+                            // the handle came to rest 2 pt under the finger.
                             state.cueLineFraction = Self.cueFraction(
-                                y: value.location.y - Self.readingLineDrop(fontSize: state.fontSize),
-                                fullHeight: height,
-                                topInset: readingLineTopInset(insets: insets),
-                                bottomInset: readingLineBottomInset(insets: insets),
+                                y: value.location.y - Self.readingLineDrop(fontSize: state.fontSize)
+                                    - Self.readingLineHandleHeight / 2,
+                                fullHeight: space.size.height,
+                                topInset: space.topInset,
+                                bottomInset: space.bottomInset,
                                 fontSize: state.fontSize
                             )
                         }
@@ -898,13 +1048,16 @@ struct PrompterView: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .padding(.top, cueY + Self.readingLineDrop(fontSize: state.fontSize))
         // Same rule as the script, so the line starts and ends with the words.
-        .padding(.leading, ScriptMargins.inset(
-            safeArea: insets.leading, margin: state.sideMargin,
-            rail: isLandscape && railOnLeading ? Self.railWidth : 0, width: width, fontSize: state.fontSize))
-        .padding(.trailing, ScriptMargins.inset(
-            safeArea: insets.trailing, margin: state.sideMargin,
-            rail: isLandscape && !railOnLeading ? Self.railWidth : 0, width: width, fontSize: state.fontSize))
+        .padding(.leading, space.leadingInset)
+        .padding(.trailing, space.trailingInset)
         .frame(maxHeight: .infinity, alignment: .top)
+        // The drag is measured in this space, which is declared HERE — inside
+        // the mirror flip the caller applies to this view next. Local
+        // coordinates run through that flip, so the finger and the line agree
+        // in both mirror states, and the origin is the picture's top (the
+        // same origin `cueY` is measured from). `.global` ignored both the
+        // flip and the picture's offset on the screen.
+        .coordinateSpace(name: Self.readingLineSpace)
         .accessibilityIdentifier("readingLine")
     }
 
@@ -1076,31 +1229,43 @@ struct PrompterView: View {
     /// bar — it's ambient information, not a control.
     private var timingRow: some View {
         VStack(spacing: 5) {
-            HStack(spacing: 8) {
-                Text(ReadingPace.timeString(elapsed))
-                Text("·").foregroundStyle(.white.opacity(0.3))
-                // Marked "~" until there's enough of the take to measure the
-                // speaker's real pace — before that it's only the target wpm.
-                Text("\(isMeasuringPace ? "" : "~")\(ReadingPace.timeString(remainingSeconds)) left")
+            timingReadout(showsPace: true)
+            progressHairline
+        }
+    }
+
+    /// The text half of the timing row. `showsPace` is dropped by the status
+    /// chip when the words do not fit its width.
+    private func timingReadout(showsPace: Bool) -> some View {
+        HStack(spacing: 8) {
+            Text(ReadingPace.timeString(elapsed))
+            Text("·").foregroundStyle(.white.opacity(0.3))
+            // Marked "~" until there's enough of the take to measure the
+            // speaker's real pace — before that it's only the target wpm.
+            Text("\(isMeasuringPace ? "" : "~")\(ReadingPace.timeString(remainingSeconds)) left")
+            if showsPace {
                 Spacer(minLength: 0)
                 Text("\(Int(effectiveWPM.rounded())) wpm")
                     .foregroundStyle(isMeasuringPace ? Self.accent.opacity(0.95) : .white.opacity(0.5))
             }
-            .font(ChromeType.readout(12))
-            .foregroundStyle(.white.opacity(0.62))
-
-            GeometryReader { bar in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.white.opacity(0.12))
-                    Capsule()
-                        .fill(Self.accent.opacity(0.9))
-                        .frame(width: max(0, bar.size.width * state.progress))
-                }
-            }
-            .frame(height: 2)
         }
+        .lineLimit(1)
+        .font(ChromeType.readout(12))
+        .foregroundStyle(.white.opacity(0.62))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Elapsed \(ReadingPace.timeString(elapsed)), about \(ReadingPace.timeString(remainingSeconds)) remaining")
+    }
+
+    private var progressHairline: some View {
+        GeometryReader { bar in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.white.opacity(0.12))
+                Capsule()
+                    .fill(Self.accent.opacity(0.9))
+                    .frame(width: max(0, bar.size.width * state.progress))
+            }
+        }
+        .frame(height: 2)
     }
 
     /// Recording, at the top-left of the frame.
@@ -1235,14 +1400,253 @@ struct PrompterView: View {
         .transition(.opacity)
     }
 
+    // MARK: - Picture-frame chrome (phones)
+
+    /// The side padding of the chips, from the picture's edge.
+    static let chipEdgePadding: CGFloat = 10
+    /// The utility chip's width: three glass buttons, two gaps, and the
+    /// chip's own 4pt padding either side.
+    static let utilityChipWidth: CGFloat = glassButtonSize * 3 + glassButtonGap * 2 + 8
+    /// The widest the status chip gets. In portrait the utility chip leaves
+    /// ~190pt of a 393pt picture; this stops it growing in landscape.
+    static let statusChipMaxWidth: CGFloat = 210
+    /// Tick marks at the picture's top and bottom centre.
+    static let tickLength: CGFloat = 14
+
+    /// The recorded frame as its own element, for the accessibility tree.
+    /// A leaf (nothing inside it), so the script's words keep their own
+    /// elements, and the bottom layer of the stack so it can never be what
+    /// a tap lands on.
+    private func pictureFrameElement(frame: PrompterFrame) -> some View {
+        Color.clear
+            .frame(width: frame.picture.width, height: frame.picture.height)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Recorded frame")
+            .accessibilityIdentifier("pictureFrame")
+            .position(x: frame.picture.midX, y: frame.picture.midY)
+    }
+
+    /// One tick at the top and one at the bottom of the picture, on its
+    /// centre line: the middle of the frame you are being recorded in. The
+    /// bottom one sits above the home-indicator inset, not under it. Outside
+    /// the mirrored layer, and no hit testing.
+    private func pictureTicks(frame: PrompterFrame) -> some View {
+        let pic = frame.picture
+        let top = pic.minY + frame.safeOverlap.top
+        let bottom = pic.maxY - frame.safeOverlap.bottom
+        let tick = Rectangle()
+            .fill(.white.opacity(0.5))
+            .frame(width: 1, height: Self.tickLength)
+        return ZStack {
+            tick.position(x: pic.midX, y: top + Self.tickLength / 2)
+            tick.position(x: pic.midX, y: bottom - Self.tickLength / 2)
+        }
+        .frame(width: frame.fullSize.width, height: frame.fullSize.height)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    /// Everything that is not the script or the picture, for phones: the
+    /// chips on the picture, the take buttons in the black strip, and the
+    /// banners. Nothing here is a full-width bar.
+    private func pictureChrome(frame: PrompterFrame) -> some View {
+        ZStack {
+            pictureBanners(frame: frame)
+            chipRow(frame: frame)
+            controlStrip(frame: frame)
+        }
+        .frame(width: frame.fullSize.width, height: frame.fullSize.height)
+    }
+
+    /// Status chip top-left, utility chip top-right, both on the picture.
+    private func chipRow(frame: PrompterFrame) -> some View {
+        let pic = frame.picture
+        let fallback = frame.isFallback
+        let lead = Self.chipEdgePadding + (fallback ? frame.safeOverlap.leading : 0)
+        let trail = Self.chipEdgePadding + (fallback ? frame.safeOverlap.trailing : 0)
+        let top = Self.chipTopPadding + (fallback ? frame.safeOverlap.top : 0)
+        let room = pic.width - lead - trail - Self.utilityChipWidth - 8
+        return HStack(alignment: .top, spacing: 8) {
+            statusChip(width: max(0, min(Self.statusChipMaxWidth, room)))
+            Spacer(minLength: 0)
+            utilityChip
+        }
+        .padding(.leading, lead)
+        .padding(.trailing, trail)
+        .padding(.top, top)
+        .frame(width: pic.width, height: pic.height, alignment: .top)
+        .position(x: pic.midX, y: pic.midY)
+    }
+
+    /// The first thing in the status chip: the recording tally while a take
+    /// is being recorded (or queued behind the pre-roll), otherwise the
+    /// listening dot.
+    @ViewBuilder
+    private var statusChipMark: some View {
+        if camera.isRecording {
+            HStack(spacing: 5) {
+                Circle().fill(Color.red).frame(width: 7, height: 7)
+                Text(timeString(camera.recordingSeconds))
+                    .font(ChromeType.readout(12))
+                    .foregroundStyle(.white)
+            }
+        } else if armedForRecording {
+            HStack(spacing: 5) {
+                Circle().strokeBorder(Color.red, lineWidth: 1).frame(width: 7, height: 7)
+                Text("Armed")
+                    .font(ChromeType.label(10))
+                    .tracking(ChromeType.labelTracking(10))
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color(red: 1.0, green: 0.42, blue: 0.38))
+            }
+        } else {
+            Circle()
+                .fill(state.isListening ? Self.accent : Color.white.opacity(0.45))
+                .frame(width: 7, height: 7)
+        }
+    }
+
+    /// Whether the status chip has a second row: the timing, or the quality
+    /// pill (which sits with it), never a third.
+    private var statusChipHasSecondRow: Bool {
+        state.showTiming || qualityIsShown
+    }
+
+    private var qualityIsShown: Bool {
+        state.cameraEnabled && camera.selectedMode != nil && camera.selectedTier != nil
+    }
+
+    /// Status line, with the recording badge in its first row; timing and
+    /// the quality pill in the second. One line each: the text scales down
+    /// before it wraps, because a chip that grows a row moves the reading
+    /// line's clearance.
+    private func statusChip(width: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 7) {
+                statusChipMark
+                Text(statusText)
+                    .font(ChromeType.body(13))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Spacer(minLength: 0)
+            }
+            if statusChipHasSecondRow {
+                VStack(spacing: 5) {
+                    ViewThatFits(in: .horizontal) {
+                        statusChipSecondRow(showsPace: true)
+                        statusChipSecondRow(showsPace: false)
+                    }
+                    if state.showTiming { progressHairline }
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(width: width, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(.white.opacity(0.12), lineWidth: 0.5)
+        )
+    }
+
+    private func statusChipSecondRow(showsPace: Bool) -> some View {
+        HStack(spacing: 8) {
+            if state.showTiming { timingReadout(showsPace: showsPace) }
+            if let mode = camera.selectedMode, let tier = camera.selectedTier, state.cameraEnabled {
+                qualityControl(mode: mode, tier: tier)
+            }
+        }
+    }
+
+    /// Camera, settings and exit on one small backing of their own.
+    private var utilityChip: some View {
+        HStack(spacing: Self.glassButtonGap) { utilityButtons }
+            .padding(4)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(.white.opacity(0.12), lineWidth: 0.5))
+    }
+
+    /// The take buttons. With a strip they are centred in it: portrait, one
+    /// row in the area under the picture above the home-indicator inset;
+    /// landscape, a column centred in the full spare width on the thumb edge,
+    /// which ignores the side safe inset (that edge is the portrait-bottom
+    /// one, never the Dynamic Island side). Without room for a strip they
+    /// float over the picture's thumb edge instead, as translucent circles.
+    /// Sizes and the orientation come from `frame`, never from the latched
+    /// `isLandscape`.
+    @ViewBuilder
+    private func controlStrip(frame: PrompterFrame) -> some View {
+        let landscape = frame.isLandscape
+        let size = landscape ? Self.railButtonSize : Self.takeButtonSize
+        if let strip = frame.strip {
+            if landscape {
+                VStack(spacing: 16) {
+                    controlButtons(compact: true, size: size, showsCaptions: false)
+                }
+                .position(x: strip.midX, y: strip.midY)
+            } else {
+                HStack(spacing: 36) {
+                    controlButtons(compact: true, size: size, showsCaptions: false)
+                }
+                .position(x: strip.midX, y: strip.midY)
+            }
+        } else if landscape {
+            // On the thumb edge of the picture, clear of a cutout there.
+            let pic = frame.picture
+            let half = Self.railWidth / 2
+            let x = frame.stripOnLeading
+                ? pic.minX + max(frame.safeOverlap.leading, Self.edgeGap / 2) + half
+                : pic.maxX - max(frame.safeOverlap.trailing, Self.edgeGap / 2) - half
+            VStack(spacing: 16) {
+                controlButtons(compact: true, size: size, showsCaptions: false)
+            }
+            .position(x: x, y: pic.midY)
+        } else {
+            let pic = frame.picture
+            let y = pic.maxY - max(frame.safeOverlap.bottom, 8) - size / 2 - 8
+            HStack(spacing: 36) {
+                controlButtons(compact: true, size: size, showsCaptions: false)
+            }
+            .position(x: pic.midX, y: y)
+        }
+    }
+
+    /// Transient messages along the picture's bottom edge, clear of the
+    /// floating buttons when there is no strip for them.
+    private func pictureBanners(frame: PrompterFrame) -> some View {
+        let pic = frame.picture
+        let clearsButtons = frame.isFallback
+        let bottom = frame.safeOverlap.bottom
+            + (clearsButtons && !frame.isLandscape ? Self.takeButtonSize + 24 : 0)
+        let side = clearsButtons && frame.isLandscape ? Self.railWidth + Self.edgeGap : 0
+        return VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            banners
+        }
+        .padding(.bottom, bottom)
+        .padding(.horizontal, side)
+        .frame(width: pic.width, height: pic.height)
+        .position(x: pic.midX, y: pic.midY)
+    }
+
     // MARK: - Take controls
 
     /// The same three controls in both orientations, in the same order, at
     /// the same weight — only the axis changes.
+    ///
+    /// `size` and `showsCaptions` default to the legacy layout's choice,
+    /// which reads the latched `isLandscape`: the old bar and rail are only
+    /// drawn for iPad and Mac. The picture-frame chrome always passes both,
+    /// from `PrompterFrame.isLandscape`.
     @ViewBuilder
-    private func controlButtons(compact: Bool = false) -> some View {
+    private func controlButtons(compact: Bool = false, size: CGFloat? = nil, showsCaptions: Bool? = nil) -> some View {
+        let size = size ?? (isLandscape ? Self.railButtonSize : Self.takeButtonSize)
+        let showsCaptions = showsCaptions ?? !isLandscape
         Group {
-        takeButton(icon: "arrow.counterclockwise", label: "Restart", id: "restart", compact: compact) {
+        takeButton(icon: "arrow.counterclockwise", label: "Restart", id: "restart",
+                   size: size, showsCaptions: showsCaptions, compact: compact) {
             state.activeIndex = 0
             cursorJumped = true
             state.resyncMatcher()
@@ -1256,6 +1660,8 @@ struct PrompterView: View {
             label: countdownRemaining != nil ? "Cancel" : (state.isListening ? "Pause" : "Listen"),
             id: "listen",
             primary: true,
+            size: size,
+            showsCaptions: showsCaptions,
             compact: compact
         ) {
             if countdownRemaining != nil {
@@ -1273,6 +1679,8 @@ struct PrompterView: View {
                 label: camera.isRecording ? "Stop" : "Record",
                 id: "record",
                 recording: camera.isRecording,
+                size: size,
+                showsCaptions: showsCaptions,
                 compact: compact
             ) {
                 if camera.isRecording {
@@ -1334,6 +1742,15 @@ struct PrompterView: View {
         primary: Bool = false,
         on: Bool = false,
         recording: Bool = false,
+        /// The circle's diameter. A parameter, not a reading of the latched
+        /// `isLandscape`: the picture-frame chrome takes it from
+        /// `PrompterFrame.isLandscape`.
+        size: CGFloat,
+        /// The caption under the circle. The portrait strip has ~60pt of
+        /// black under the picture: a 52pt circle plus its caption (52 + 6 +
+        /// 12) does not fit, so it carries none; the label stays as the
+        /// accessibility label.
+        showsCaptions: Bool,
         /// Sized to its content rather than spreading, so it can share a row
         /// with the utility buttons instead of pushing them off the edge.
         compact: Bool = false,
@@ -1354,12 +1771,9 @@ struct PrompterView: View {
                                 : (recording ? Color.red : (on ? Self.accent : Color.white))
                         )
                 }
-                .frame(
-                    width: isLandscape ? Self.railButtonSize : Self.takeButtonSize,
-                    height: isLandscape ? Self.railButtonSize : Self.takeButtonSize
-                )
+                .frame(width: size, height: size)
 
-                if !isLandscape {
+                if showsCaptions {
                     Text(label)
                         .font(ChromeType.label(10))
                         .tracking(ChromeType.labelTracking(10))
@@ -1367,7 +1781,7 @@ struct PrompterView: View {
                         .foregroundStyle(on ? Self.accent : .white.opacity(0.65))
                 }
             }
-            .frame(maxWidth: compact ? Self.takeButtonSlot : .infinity)
+            .frame(maxWidth: compact ? (showsCaptions ? Self.takeButtonSlot : size) : .infinity)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -1376,12 +1790,13 @@ struct PrompterView: View {
     }
 
     /// A one-time hint that the prompter takes spoken instructions. Sits
-    /// next to the status bar rather than over the script, and fades on its
-    /// own. In landscape that's under the top bar as always; in portrait
-    /// the status bar now lives at the bottom with the take controls, so
-    /// the hint follows it there instead of floating alone near an empty top.
-    private func voiceCommandTip(insets: EdgeInsets) -> some View {
-        HStack(spacing: 8) {
+    /// next to the status chip rather than over the script, and fades on its
+    /// own. On a phone it hangs under the chip row, relative to the picture;
+    /// on iPad and Mac it keeps its old places (under the top bar in
+    /// landscape, above the bottom bar in portrait).
+    @ViewBuilder
+    private func voiceCommandTip(frame: PrompterFrame, insets: EdgeInsets) -> some View {
+        let tip = HStack(spacing: 8) {
             Image(systemName: "waveform")
             Text("Say **\"scroll up\"** to go back a line")
         }
@@ -1391,23 +1806,41 @@ struct PrompterView: View {
         .padding(.vertical, 9)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().stroke(.white.opacity(0.14), lineWidth: 0.5))
-        .padding(isLandscape ? .top : .bottom, isLandscape ? chromeTopInset(insets: insets) + 8 : 96 + insets.bottom)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isLandscape ? .top : .bottom)
-        .transition(.opacity)
-        .allowsHitTesting(false)
-        .accessibilityLabel("Tip: say scroll up to go back a line")
+        if usesPictureFrame {
+            let pic = frame.picture
+            tip
+                .padding(.top, Self.chipRowBottom(frame: frame, showsTiming: state.showTiming) + 8)
+                .frame(width: pic.width, height: pic.height, alignment: .top)
+                .position(x: pic.midX, y: pic.midY)
+                .transition(.opacity)
+                .allowsHitTesting(false)
+                .accessibilityLabel("Tip: say scroll up to go back a line")
+        } else {
+            tip
+                .padding(isLandscape ? .top : .bottom, isLandscape ? chromeTopInset(insets: insets) + 8 : 96 + insets.bottom)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isLandscape ? .top : .bottom)
+                .transition(.opacity)
+                .allowsHitTesting(false)
+                .accessibilityLabel("Tip: say scroll up to go back a line")
+        }
     }
 
     /// Pre-roll before a take. Full screen and tap-anywhere-to-cancel, so a
     /// mistimed start doesn't send you hunting for a small button.
     @ViewBuilder
-    private func countdownOverlay(_ remaining: Int) -> some View {
+    private func countdownOverlay(_ remaining: Int, frame: PrompterFrame) -> some View {
         ZStack {
             // Deliberately not a blur or a scrim: the whole point of a
             // pre-roll is to check your framing, posture and eyeline before
             // you speak, so the picture has to stay legible underneath.
+            // Full screen, so a tap anywhere still cancels.
             Color.clear
 
+            // The crosshair and the numeral belong to the picture: its centre
+            // is the centre of what is being recorded, which is what you line
+            // yourself up against. On the whole screen they would sit off it
+            // wherever there is a strip.
+            ZStack {
             // Framing marks, to the frame edges. Not decoration: the centre
             // of frame is what you line yourself up against, and a pre-roll
             // is when you do it.
@@ -1446,6 +1879,9 @@ struct PrompterView: View {
                     .shadow(color: .black.opacity(0.9), radius: 8)
                     .padding(.top, 2)
             }
+            }
+            .frame(width: frame.picture.width, height: frame.picture.height)
+            .position(x: frame.picture.midX, y: frame.picture.midY)
         }
         .ignoresSafeArea()
         .contentShape(Rectangle())

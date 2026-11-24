@@ -3,11 +3,16 @@ import AVFoundation
 
 struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
+    /// Shown whole inside its frame (`.resizeAspect`) rather than filling it.
+    /// The picture frame uses this: if the preview's aspect ever differs from
+    /// the frame's, the mismatch shows as black bars instead of a silent
+    /// crop. The legacy full-bleed layout keeps fill.
+    var aspectFit = false
 
     func makeUIView(context: Context) -> PreviewUIView {
         let view = PreviewUIView()
         view.videoPreviewLayer.session = session
-        view.videoPreviewLayer.videoGravity = .resizeAspectFill
+        view.videoPreviewLayer.videoGravity = aspectFit ? .resizeAspect : .resizeAspectFill
         // Mirroring is handled explicitly by the SwiftUI `.scaleEffect(x: -1)`
         // in PrompterView, so disable the preview layer's own automatic
         // front-camera mirroring to avoid a double-flip.
@@ -20,6 +25,10 @@ struct CameraPreviewView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: PreviewUIView, context: Context) {
+        let gravity: AVLayerVideoGravity = aspectFit ? .resizeAspect : .resizeAspectFill
+        if uiView.videoPreviewLayer.videoGravity != gravity {
+            uiView.videoPreviewLayer.videoGravity = gravity
+        }
         #if DEBUG
         RenderCost.previewUpdate()
         #endif

@@ -154,6 +154,123 @@ final class PrompterSmokeTests: XCTestCase {
         }
     }
 
+    /// With the camera on, the screen shows exactly the recorded frame,
+    /// centred, so the speaker can tell whether they are in the middle. The
+    /// camera is off here (the simulator has none) and the frame must be the
+    /// same, so nothing jumps when it is toggled mid-take.
+    ///
+    /// One scenario, in every orientation: the picture is 9:16 or 16:9 and
+    /// centred; the script starts a symmetric inset in from its left edge
+    /// (the margin is set to its minimum, so the inset is the fixed 8 pt gap
+    /// and not a ragged column's centre); the take buttons are tappable, on
+    /// screen and in the black, never over the picture; and the reading-line
+    /// handle ends up under the finger when dragged, with the mirror off and
+    /// on. The drag is where a wrong coordinate space shows: in portrait the
+    /// picture is 59 pt down the screen, and mirrored, the line is drawn
+    /// upside down.
+    func testPictureIsTheRecordedFrameInEveryOrientation() throws {
+        try XCTSkipUnless(UIDevice.current.userInterfaceIdiom == .phone,
+                          "the picture frame is for iPhone; iPad and Mac keep the full-screen layout")
+
+        func launch(mirror: Bool) -> XCUIApplication {
+            let app = XCUIApplication()
+            // Margin 0 makes the script's inset the fixed gap, 8 pt, in any
+            // picture width.
+            app.launchArguments = ["-uiTestingNoCamera", "-uiTestingSideMargin", "0"]
+                + (mirror ? ["-uiTestingMirrorOn"] : [])
+            XCUIDevice.shared.orientation = .portrait
+            app.launch()
+            app.buttons["startPrompting"].tap()
+            XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
+            return app
+        }
+
+        /// Rotates and waits until the picture has the new orientation's
+        /// shape, so nothing is measured mid-rotation.
+        func rotate(_ app: XCUIApplication, to orientation: UIDeviceOrientation) -> CGRect {
+            XCUIDevice.shared.orientation = orientation
+            let landscape = orientation.isLandscape
+            let picture = app.otherElements["pictureFrame"]
+            XCTAssertTrue(picture.waitForExistence(timeout: 5), "the recorded frame must exist")
+            let deadline = Date().addingTimeInterval(6)
+            while (picture.frame.width > picture.frame.height) != landscape, Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.2)
+            }
+            Thread.sleep(forTimeInterval: 0.5)  // the rotation animation
+            return picture.frame
+        }
+
+        /// Drags the handle to a point in the picture and checks the line
+        /// is there, within 2 pt.
+        func dragLine(_ app: XCUIApplication, picture: CGRect, _ what: String) {
+            let handle = app.otherElements["readingLine"]
+            XCTAssertTrue(handle.waitForExistence(timeout: 5), "reading line handle \(what)")
+            // Aim for the half of the picture the line is not in, so the
+            // drag has to move it.
+            let fraction: CGFloat = handle.frame.midY < picture.midY ? 0.65 : 0.35
+            let target = picture.minY + picture.height * fraction
+            XCTAssertGreaterThan(abs(handle.frame.midY - target), 20,
+                                 "the line starts at \(handle.frame.midY), too near \(target) to prove a drag (\(what))")
+            // The element's frame is the whole line, centred on it; the grab
+            // handle is the 26 pt capsule at its leading end, 8 pt in from the
+            // picture's edge (the margin is 0 in this test).
+            let x = picture.minX + 8 + 13
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let from = origin.withOffset(CGVector(dx: x, dy: handle.frame.midY))
+            let to = origin.withOffset(CGVector(dx: x, dy: target))
+            from.press(forDuration: 0.1, thenDragTo: to)
+            // The handle settles (it shrinks back when the finger lifts).
+            let deadline = Date().addingTimeInterval(3)
+            while abs(handle.frame.midY - target) > 2, Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.2)
+            }
+            XCTAssertEqual(handle.frame.midY, target, accuracy: 2,
+                           "the line must land under the finger (\(what)): handle \(handle.frame), finger at y \(target)")
+        }
+
+        // Mirror off: the whole scenario.
+        var app = launch(mirror: false)
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft, .landscapeRight, .portrait] {
+            let what = "mirror off, orientation \(orientation.rawValue)"
+            let picture = rotate(app, to: orientation)
+            let window = app.windows.firstMatch.frame
+            try XCTSkipIf(picture.width >= window.width - 1 && picture.height >= window.height - 1,
+                          "no room for a strip on this phone: the buttons float over the picture")
+
+            XCTAssertEqual(picture.width / picture.height, orientation.isLandscape ? 16.0 / 9 : 9.0 / 16,
+                           accuracy: 0.01, "the picture is the recorded frame's shape (\(what)): \(picture)")
+            XCTAssertEqual(picture.midX, window.midX, accuracy: 1,
+                           "the picture must be centred horizontally (\(what)): \(picture) in \(window)")
+
+            let word = app.staticTexts.matching(identifier: "Being").firstMatch
+            XCTAssertTrue(word.waitForExistence(timeout: 5), "first word (\(what))")
+            XCTAssertEqual(word.frame.minX - picture.minX, 8, accuracy: 1.5,
+                           "the script starts the same inset from the picture's left edge (\(what)): "
+                           + "word \(word.frame), picture \(picture)")
+
+            for id in ["restart", "listen"] {
+                let button = app.buttons[id]
+                XCTAssertTrue(button.isHittable, "\(id) must be tappable (\(what))")
+                XCTAssertTrue(window.insetBy(dx: -1, dy: -1).contains(button.frame),
+                              "\(id) at \(button.frame) must be on screen \(window) (\(what))")
+                XCTAssertFalse(button.frame.intersects(picture),
+                               "\(id) at \(button.frame) must be in the black, not over the picture \(picture) (\(what))")
+            }
+
+            dragLine(app, picture: picture, what)
+        }
+
+        // Mirror on: the line is drawn upside down, and the finger must
+        // still be where it lands.
+        app.terminate()
+        app = launch(mirror: true)
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            let picture = rotate(app, to: orientation)
+            dragLine(app, picture: picture, "mirror on, orientation \(orientation.rawValue)")
+        }
+        XCUIDevice.shared.orientation = .portrait
+    }
+
     /// The script must not run underneath the landscape rail, and must not be
     /// sliced off by the notch inset on the opposite side. Both happened once
     /// the prompter went full-bleed and the script stopped padding for the

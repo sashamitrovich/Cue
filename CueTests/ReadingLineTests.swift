@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 @testable import Cue
 
 /// The reading line's position, which is the setting users complained was
@@ -210,5 +211,107 @@ final class ReadingLineTests: XCTestCase {
         let band = PrompterView.readingLineBand(
             fullHeight: 402, topInset: top, bottomInset: bottom, fontSize: fontSize)
         XCTAssertGreaterThan(band.lowest - band.highest, 200, "the band must span most of a landscape screen")
+    }
+
+    // MARK: - In the picture frame (phones)
+
+    // The script's space is the recorded picture, not the screen. These feed
+    // the same statics the view uses with real frames, and pin the end the
+    // slider could drive the line out of the picture from.
+
+    private func frame(_ w: CGFloat, _ h: CGFloat,
+                       top: CGFloat = 0, bottom: CGFloat = 0, side: CGFloat = 0) -> PrompterFrame {
+        PrompterFrame.make(
+            fullSize: CGSize(width: w, height: h),
+            safeArea: EdgeInsets(top: top, leading: side, bottom: bottom, trailing: side),
+            railOnLeading: false)
+    }
+
+    func testTheChipRowClearanceDependsOnTheTimingRow() {
+        let f = frame(393, 852, top: 59, bottom: 34)
+        let without = PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: false)
+        let with = PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: true)
+        XCTAssertEqual(without, PrompterView.chipClearance)
+        XCTAssertEqual(with, PrompterView.chipClearanceWithTiming)
+        XCTAssertGreaterThan(with, without, "the timing row makes the chip taller")
+    }
+
+    func testTheSafeAreaIsNotAddedWhenThePictureStaysClearOfIt() {
+        // Portrait: the picture starts below the island, so the 59 pt must
+        // not be charged to the line a second time.
+        let f = frame(393, 852, top: 59, bottom: 34)
+        XCTAssertEqual(PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: false),
+                       PrompterView.chipClearance)
+    }
+
+    func testTheFallbackNeverScrollsUnderTheIsland() {
+        // Picture == screen: a deep cutout may exceed the chip clearance, and
+        // the line must still start below it.
+        let f = frame(375, 667, top: 100)
+        let top = PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: false)
+        XCTAssertGreaterThanOrEqual(top, f.safeOverlap.top)
+        XCTAssertGreaterThan(top, PrompterView.chipClearance)
+    }
+
+    func testTheBottomInsetIsTheHomeIndicatorOnlyWhereThePictureReachesIt() {
+        XCTAssertEqual(PrompterView.pictureReadingLineBottomInset(
+            frame: frame(393, 852, top: 59, bottom: 34)), 0, "portrait picture ends above it")
+        XCTAssertEqual(PrompterView.pictureReadingLineBottomInset(
+            frame: frame(852, 393, bottom: 21, side: 59)), 21, accuracy: 1e-9)
+    }
+
+    func testTheLowestLineStaysInsideThePictureInEveryCase() {
+        // The line is drawn `readingLineDrop` under `cueY`. At 100% both it
+        // and the row it marks must still be inside the picture, in portrait,
+        // landscape, the fallback and at the largest and smallest type.
+        let frames = [
+            frame(393, 852, top: 59, bottom: 34),
+            frame(852, 393, bottom: 21, side: 59),
+            frame(375, 667, top: 20),
+            frame(667, 375),
+        ]
+        for f in frames {
+            for font: CGFloat in [20, 32, 64] {
+                let top = PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: true)
+                let bottom = PrompterView.pictureReadingLineBottomInset(frame: f)
+                let y = PrompterView.cueY(fraction: 1, fullHeight: f.picture.height,
+                                          topInset: top, bottomInset: bottom, fontSize: font)
+                XCTAssertGreaterThanOrEqual(y, 0, "\(f.picture) font \(font)")
+                XCTAssertLessThanOrEqual(
+                    y + PrompterView.readingLineDrop(fontSize: font), f.picture.height - bottom,
+                    "the drawn line leaves the picture: \(f.picture) font \(font)")
+            }
+        }
+    }
+
+    func testTheHighestLineClearsTheChipRowInPictureSpace() {
+        let f = frame(852, 393, bottom: 21, side: 59)
+        let top = PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: true)
+        let y = PrompterView.cueY(fraction: 0, fullHeight: f.picture.height,
+                                  topInset: top, bottomInset: 21, fontSize: fontSize)
+        XCTAssertGreaterThan(y - fontSize * 0.6, PrompterView.chipClearanceWithTiming,
+                             "the top of the word must clear the chips, not just its centre")
+    }
+
+    func testTheScriptIsCentredOnThePictureAndNotPushedByTheRail() {
+        // Margins are the same on both sides, so the column is centred on
+        // the picture whichever edge the strip is on. In the fallback the
+        // landscape buttons float over the thumb edge, so both sides clear
+        // them, and the safe area counts because the picture is the screen.
+        let strip = frame(393, 852, top: 59, bottom: 34)
+        XCTAssertEqual(PrompterView.pictureMargins(frame: strip).rail, 0)
+        XCTAssertEqual(PrompterView.pictureMargins(frame: strip).safeArea, 0)
+
+        let landscape = frame(852, 393, bottom: 21, side: 59)
+        XCTAssertEqual(PrompterView.pictureMargins(frame: landscape).rail, 0,
+                       "the strip is outside the picture, so there is no rail to clear")
+        XCTAssertEqual(PrompterView.pictureMargins(frame: landscape).safeArea, 0,
+                       "59 pt side inset is inside the black, not the picture")
+
+        let fallbackLandscape = PrompterFrame.make(
+            fullSize: CGSize(width: 667, height: 375),
+            safeArea: EdgeInsets(top: 0, leading: 10, bottom: 0, trailing: 10), railOnLeading: true)
+        XCTAssertEqual(PrompterView.pictureMargins(frame: fallbackLandscape).rail, PrompterView.railWidth)
+        XCTAssertGreaterThan(PrompterView.pictureMargins(frame: fallbackLandscape).safeArea, 0)
     }
 }

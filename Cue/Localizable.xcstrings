@@ -4256,6 +4256,34 @@
           }
         }
       }
+    },
+    "Recorded frame": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quadro gravado"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encuadre grabado"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inquadratura registrata"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgenommener Bildausschnitt"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
