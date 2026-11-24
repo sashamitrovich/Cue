@@ -850,23 +850,33 @@ struct PrompterView: View {
         chipRowBottom(frame: frame, showsTiming: showsTiming)
     }
 
-    /// What it has to clear at its lowest: the home indicator, where the
-    /// picture reaches the bottom edge (landscape), otherwise nothing. Same
+    /// What it has to clear at its lowest. Landscape: the home indicator,
+    /// where the picture reaches the bottom edge. Portrait with a strip: the
+    /// utility chip docked at the picture's bottom edge, on top of the home
+    /// indicator (which is already outside the picture there). Same
     /// asymmetry with the top as `readingLineBottomInset`.
     static func pictureReadingLineBottomInset(frame: PrompterFrame) -> CGFloat {
-        frame.safeOverlap.bottom
+        var bottom = frame.safeOverlap.bottom
+        if !frame.isFallback, !frame.isLandscape {
+            bottom += utilityChipHeight + chipBottomPadding
+        }
+        return bottom
     }
 
     /// Inputs to `ScriptMargins.inset` for the picture, the same on both
     /// sides: the script is centred on the picture. Where the picture stays
     /// clear of the safe areas (every case with a strip) the safe area adds
-    /// nothing and the rail is not in the picture. In the fallback the
-    /// picture is the screen: the safe area counts, and in landscape the take
-    /// buttons float over the thumb edge, so both sides clear a rail's width
-    /// to stay symmetric.
+    /// nothing; in landscape strip mode both sides clear the vertical utility
+    /// chip column so the centred script never runs under it. In the fallback
+    /// the picture is the screen: the safe area counts, and in landscape the
+    /// take buttons float over the thumb edge, so both sides clear a rail's
+    /// width to stay symmetric.
     static func pictureMargins(frame: PrompterFrame) -> (safeArea: CGFloat, rail: CGFloat) {
-        (max(frame.safeOverlap.leading, frame.safeOverlap.trailing),
-         frame.isFallback && frame.isLandscape ? railWidth : 0)
+        let safeArea = max(frame.safeOverlap.leading, frame.safeOverlap.trailing)
+        if frame.isFallback {
+            return (safeArea, frame.isLandscape ? railWidth : 0)
+        }
+        return (0, frame.isLandscape ? utilityChipColumnWidth : 0)
     }
 
     /// Width of the dark outline around the script's words, in points.
@@ -1404,14 +1414,56 @@ struct PrompterView: View {
 
     /// The side padding of the chips, from the picture's edge.
     static let chipEdgePadding: CGFloat = 10
+    /// The chip's padding from the picture's bottom edge in portrait, where
+    /// the utility chip docks above the black strip. Stated, like
+    /// `chipTopPadding`; the home-indicator inset is already outside the
+    /// picture there, so it is not charged a second time.
+    static let chipBottomPadding: CGFloat = 10
     /// The utility chip's width: three glass buttons, two gaps, and the
     /// chip's own 4pt padding either side.
     static let utilityChipWidth: CGFloat = glassButtonSize * 3 + glassButtonGap * 2 + 8
-    /// The widest the status chip gets. In portrait the utility chip leaves
-    /// ~190pt of a 393pt picture; this stops it growing in landscape.
+    /// The utility chip's height: one glass button and the chip's own 4pt
+    /// padding above and below.
+    static let utilityChipHeight: CGFloat = glassButtonSize + 8
+    /// The rail the script clears in landscape strip mode: the vertical chip
+    /// column (button plus padding) and a stated 8pt gap so the script never
+    /// touches it. Applied to both sides, so the centred column clears the
+    /// chip whichever side it is on and stays symmetric.
+    static let utilityChipColumnWidth: CGFloat = glassButtonSize + 8 + 8
+    /// The widest the status chip gets. It no longer shares the top row with
+    /// the utility chip in strip mode, but a single-line chip that scales
+    /// rather than wraps keeps the same height at any width, so this cap is
+    /// kept — widening the room did not change the measured `chipClearance`.
     static let statusChipMaxWidth: CGFloat = 210
     /// Tick marks at the picture's top and bottom centre.
     static let tickLength: CGFloat = 14
+
+    /// The utility chip's frame in picture space (origin at the picture's
+    /// top-left), or nil where it keeps the legacy top-right placement (the
+    /// no-strip fallback, and iPad/Mac which do not use the picture frame).
+    ///
+    /// Portrait with a strip: bottom-trailing, above the black band.
+    /// Landscape with a strip: vertically centred on the picture's edge
+    /// *opposite* the strip, never in the black beside it (the Dynamic
+    /// Island lives on that side's black margin). Pure geometry — never a
+    /// measurement.
+    static func utilityChipRect(frame: PrompterFrame) -> CGRect? {
+        guard !frame.isFallback else { return nil }
+        let width = frame.picture.width
+        let height = frame.picture.height
+        if frame.isLandscape {
+            let size = CGSize(width: utilityChipHeight, height: utilityChipWidth)
+            let x = frame.stripOnLeading
+                ? width - chipEdgePadding - size.width   // chip on the trailing edge
+                : chipEdgePadding                        // chip on the leading edge
+            return CGRect(x: x, y: (height - size.height) / 2,
+                          width: size.width, height: size.height)
+        }
+        let size = CGSize(width: utilityChipWidth, height: utilityChipHeight)
+        return CGRect(x: width - chipEdgePadding - size.width,
+                      y: height - chipBottomPadding - size.height,
+                      width: size.width, height: size.height)
+    }
 
     /// The recorded frame as its own element, for the accessibility tree.
     /// A leaf (nothing inside it), so the script's words keep their own
@@ -1452,30 +1504,91 @@ struct PrompterView: View {
     private func pictureChrome(frame: PrompterFrame) -> some View {
         ZStack {
             pictureBanners(frame: frame)
-            chipRow(frame: frame)
+            statusChipRow(frame: frame)
+            utilityChip(frame: frame)
             controlStrip(frame: frame)
         }
         .frame(width: frame.fullSize.width, height: frame.fullSize.height)
     }
 
-    /// Status chip top-left, utility chip top-right, both on the picture.
-    private func chipRow(frame: PrompterFrame) -> some View {
+    /// Status chip top-left on the picture, in every phone layout. In the
+    /// fallback the utility chip keeps the top-right corner, so this leaves
+    /// room for it; with a strip the utility chip has left the top row and
+    /// the status chip may use the whole width (still capped at
+    /// `statusChipMaxWidth`).
+    private func statusChipRow(frame: PrompterFrame) -> some View {
         let pic = frame.picture
         let fallback = frame.isFallback
         let lead = Self.chipEdgePadding + (fallback ? frame.safeOverlap.leading : 0)
         let trail = Self.chipEdgePadding + (fallback ? frame.safeOverlap.trailing : 0)
         let top = Self.chipTopPadding + (fallback ? frame.safeOverlap.top : 0)
-        let room = pic.width - lead - trail - Self.utilityChipWidth - 8
-        return HStack(alignment: .top, spacing: 8) {
+        let reserved = fallback ? Self.utilityChipWidth + 8 : 0
+        let room = pic.width - lead - trail - reserved
+        return HStack(alignment: .top, spacing: 0) {
             statusChip(width: max(0, min(Self.statusChipMaxWidth, room)))
             Spacer(minLength: 0)
-            utilityChip
         }
         .padding(.leading, lead)
         .padding(.trailing, trail)
         .padding(.top, top)
         .frame(width: pic.width, height: pic.height, alignment: .top)
         .position(x: pic.midX, y: pic.midY)
+    }
+
+    /// The utility chip (camera, settings, exit) in the phone layout. With a
+    /// strip it leaves the top row: portrait docks it bottom-trailing above
+    /// the black band, landscape stacks it vertically on the picture's edge
+    /// opposite the strip. Without a strip it keeps the legacy top-right
+    /// corner, exactly as before.
+    @ViewBuilder
+    private func utilityChip(frame: PrompterFrame) -> some View {
+        let pic = frame.picture
+        if frame.isFallback {
+            let trail = Self.chipEdgePadding + frame.safeOverlap.trailing
+            let top = Self.chipTopPadding + frame.safeOverlap.top
+            HStack(alignment: .top, spacing: 0) {
+                Spacer(minLength: 0)
+                utilityChipBacking(vertical: false)
+            }
+            .padding(.trailing, trail)
+            .padding(.top, top)
+            .frame(width: pic.width, height: pic.height, alignment: .top)
+            .position(x: pic.midX, y: pic.midY)
+        } else if frame.isLandscape {
+            let onTrailing = frame.stripOnLeading
+            HStack(alignment: .center, spacing: 0) {
+                if onTrailing { Spacer(minLength: 0) }
+                utilityChipBacking(vertical: true)
+                if !onTrailing { Spacer(minLength: 0) }
+            }
+            .padding(.leading, onTrailing ? 0 : Self.chipEdgePadding)
+            .padding(.trailing, onTrailing ? Self.chipEdgePadding : 0)
+            .frame(width: pic.width, height: pic.height, alignment: .center)
+            .position(x: pic.midX, y: pic.midY)
+        } else {
+            HStack(alignment: .bottom, spacing: 0) {
+                Spacer(minLength: 0)
+                utilityChipBacking(vertical: false)
+            }
+            .padding(.trailing, Self.chipEdgePadding)
+            .padding(.bottom, Self.chipBottomPadding)
+            .frame(width: pic.width, height: pic.height, alignment: .bottom)
+            .position(x: pic.midX, y: pic.midY)
+        }
+    }
+
+    /// The three buttons on one small backing, on the given axis.
+    private func utilityChipBacking(vertical: Bool) -> some View {
+        Group {
+            if vertical {
+                VStack(spacing: Self.glassButtonGap) { utilityButtons }
+            } else {
+                HStack(spacing: Self.glassButtonGap) { utilityButtons }
+            }
+        }
+        .padding(4)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().stroke(.white.opacity(0.12), lineWidth: 0.5))
     }
 
     /// The first thing in the status chip: the recording tally while a take
@@ -1560,14 +1673,6 @@ struct PrompterView: View {
         }
     }
 
-    /// Camera, settings and exit on one small backing of their own.
-    private var utilityChip: some View {
-        HStack(spacing: Self.glassButtonGap) { utilityButtons }
-            .padding(4)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().stroke(.white.opacity(0.12), lineWidth: 0.5))
-    }
-
     /// The take buttons. With a strip they are centred in it: portrait, one
     /// row in the area under the picture above the home-indicator inset;
     /// landscape, a column centred in the full spare width on the thumb edge,
@@ -1614,13 +1719,18 @@ struct PrompterView: View {
     }
 
     /// Transient messages along the picture's bottom edge, clear of the
-    /// floating buttons when there is no strip for them.
+    /// floating buttons when there is no strip for them, and clear of the
+    /// utility chip where it now sits at the picture's bottom or side edge.
     private func pictureBanners(frame: PrompterFrame) -> some View {
         let pic = frame.picture
         let clearsButtons = frame.isFallback
+        let clearsBottomChip = !frame.isFallback && !frame.isLandscape
+        let clearsSideChip = !frame.isFallback && frame.isLandscape
         let bottom = frame.safeOverlap.bottom
             + (clearsButtons && !frame.isLandscape ? Self.takeButtonSize + 24 : 0)
-        let side = clearsButtons && frame.isLandscape ? Self.railWidth + Self.edgeGap : 0
+            + (clearsBottomChip ? Self.utilityChipHeight + Self.chipBottomPadding : 0)
+        let side = (clearsButtons && frame.isLandscape ? Self.railWidth + Self.edgeGap : 0)
+            + (clearsSideChip ? Self.utilityChipColumnWidth : 0)
         return VStack(spacing: 0) {
             Spacer(minLength: 0)
             banners

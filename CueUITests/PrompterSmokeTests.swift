@@ -57,9 +57,10 @@ final class PrompterSmokeTests: XCTestCase {
         XCTAssertTrue(app.buttons["startPrompting"].waitForExistence(timeout: 5), "Exit should return to the setup screen")
     }
 
-    /// Landscape moves the take controls from a bottom bar to a side rail.
-    /// The failure this guards against is a bar that keeps eating the little
-    /// vertical space landscape has, or controls landing off-screen entirely.
+    /// Landscape moves the take controls from a bottom bar to the black strip
+    /// beside the picture. The failure this guards against is a bar that keeps
+    /// eating the little vertical space landscape has, or controls landing
+    /// off-screen entirely.
     func testControlsStayOnScreenInLandscape() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
@@ -79,20 +80,20 @@ final class PrompterSmokeTests: XCTestCase {
             XCTAssertTrue(window.contains(control.frame), "\(control.label) must be inside the window in landscape")
         }
 
-        // The rail is a column: the controls share a horizontal band and are
+        // The strip is a column: the controls share a horizontal band and are
         // stacked vertically, rather than spread across the bottom.
         XCTAssertLessThan(
             abs(listen.frame.midX - restart.frame.midX), 12,
-            "controls should be stacked in a side rail, not spread along the bottom"
+            "controls should be stacked in a side strip, not spread along the bottom"
         )
         XCTAssertGreaterThan(
             abs(listen.frame.midY - restart.frame.midY), 20,
-            "controls should be separated vertically in the rail"
+            "controls should be separated vertically in the strip"
         )
-        // And the rail must not be eating the middle of the screen.
+        // And the strip must not be eating the middle of the screen.
         XCTAssertTrue(
             listen.frame.midX < window.width * 0.25 || listen.frame.midX > window.width * 0.75,
-            "the rail belongs against a side edge"
+            "the strip belongs against a side edge"
         )
     }
 
@@ -129,8 +130,9 @@ final class PrompterSmokeTests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
     }
 
-    /// Every take control must be fully on screen in landscape — the rail was
-    /// taller than the screen, so the last button was clipped off the bottom.
+    /// Every take control must be fully on screen in landscape — the strip
+    /// was once taller than the screen, so the last button was clipped off
+    /// the bottom.
     func testAllControlsFitInTheLandscapeRail() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
@@ -212,9 +214,12 @@ final class PrompterSmokeTests: XCTestCase {
             XCTAssertGreaterThan(abs(handle.frame.midY - target), 20,
                                  "the line starts at \(handle.frame.midY), too near \(target) to prove a drag (\(what))")
             // The element's frame is the whole line, centred on it; the grab
-            // handle is the 26 pt capsule at its leading end, 8 pt in from the
-            // picture's edge (the margin is 0 in this test).
-            let x = picture.minX + 8 + 13
+            // handle is the 26 pt capsule at its leading end, inside the
+            // script's leading inset — the fixed 8pt gap, plus the 60pt
+            // utility-chip column in landscape (the margin is 0 in this test).
+            let landscape = picture.width > picture.height
+            let leadingInset: CGFloat = landscape ? 68 : 8
+            let x = picture.minX + leadingInset + 13
             let origin = app.coordinate(withNormalizedOffset: .zero)
             let from = origin.withOffset(CGVector(dx: x, dy: handle.frame.midY))
             let to = origin.withOffset(CGVector(dx: x, dy: target))
@@ -244,7 +249,11 @@ final class PrompterSmokeTests: XCTestCase {
 
             let word = app.staticTexts.matching(identifier: "Being").firstMatch
             XCTAssertTrue(word.waitForExistence(timeout: 5), "first word (\(what))")
-            XCTAssertEqual(word.frame.minX - picture.minX, 8, accuracy: 1.5,
+            // The script starts at the fixed 8pt gap in portrait. In landscape
+            // both sides also clear the vertical utility-chip column (60pt),
+            // so the first word starts 68pt in and stays clear of the chip.
+            let scriptInset: CGFloat = orientation.isLandscape ? 68 : 8
+            XCTAssertEqual(word.frame.minX - picture.minX, scriptInset, accuracy: 1.5,
                            "the script starts the same inset from the picture's left edge (\(what)): "
                            + "word \(word.frame), picture \(picture)")
 
@@ -255,6 +264,48 @@ final class PrompterSmokeTests: XCTestCase {
                               "\(id) at \(button.frame) must be on screen \(window) (\(what))")
                 XCTAssertFalse(button.frame.intersects(picture),
                                "\(id) at \(button.frame) must be in the black, not over the picture \(picture) (\(what))")
+            }
+
+            // The utility chip: camera / settings / exit. Hittable, inside the
+            // picture, and placed per orientation — a bottom-trailing row in
+            // portrait, a vertical stack on the picture edge opposite the take
+            // buttons in landscape. The script must stay clear of it.
+            let utility = ["camera", "prompterSettings", "exit"].map { app.buttons[$0] }
+            for button in utility {
+                XCTAssertTrue(button.isHittable, "\(button.identifier) must be tappable (\(what))")
+                XCTAssertTrue(picture.insetBy(dx: -1, dy: -1).contains(button.frame),
+                              "\(button.identifier) at \(button.frame) must be inside the picture \(picture) (\(what))")
+                XCTAssertFalse(word.frame.intersects(button.frame),
+                               "the script must stay clear of \(button.identifier) (\(what))")
+            }
+
+            if orientation.isLandscape {
+                let listen = app.buttons["listen"]
+                let takeOnLeading = listen.frame.midX < picture.midX
+                let chipOnLeading = utility[0].frame.midX < picture.midX
+                XCTAssertNotEqual(takeOnLeading, chipOnLeading,
+                                  "the utility chip must sit opposite the take buttons (\(what))")
+                for pair in [(utility[0], utility[1]), (utility[1], utility[2])] {
+                    XCTAssertEqual(pair.0.frame.midX, pair.1.frame.midX, accuracy: 8,
+                                   "utility buttons must stack vertically (\(what))")
+                    XCTAssertGreaterThan(abs(pair.0.frame.midY - pair.1.frame.midY), 30,
+                                         "utility buttons must be separated vertically (\(what))")
+                }
+                if chipOnLeading {
+                    XCTAssertGreaterThan(word.frame.minX, utility[0].frame.maxX,
+                                         "the script must start past the vertical chip (\(what))")
+                }
+            } else {
+                for pair in [(utility[0], utility[1]), (utility[1], utility[2])] {
+                    XCTAssertEqual(pair.0.frame.midY, pair.1.frame.midY, accuracy: 8,
+                                   "utility buttons must share a row in portrait (\(what))")
+                    XCTAssertGreaterThan(abs(pair.0.frame.midX - pair.1.frame.midX), 30,
+                                         "utility buttons must be separated horizontally (\(what))")
+                }
+                XCTAssertGreaterThan(utility[0].frame.midY, picture.midY,
+                                     "the utility chip must sit in the bottom half (\(what))")
+                XCTAssertGreaterThan(utility[2].frame.maxX, picture.maxX - 24,
+                                     "the utility chip must hug the trailing edge (\(what))")
             }
 
             dragLine(app, picture: picture, what)
@@ -271,10 +322,10 @@ final class PrompterSmokeTests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
     }
 
-    /// The script must not run underneath the landscape rail, and must not be
-    /// sliced off by the notch inset on the opposite side. Both happened once
-    /// the prompter went full-bleed and the script stopped padding for the
-    /// safe area itself.
+    /// The script must not run underneath the take buttons in the landscape
+    /// strip, and must not be sliced off by the notch inset on the opposite
+    /// side. Both happened once the prompter went full-bleed and the script
+    /// stopped padding for the safe area itself.
     func testScriptClearsTheRailAndTheSafeAreaInLandscape() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestingNoCamera"]
@@ -286,7 +337,7 @@ final class PrompterSmokeTests: XCTestCase {
         defer { XCUIDevice.shared.orientation = .portrait }
         XCTAssertTrue(app.buttons["listen"].waitForExistence(timeout: 5))
 
-        let rail = app.buttons["listen"].frame
+        let takeButton = app.buttons["listen"].frame
         let window = app.windows.firstMatch.frame
 
         // Words from the script's opening sentence, each appearing exactly
@@ -307,8 +358,8 @@ final class PrompterSmokeTests: XCTestCase {
             guard word.exists, word.frame.intersects(window) else { continue }
             checked += 1
             XCTAssertFalse(
-                word.frame.intersects(rail),
-                "\(label) at \(word.frame) overlaps the control rail at \(rail)"
+                word.frame.intersects(takeButton),
+                "\(label) at \(word.frame) overlaps the take button at \(takeButton)"
             )
             XCTAssertTrue(
                 window.insetBy(dx: -1, dy: -1).contains(word.frame),

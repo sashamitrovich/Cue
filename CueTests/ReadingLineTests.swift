@@ -253,11 +253,16 @@ final class ReadingLineTests: XCTestCase {
         XCTAssertGreaterThan(top, PrompterView.chipClearance)
     }
 
-    func testTheBottomInsetIsTheHomeIndicatorOnlyWhereThePictureReachesIt() {
+    func testTheBottomInsetClearsTheBottomChipInPortraitAndTheHomeIndicatorInLandscape() {
         XCTAssertEqual(PrompterView.pictureReadingLineBottomInset(
-            frame: frame(393, 852, top: 59, bottom: 34)), 0, "portrait picture ends above it")
+            frame: frame(393, 852, top: 59, bottom: 34)),
+            PrompterView.utilityChipHeight + PrompterView.chipBottomPadding, accuracy: 1e-9)
         XCTAssertEqual(PrompterView.pictureReadingLineBottomInset(
             frame: frame(852, 393, bottom: 21, side: 59)), 21, accuracy: 1e-9)
+        // The fallback keeps the chip top-right, so a 16:9 portrait still
+        // clears only the home indicator (which it may not even reach).
+        XCTAssertEqual(PrompterView.pictureReadingLineBottomInset(
+            frame: frame(375, 667, top: 20)), 0, accuracy: 1e-9)
     }
 
     func testTheLowestLineStaysInsideThePictureInEveryCase() {
@@ -295,16 +300,16 @@ final class ReadingLineTests: XCTestCase {
 
     func testTheScriptIsCentredOnThePictureAndNotPushedByTheRail() {
         // Margins are the same on both sides, so the column is centred on
-        // the picture whichever edge the strip is on. In the fallback the
-        // landscape buttons float over the thumb edge, so both sides clear
-        // them, and the safe area counts because the picture is the screen.
+        // the picture whichever edge the strip is on. Portrait has no rail;
+        // landscape clears the vertical utility chip column on both sides.
         let strip = frame(393, 852, top: 59, bottom: 34)
         XCTAssertEqual(PrompterView.pictureMargins(frame: strip).rail, 0)
         XCTAssertEqual(PrompterView.pictureMargins(frame: strip).safeArea, 0)
 
         let landscape = frame(852, 393, bottom: 21, side: 59)
-        XCTAssertEqual(PrompterView.pictureMargins(frame: landscape).rail, 0,
-                       "the strip is outside the picture, so there is no rail to clear")
+        XCTAssertEqual(PrompterView.pictureMargins(frame: landscape).rail,
+                       PrompterView.utilityChipColumnWidth,
+                       "the vertical utility chip must be cleared on both sides, symmetric")
         XCTAssertEqual(PrompterView.pictureMargins(frame: landscape).safeArea, 0,
                        "59 pt side inset is inside the black, not the picture")
 
@@ -313,5 +318,97 @@ final class ReadingLineTests: XCTestCase {
             safeArea: EdgeInsets(top: 0, leading: 10, bottom: 0, trailing: 10), railOnLeading: true)
         XCTAssertEqual(PrompterView.pictureMargins(frame: fallbackLandscape).rail, PrompterView.railWidth)
         XCTAssertGreaterThan(PrompterView.pictureMargins(frame: fallbackLandscape).safeArea, 0)
+    }
+
+    // MARK: - Utility chip placement (phones)
+
+    func testUtilityChipSitsAtTheBottomTrailingInPortraitWithAStrip() throws {
+        for size in [CGSize(width: 393, height: 852), CGSize(width: 430, height: 932)] {
+            let f = PrompterFrame.make(
+                fullSize: size,
+                safeArea: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0),
+                railOnLeading: false)
+            let chip = try XCTUnwrap(PrompterView.utilityChipRect(frame: f), "\(size)")
+            XCTAssertTrue(chip.minX >= 0 && chip.maxX <= f.picture.width, "inside the picture \(size)")
+            XCTAssertTrue(chip.minY >= 0 && chip.maxY <= f.picture.height, "inside the picture \(size)")
+            XCTAssertEqual(chip.maxX, f.picture.width - PrompterView.chipEdgePadding, accuracy: 1e-9)
+            XCTAssertEqual(chip.maxY, f.picture.height - PrompterView.chipBottomPadding, accuracy: 1e-9)
+            if let strip = f.strip {
+                let chipOnScreen = chip.offsetBy(dx: f.picture.minX, dy: f.picture.minY)
+                XCTAssertFalse(chipOnScreen.intersects(strip), "the chip must stay out of the take-button strip")
+            }
+        }
+    }
+
+    func testUtilityChipStacksVerticallyOnTheEdgeOppositeTheStrip() throws {
+        for railOnLeading in [true, false] {
+            let f = PrompterFrame.make(
+                fullSize: CGSize(width: 852, height: 393),
+                safeArea: EdgeInsets(top: 0, leading: 59, bottom: 21, trailing: 59),
+                railOnLeading: railOnLeading)
+            let chip = try XCTUnwrap(PrompterView.utilityChipRect(frame: f), "railOnLeading \(railOnLeading)")
+            XCTAssertEqual(chip.width, PrompterView.utilityChipHeight)
+            XCTAssertEqual(chip.height, PrompterView.utilityChipWidth)
+            XCTAssertTrue(chip.minX >= 0 && chip.maxX <= f.picture.width, "inside the picture")
+            XCTAssertTrue(chip.minY >= 0 && chip.maxY <= f.picture.height, "inside the picture")
+            XCTAssertEqual(chip.midY, f.picture.height / 2, accuracy: 1e-9)
+            if railOnLeading {
+                XCTAssertEqual(chip.maxX, f.picture.width - PrompterView.chipEdgePadding, accuracy: 1e-9)
+                XCTAssertGreaterThan(chip.midX, f.picture.width / 2, "chip must be on the trailing half")
+            } else {
+                XCTAssertEqual(chip.minX, PrompterView.chipEdgePadding, accuracy: 1e-9)
+                XCTAssertLessThan(chip.midX, f.picture.width / 2, "chip must be on the leading half")
+            }
+            if let strip = f.strip {
+                let chipOnScreen = chip.offsetBy(dx: f.picture.minX, dy: f.picture.minY)
+                XCTAssertFalse(chipOnScreen.intersects(strip), "the chip must not sit in the black strip")
+            }
+        }
+    }
+
+    func testUtilityChipKeepsTheLegacyTopRightInTheFallback() {
+        let f = PrompterFrame.make(
+            fullSize: CGSize(width: 375, height: 667),
+            safeArea: EdgeInsets(top: 20, leading: 0, bottom: 0, trailing: 0),
+            railOnLeading: false)
+        XCTAssertNil(PrompterView.utilityChipRect(frame: f),
+                     "the fallback keeps the chip in the top row, so no bottom/side rect is computed")
+    }
+
+    func testTheLowestLineClearsTheBottomChipInPortrait() {
+        let f = frame(393, 852, top: 59, bottom: 34)
+        let chip = PrompterView.utilityChipRect(frame: f)!
+        let bottom = PrompterView.pictureReadingLineBottomInset(frame: f)
+        let top = PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: true)
+        let lowest = PrompterView.readingLineBand(
+            fullHeight: f.picture.height, topInset: top, bottomInset: bottom, fontSize: 32).lowest
+        XCTAssertLessThanOrEqual(
+            lowest + PrompterView.readingLineDrop(fontSize: 32), chip.minY + 0.5,
+            "the reading line at 100% must sit above the bottom chip")
+    }
+
+    func testTheMarginsClearTheVerticalChipInLandscape() throws {
+        for railOnLeading in [true, false] {
+            let f = PrompterFrame.make(
+                fullSize: CGSize(width: 852, height: 393),
+                safeArea: EdgeInsets(top: 0, leading: 59, bottom: 21, trailing: 59),
+                railOnLeading: railOnLeading)
+            let chip = try XCTUnwrap(PrompterView.utilityChipRect(frame: f))
+            let margins = PrompterView.pictureMargins(frame: f)
+            XCTAssertEqual(margins.rail, PrompterView.utilityChipColumnWidth)
+            XCTAssertEqual(margins.safeArea, 0)
+            let inset = ScriptMargins.inset(
+                safeArea: margins.safeArea, margin: 0, rail: margins.rail,
+                width: f.picture.width, fontSize: 32)
+            if railOnLeading {
+                // Strip leading -> chip trailing: the column's trailing edge
+                // must not reach the chip.
+                XCTAssertLessThanOrEqual(f.picture.width - inset, chip.minX + 0.5)
+            } else {
+                // Strip trailing -> chip leading: the column's leading edge
+                // must start past the chip.
+                XCTAssertGreaterThanOrEqual(inset, chip.maxX - 0.5)
+            }
+        }
     }
 }
