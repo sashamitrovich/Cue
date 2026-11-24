@@ -4,7 +4,7 @@ import CoreMedia
 import Photos
 import UIKit
 
-/// What the connected device's front camera supports, detected at runtime.
+/// What the connected device's camera supports, detected at runtime.
 /// The controls sheet only shows a row when the matching flag/list is non-empty.
 struct CameraCapabilities {
     /// Size tiers (HD / 4K) with the frame rates each one offers.
@@ -12,14 +12,22 @@ struct CameraCapabilities {
     var supportsHDR: Bool = false
     var supportsStabilization: Bool = false
     var supportsLowLightBoost: Bool = false
+    /// Whether both a front and a back camera exist, so the front/back row can
+    /// be shown. Never true under Mac Catalyst — the Mac presents only the
+    /// FaceTime camera, so there is nothing to switch to.
+    var hasBothCameras: Bool = false
 }
 
-/// Drives the front camera + mic capture session and records takes to a temp
+/// Drives the camera + mic capture session and records takes to a temp
 /// file, then saves each finished take into the user's Photos library.
 final class CameraController: NSObject, ObservableObject {
     let session = AVCaptureSession()
     private let movieOutput = AVCaptureMovieFileOutput()
     private var cameraDevice: AVCaptureDevice?
+    /// The live video input, retained so a switch can remove it before adding
+    /// the other camera's. Previously a local in `setup`, which left nothing to
+    /// remove and made a swap impossible without re-running `setup`.
+    private var cameraInput: AVCaptureDeviceInput?
     #if DEBUG
     /// Why a recorded file stutters, answered rather than guessed at. iOS
     /// throttles capture under thermal pressure without telling the app in
@@ -34,6 +42,16 @@ final class CameraController: NSObject, ObservableObject {
     @Published var isRunning = false
     @Published var isRecording = false
     @Published var errorMessage: String?
+    /// Which camera is currently connected to the session. Mirrors the
+    /// persisted `TeleprompterState.cameraPosition` once setup/switch resolves
+    /// it against the hardware actually present.
+    @Published var position: CameraPosition = .front
+    /// Bumped once every change to the session's video input has been
+    /// committed. Swapping the input makes `AVCaptureSession` build a brand
+    /// new connection for the preview layer, with automatic mirroring and the
+    /// default orientation back on, so the preview re-applies its connection
+    /// settings whenever this changes — see `CameraPreviewView`.
+    @Published private(set) var inputGeneration = 0
     /// Set once a finished take is safely in the Photos library, so the
     /// prompter can say so. Cleared by whoever displays it.
     @Published var savedMessage: String?
@@ -51,6 +69,11 @@ final class CameraController: NSObject, ObservableObject {
 
     private var timer: Timer?
     private var orientationObserver: NSObjectProtocol?
+    /// The last device orientation that actually answered "which way is up".
+    /// A camera switch must re-derive the connection's orientation from this
+    /// even when the phone is momentarily face-up, face-down or unknown, where
+    /// `UIDevice.current.orientation` is not a determinate answer.
+    private var lastDeviceOrientation: UIDeviceOrientation?
     /// Inputs and outputs are added once; stopping only stops the session.
     private var isConfigured = false
 
@@ -59,7 +82,7 @@ final class CameraController: NSObject, ObservableObject {
         return CaptureQualityMenu.tier(for: selectedMode, in: capabilities.qualityTiers)
     }
 
-    func configureAndStart() {
+    func configureAndStart(position desired: CameraPosition = .front) {
         // The camera can be switched off and back on mid-take. Re-running
         // `setup` would add a second set of inputs and outputs to the session,
         // so once configured this only restarts the running session.
@@ -74,13 +97,13 @@ final class CameraController: NSObject, ObservableObject {
                         self.errorMessage = String(localized: "Camera and microphone access are required to record.")
                         return
                     }
-                    self.setup()
+                    self.setup(position: desired)
                 }
             }
         }
     }
 
-    private func setup() {
+    private func setup(position desired: CameraPosition) {
         // One owner for the audio session, and it is not this one.
         // `AVCaptureSession` reconfigures the app's audio session by default
         // when it starts running, which would fight the category and mode set
@@ -93,31 +116,35 @@ final class CameraController: NSObject, ObservableObject {
         // resolution/frame-rate picker sets it explicitly per device.
         session.sessionPreset = .inputPriority
 
-        if let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front),
+        // A saved back position is only honoured where a back camera exists.
+        // `position` records what the session actually connected to, so the
+        // sheet's row can reflect reality rather than the saved preference.
+        let resolved = CameraPosition.resolvedPosition(requested: desired, hasBackCamera: Self.hasBackCamera())
+
+        if let camera = Self.defaultCamera(for: resolved),
            let camInput = try? AVCaptureDeviceInput(device: camera),
            session.canAddInput(camInput) {
             session.addInput(camInput)
+            cameraInput = camInput
             cameraDevice = camera
-            // AVFoundation's default front-camera format has a noticeably
-            // narrower field of view than what Camera.app shows — the wide
-            // framing has to be opted into by picking the format with the
-            // largest FOV explicitly, otherwise the preview looks zoomed in.
-            // Widescreen only, so the running format is one the quality
-            // toggles can actually name — a 4:3 stills format would leave the
-            // pills describing something the session isn't recording.
-            let wideFormat = camera.formats
-                .filter {
-                    guard let dims = Self.dimensions(of: $0) else { return false }
-                    return dims.height >= 1080 && Self.isWidescreen(dims)
-                }
-                .max { $0.videoFieldOfView < $1.videoFieldOfView }
+            // Claimed only now that the input is actually in the session: a
+            // failed input must not leave `position` naming a camera the
+            // controller does not have.
+            position = resolved
+            // AVFoundation's default camera format has a noticeably narrower
+            // field of view than what Camera.app shows — the wide framing has
+            // to be opted into by picking the format with the largest FOV
+            // explicitly, otherwise the preview looks zoomed in. Widescreen
+            // only, so the running format is one the quality toggles can
+            // actually name — a 4:3 stills format would leave the pills
+            // describing something the session isn't recording.
             do {
                 try camera.lockForConfiguration()
-                if let wideFormat {
+                defer { camera.unlockForConfiguration() }
+                if let wideFormat = Self.widestFormat(in: camera.formats) {
                     camera.activeFormat = wideFormat
                 }
                 camera.videoZoomFactor = camera.minAvailableVideoZoomFactor
-                camera.unlockForConfiguration()
             } catch {
                 // Non-fatal — framing stays at whatever the hardware defaulted to.
             }
@@ -131,16 +158,10 @@ final class CameraController: NSObject, ObservableObject {
             session.addOutput(movieOutput)
         }
 
-        // The preview layer already auto-mirrors the front camera for a
-        // selfie-view look; the SwiftUI layer also flips for mirror mode.
-        // Keep the *recorded* file unmirrored (reads naturally, like Camera.app)
-        // regardless of how the live preview is flipped.
-        if let connection = movieOutput.connection(with: .video) {
-            connection.automaticallyAdjustsVideoMirroring = false
-            connection.isVideoMirrored = false
-        }
+        applyRecordedConnectionSettings()
 
         session.commitConfiguration()
+        noteVideoInputChanged()
 
         if let camera = cameraDevice {
             detectCapabilities(for: camera)
@@ -164,6 +185,7 @@ final class CameraController: NSObject, ObservableObject {
     /// 1080p30 on older ones).
     private func detectCapabilities(for device: AVCaptureDevice) {
         var caps = CameraCapabilities()
+        caps.hasBothCameras = Self.hasBothCameras()
         caps.supportsLowLightBoost = device.isLowLightBoostSupported
 
         var formats: [VideoMode: AVCaptureDevice.Format] = [:]
@@ -211,8 +233,12 @@ final class CameraController: NSObject, ObservableObject {
             self.capabilities = caps
             self.formatsByMode = formats
             self.selectedMode = current
-            if caps.supportsStabilization { self.setStabilization(true) }
-            if caps.supportsLowLightBoost { self.setLowLightBoost(true) }
+            // Keep the reader's current toggles rather than forcing them back
+            // on: a camera switch re-runs this for the new device, and their
+            // choice should survive the swap. Setup still lands on the same
+            // defaults, since both flags start true.
+            if caps.supportsStabilization { self.setStabilization(self.stabilizationEnabled) }
+            if caps.supportsLowLightBoost { self.setLowLightBoost(self.lowLightBoostEnabled) }
         }
     }
 
@@ -240,12 +266,91 @@ final class CameraController: NSObject, ObservableObject {
         return abs(Double(dims.width) / Double(dims.height) - 16.0 / 9.0) < 0.05
     }
 
+    /// Chooses the dimensions of the widest-field-of-view 16:9 format at least
+    /// 1080 lines tall, from `(dimensions, horizontal field of view)` pairs.
+    /// Restricted to `VideoMode.recognizedHeights`: a 16:9 format at any other
+    /// height (a back camera's 4032x2268, say) could win on field of view and
+    /// become the active format while `detectCapabilities` finds no tier for
+    /// it — leaving the pills describing a size the session is not running.
+    /// Pure so the choice can be unit tested without a camera; `widestFormat`
+    /// maps the chosen dimensions back to the concrete format.
+    static func preferredDimensions(from dims: [(CMVideoDimensions, Float)]) -> CMVideoDimensions? {
+        dims
+            .filter {
+                $0.0.height >= 1080
+                    && Self.isWidescreen($0.0)
+                    && VideoMode.recognizedHeights.contains($0.0.height)
+            }
+            .max { $0.1 < $1.1 }?
+            .0
+    }
+
+    /// The concrete format for the widest-FOV 16:9 choice above. Among formats
+    /// that share the chosen dimensions, the widest FOV wins — the dimensions
+    /// alone can be ambiguous.
+    private static func widestFormat(in formats: [AVCaptureDevice.Format]) -> AVCaptureDevice.Format? {
+        let candidates = formats.compactMap { format -> (CMVideoDimensions, Float)? in
+            guard let dims = Self.dimensions(of: format) else { return nil }
+            return (dims, format.videoFieldOfView)
+        }
+        guard let preferred = Self.preferredDimensions(from: candidates) else { return nil }
+        return formats
+            .filter { format in
+                guard let dims = Self.dimensions(of: format) else { return false }
+                return dims.width == preferred.width && dims.height == preferred.height
+            }
+            .max { $0.videoFieldOfView < $1.videoFieldOfView }
+    }
+
+    private static func defaultCamera(for position: CameraPosition) -> AVCaptureDevice? {
+        let avPosition: AVCaptureDevice.Position = position == .front ? .front : .back
+        return AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: avPosition)
+    }
+
+    private static func hasBackCamera() -> Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
+        return defaultCamera(for: .back) != nil
+        #endif
+    }
+
+    private static func hasBothCameras() -> Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
+        return defaultCamera(for: .front) != nil && defaultCamera(for: .back) != nil
+        #endif
+    }
+
+    /// The frame rate to run the newly active format at: the rate the reader
+    /// had where the new camera supports it, otherwise the highest offered rate
+    /// (24/25/30/60) it can do. Nil only when none of them fit.
+    private static func frameRate(preferred: Double?, in format: AVCaptureDevice.Format) -> Double? {
+        if let preferred,
+           format.videoSupportedFrameRateRanges.contains(where: { $0.minFrameRate <= preferred && preferred <= $0.maxFrameRate }) {
+            return preferred
+        }
+        return CaptureQualityMenu.offeredFrameRates.last { rate in
+            format.videoSupportedFrameRateRanges.contains(where: { $0.minFrameRate <= rate && rate <= $0.maxFrameRate })
+        }
+    }
+
+    /// The recorded file's connection must stay unmirrored for both cameras;
+    /// the mirror the reader sees is a SwiftUI preview-only flip.
+    private func applyRecordedConnectionSettings() {
+        guard let connection = movieOutput.connection(with: .video) else { return }
+        connection.automaticallyAdjustsVideoMirroring = false
+        if connection.isVideoMirroringSupported {
+            connection.isVideoMirrored = false
+        }
+    }
+
     /// Pins the camera to its widest field of view.
     ///
     /// There is no zoom control any more. A teleprompter wants as much of the
-    /// speaker and the room in frame as the lens will give, and a digital
-    /// zoom on a front camera only crops that away — it adds no reach,
-    /// because there is nothing to reach with. The one thing the setting
+    /// subject and the room in frame as the lens will give; the widest 16:9
+    /// format is the design for both cameras. The one thing a zoom setting
     /// could do was make the picture worse.
     ///
     /// Called again after a format change, because the zoom factor and its
@@ -277,6 +382,140 @@ final class CameraController: NSObject, ObservableObject {
         apply(VideoMode(height: tier.height, frameRate: next))
     }
 
+    /// Switches the live video input between the front and back cameras inside
+    /// the already-running session, never through `setup()` (which must run
+    /// once; a second run would add duplicate inputs and outputs).
+    ///
+    /// The microphone input, the audio session and the recording output are
+    /// untouched — only the video input is swapped — so the script keeps
+    /// following while the take is armed but not recording.
+    ///
+    /// Refuses while recording, for the same reason `apply(_:)` does:
+    /// reconfiguring the device mid-take tears down the file being written.
+    /// The UI disables the row, and this guard is the backstop.
+    ///
+    /// Every format-dependent property is gated on the *new* device's active
+    /// format: zoom is re-read after the format change, frame durations must
+    /// fall inside the new format's ranges, and HDR is set only when the new
+    /// format supports it — each of these raises an uncatchable Objective-C
+    /// exception against the wrong format.
+    @discardableResult
+    func switchCamera(to target: CameraPosition) -> Bool {
+        guard !isRecording else { return false }
+        guard target != position else { return true }
+        guard let device = Self.defaultCamera(for: target) else {
+            errorMessage = String(localized: "Couldn't change camera: that camera isn't available on this device.")
+            return false
+        }
+        guard let input = try? AVCaptureDeviceInput(device: device) else {
+            errorMessage = String(localized: "Couldn't change camera: the camera input couldn't be created.")
+            return false
+        }
+
+        let oldInput = cameraInput
+        let oldDevice = cameraDevice
+        session.beginConfiguration()
+        if let oldInput {
+            session.removeInput(oldInput)
+        }
+        cameraInput = nil
+
+        guard session.canAddInput(input) else {
+            // Leave the session whole rather than half-configured: put the old
+            // camera back if the new one cannot be added.
+            if let oldInput, session.canAddInput(oldInput) {
+                session.addInput(oldInput)
+                cameraInput = oldInput
+            }
+            session.commitConfiguration()
+            noteVideoInputChanged()
+            applyRecordedConnectionSettings()
+            applyCurrentOrientation()
+            setStabilization(stabilizationEnabled)
+            errorMessage = String(localized: "Couldn't change camera: the camera input couldn't be added.")
+            return false
+        }
+        session.addInput(input)
+        cameraInput = input
+        cameraDevice = device
+        // Synchronously, so the main thread can never read the previous
+        // camera's formats against this device: `detectCapabilities` republishes
+        // this dictionary asynchronously, and a quality tap in between would
+        // otherwise set `activeFormat` on the new device from the old one's
+        // list. `apply(_:)` also refuses formats this device does not have.
+        formatsByMode = [:]
+
+        do {
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
+
+            if let wideFormat = Self.widestFormat(in: device.formats) {
+                device.activeFormat = wideFormat
+            }
+            // Zoom factor and its range are properties of the active format;
+            // re-read (and re-pin to widest) after the format above takes effect.
+            device.videoZoomFactor = device.minAvailableVideoZoomFactor
+
+            // Frame durations only inside the new format's ranges. Prefer the
+            // rate the reader had, otherwise the highest offered rate the new
+            // camera can do — but never a value the format rejects.
+            if let rate = Self.frameRate(preferred: selectedMode?.frameRate, in: device.activeFormat),
+               device.activeFormat.videoSupportedFrameRateRanges.contains(
+                   where: { $0.minFrameRate <= rate && rate <= $0.maxFrameRate }
+               ) {
+                let duration = CMTime(value: 1, timescale: CMTimeScale(rate.rounded()))
+                device.activeVideoMinFrameDuration = duration
+                device.activeVideoMaxFrameDuration = duration
+            }
+
+            if device.activeFormat.isVideoHDRSupported {
+                device.automaticallyAdjustsVideoHDREnabled = false
+                device.isVideoHDREnabled = hdrEnabled
+            }
+        } catch {
+            // `lockForConfiguration` failed (a Swift error, unlike the Obj-C
+            // exceptions the format setters above would raise). Put the old
+            // camera back so the session still matches `position`.
+            session.removeInput(input)
+            cameraInput = nil
+            cameraDevice = oldDevice
+            if let oldInput, session.canAddInput(oldInput) {
+                session.addInput(oldInput)
+                cameraInput = oldInput
+            }
+            session.commitConfiguration()
+            noteVideoInputChanged()
+            applyRecordedConnectionSettings()
+            applyCurrentOrientation()
+            setStabilization(stabilizationEnabled)
+            errorMessage = String(localized: "Couldn't change camera: \(error.localizedDescription)")
+            return false
+        }
+
+        session.commitConfiguration()
+        noteVideoInputChanged()
+
+        position = target
+        pinToWidestFieldOfView()
+        setStabilization(stabilizationEnabled)
+        applyCurrentOrientation()
+        applyRecordedConnectionSettings()
+        setLowLightBoost(lowLightBoostEnabled)
+        detectCapabilities(for: device)
+        return true
+    }
+
+    /// Announces a committed video-input change. The preview cannot observe
+    /// the session's connections directly, so it is told instead. Main thread
+    /// because `inputGeneration` is `@Published` state the view reads.
+    private func noteVideoInputChanged() {
+        if Thread.isMainThread {
+            inputGeneration += 1
+        } else {
+            DispatchQueue.main.async { self.inputGeneration += 1 }
+        }
+    }
+
     /// Switches the capture format.
     ///
     /// Every property touched here raises an Objective-C exception when given
@@ -289,6 +528,11 @@ final class CameraController: NSObject, ObservableObject {
     /// 10-bit format, where it isn't settable at all) raises immediately.
     func apply(_ mode: VideoMode) {
         guard let device = cameraDevice, let format = formatsByMode[mode] else { return }
+        // The dictionary may still describe the previous camera: `switchCamera`
+        // clears it synchronously, but `detectCapabilities` republishes it from
+        // the main queue and a format belonging to another device raises an
+        // uncatchable Objective-C exception on `activeFormat`.
+        guard device.formats.contains(format) else { return }
         // Reconfiguring the device mid-recording would tear down the file
         // being written; Camera.app hides the control while recording for the
         // same reason.
@@ -379,7 +623,14 @@ final class CameraController: NSObject, ObservableObject {
     }
 
     private func applyCurrentOrientation() {
-        guard let orientation = AVCaptureVideoOrientation.matching(UIDevice.current.orientation),
+        let deviceOrientation = UIDevice.current.orientation
+        if AVCaptureVideoOrientation.isDeterminate(deviceOrientation) {
+            lastDeviceOrientation = deviceOrientation
+        }
+        // Re-derive from the last determinate orientation so a camera switch
+        // still corrects the landscape mapping when the phone is face-up,
+        // face-down or unknown right now.
+        guard let orientation = AVCaptureVideoOrientation.matching(lastDeviceOrientation ?? deviceOrientation),
               let connection = movieOutput.connection(with: .video),
               connection.isVideoOrientationSupported else { return }
         connection.videoOrientation = orientation

@@ -21,6 +21,26 @@ enum WordState {
     case upcoming, active, spoken
 }
 
+/// Which camera records the take. The back camera films whatever is in front
+/// of the phone while the script stays on the screen facing the reader.
+enum CameraPosition: String, CaseIterable, Identifiable, Equatable {
+    case front, back
+
+    var id: String { rawValue }
+
+    /// Only the front camera's preview is a mirror image (a selfie view). The
+    /// back camera preview is shown as-is; recorded files are unmirrored for
+    /// both, so the flip is preview-only and decided here.
+    var previewIsMirrored: Bool { self == .front }
+
+    /// A saved "back" is honoured only on a device that actually has a back
+    /// camera; anything else falls back to the front camera. Pure so the rule
+    /// can be unit tested without hardware.
+    static func resolvedPosition(requested: CameraPosition, hasBackCamera: Bool) -> CameraPosition {
+        requested == .back && !hasBackCamera ? .front : requested
+    }
+}
+
 /// How script lines are laid out horizontally. `justified` spreads a
 /// wrapped row's words to fill the width, matching print convention (the
 /// last row of a paragraph is left as-is rather than stretched).
@@ -82,6 +102,12 @@ final class TeleprompterState: ObservableObject {
     @Published var cameraEnabled: Bool = !ProcessInfo.processInfo.arguments.contains("-uiTestingNoCamera") {
         didSet { if persistsSettings { settings.set(.cameraEnabled, cameraEnabled) } }
     }
+    /// Which camera records the take, persisted with the other settings. The
+    /// front camera is the default; a saved back position is honoured only
+    /// where the device has a back camera (see `CameraController.setup`).
+    @Published var cameraPosition: CameraPosition = .front {
+        didSet { if persistsSettings { settings.set(.cameraPosition, cameraPosition.rawValue) } }
+    }
     /// How opaque the scrolling script text is, so the camera feed behind it
     /// can show through more or less — 1.0 is fully opaque text, lower
     /// values let more of the live camera preview read through.
@@ -89,8 +115,8 @@ final class TeleprompterState: ObservableObject {
         didSet { if persistsSettings { settings.set(.textOpacity, textOpacity) } }
     }
     /// Where the reading line sits, as a fraction of screen height. Kept high
-    /// by default so the words are close to the front lens and your eyes read
-    /// near the camera rather than down the screen.
+    /// by default so the words are close to the lens and your eyes read near
+    /// the camera rather than down the screen.
     /// How far down the *usable band* the reading line sits, 0 to 1 — not a
     /// fraction of the screen. See `PrompterView.cueY(fraction:...)`: the band
     /// runs from the highest the line can physically go on this device to the
@@ -209,6 +235,7 @@ final class TeleprompterState: ObservableObject {
         mirror = settings.bool(.mirror, default: mirror)
         textAlignment = ScriptAlignment(rawValue: settings.string(.textAlignment, default: textAlignment.rawValue)) ?? textAlignment
         cameraEnabled = settings.bool(.cameraEnabled, default: cameraEnabled)
+        cameraPosition = CameraPosition(rawValue: settings.string(.cameraPosition, default: cameraPosition.rawValue)) ?? cameraPosition
         textOpacity = settings.double(.textOpacity, default: textOpacity)
         cueLineFraction = settings.double(.cueLineFraction, default: cueLineFraction)
         sideMargin = CGFloat(settings.double(.sideMargin, default: Double(sideMargin)))

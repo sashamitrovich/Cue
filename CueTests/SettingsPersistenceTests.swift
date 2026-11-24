@@ -101,6 +101,10 @@ final class SettingsPersistenceTests: XCTestCase {
         XCTAssertFalse(afterRelaunch { $0.cameraEnabled = false }.cameraEnabled)
     }
 
+    func testCameraPositionSurvivesARelaunch() {
+        XCTAssertEqual(afterRelaunch { $0.cameraPosition = .back }.cameraPosition, .back)
+    }
+
     func testAFreshInstallGetsTheDefaults() {
         // Nothing written: every setting must fall back to its default rather
         // than to a zero read out of an empty store.
@@ -110,6 +114,7 @@ final class SettingsPersistenceTests: XCTestCase {
         XCTAssertGreaterThan(fresh.textOpacity, 0, "a default of zero would render the script invisible")
         XCTAssertFalse(fresh.recognitionLocale.isEmpty)
         XCTAssertTrue(fresh.recognitionLocaleIsAuto, "a fresh install should start with auto-detection on")
+        XCTAssertEqual(fresh.cameraPosition, .front, "the front camera is the default")
     }
 
     func testUpgradeFromBeforeAutoDetectKeepsTheManualLocale() {
@@ -146,6 +151,7 @@ final class SettingsPersistenceTests: XCTestCase {
             .cueLineFraction, .sideMargin, .cameraDimming, .targetWPM,
             .countdownSeconds, .showTiming, .voiceCommandsEnabled,
             .readTextFloor, .recognitionLocale, .recognitionLocaleIsAuto,
+            .cameraPosition,
         ]
         let all = Set(PrompterSettingsStore.Key.allCases)
         XCTAssertEqual(

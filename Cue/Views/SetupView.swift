@@ -356,8 +356,8 @@ struct SetupView: View {
     }
 
     /// The thing a first-time user most needs to know before tapping start,
-    /// and the only one they can't infer from the screen itself: the front
-    /// camera is on, and this will record them.
+    /// and the only one they can't infer from the screen itself: the camera
+    /// is on, and this will record them.
     /// Whether to record, as a control rather than a bulletin.
     ///
     /// It used to be a passive line: "Camera off — the script will scroll
@@ -379,10 +379,10 @@ struct SetupView: View {
             HStack(spacing: 7) {
                 Image(systemName: state.cameraEnabled ? "video.fill" : "video.slash.fill")
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Record with the front camera")
+                    Text("Record with the camera")
                     Text(state.cameraEnabled
                          ? "Saved to your Photos library when you finish."
-                         : "Switch on the front camera for recording.")
+                         : "Switch on the camera for recording.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

@@ -617,6 +617,34 @@
         }
       }
     },
+    "Back": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Traseira"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trasera"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posteriore"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hinten"
+          }
+        }
+      }
+    },
     "Before you start": {
       "localizations": {
         "pt-BR": {
@@ -753,6 +781,118 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aufnahme"
+          }
+        }
+      }
+    },
+    "Couldn't change camera: %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível trocar a câmera: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cambiar la cámara: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile cambiare fotocamera: %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamera konnte nicht gewechselt werden: %@"
+          }
+        }
+      }
+    },
+    "Couldn't change camera: that camera isn't available on this device.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível trocar a câmera: essa câmera não está disponível neste aparelho."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cambiar la cámara: esa cámara no está disponible en este dispositivo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile cambiare fotocamera: questa fotocamera non è disponibile su questo dispositivo."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamera konnte nicht gewechselt werden: Diese Kamera ist auf diesem Gerät nicht verfügbar."
+          }
+        }
+      }
+    },
+    "Couldn't change camera: the camera input couldn't be added.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível trocar a câmera: a entrada da câmera não pôde ser adicionada."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cambiar la cámara: no se pudo añadir la entrada de cámara."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile cambiare fotocamera: non è stato possibile aggiungere l'ingresso della fotocamera."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamera konnte nicht gewechselt werden: Der Kameraeingang konnte nicht hinzugefügt werden."
+          }
+        }
+      }
+    },
+    "Couldn't change camera: the camera input couldn't be created.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível trocar a câmera: a entrada da câmera não pôde ser criada."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cambiar la cámara: no se pudo crear la entrada de cámara."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile cambiare fotocamera: non è stato possibile creare l'ingresso della fotocamera."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamera konnte nicht gewechselt werden: Der Kameraeingang konnte nicht erstellt werden."
           }
         }
       }
@@ -1527,6 +1667,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tippe in einer anderen App – Notizen, Mail, Dateien, Drive – auf Teilen und wähle On Cue. Das Skript wartet hier auf dich, und On Cue fragt, bevor es dein vorhandenes Skript ersetzt. Ein Google-Dokument wird als Link statt als Text geteilt; nutze daher „Kopie senden“ und wähle Nur-Text oder Rich Text."
+          }
+        }
+      }
+    },
+    "Front": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frontal"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frontal"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frontale"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorne"
           }
         }
       }
@@ -2546,30 +2714,30 @@
         }
       }
     },
-    "Record with the front camera": {
+    "Record with the camera": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gravar com a câmera frontal"
+            "value": "Gravar com a câmera"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grabar con la cámara frontal"
+            "value": "Grabar con la cámara"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Registra con la fotocamera frontale"
+            "value": "Registra con la fotocamera"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mit der Frontkamera aufnehmen"
+            "value": "Mit der Kamera aufnehmen"
           }
         }
       }
@@ -2602,30 +2770,30 @@
         }
       }
     },
-    "Recording size and frame rate, offered only as far as your device's front camera supports. Stop recording to change them.": {
+    "Recording size and frame rate, offered only as far as your device's camera supports. Stop recording to change them.": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tamanho e taxa de quadros da gravação, oferecidos apenas até onde a câmera frontal do seu dispositivo permite. Pare a gravação para alterá-los."
+            "value": "Tamanho e taxa de quadros da gravação, oferecidos apenas até onde a câmera do seu dispositivo permite. Pare a gravação para alterá-los."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tamaño y fotogramas por segundo de la grabación, disponibles solo en la medida en que los admita la cámara frontal de tu dispositivo. Detén la grabación para cambiarlos."
+            "value": "Tamaño y fotogramas por segundo de la grabación, disponibles solo en la medida en que los admita la cámara de tu dispositivo. Detén la grabación para cambiarlos."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dimensione e frequenza fotogrammi della registrazione, offerte solo nei limiti di ciò che supporta la fotocamera frontale del tuo dispositivo. Interrompi la registrazione per cambiarle."
+            "value": "Dimensione e frequenza fotogrammi della registrazione, offerte solo nei limiti di ciò che supporta la fotocamera del tuo dispositivo. Interrompi la registrazione per cambiarle."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Auflösung und Bildrate der Aufnahme – angeboten, soweit die Frontkamera deines Geräts sie unterstützt. Beende die Aufnahme, um sie zu ändern."
+            "value": "Auflösung und Bildrate der Aufnahme – angeboten, soweit die Kamera deines Geräts sie unterstützt. Beende die Aufnahme, um sie zu ändern."
           }
         }
       }
@@ -3190,30 +3358,30 @@
         }
       }
     },
-    "Switch on the front camera for recording.": {
+    "Switch on the camera for recording.": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Liga a câmera frontal para gravar."
+            "value": "Liga a câmera para gravar."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Activa la cámara frontal para grabar."
+            "value": "Activa la cámara para grabar."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Attiva la fotocamera frontale per registrare."
+            "value": "Attiva la fotocamera per registrare."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Schalte die Frontkamera für die Aufnahme ein."
+            "value": "Schalte die Kamera für die Aufnahme ein."
           }
         }
       }

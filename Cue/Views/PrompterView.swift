@@ -517,7 +517,7 @@ struct PrompterView: View {
                     }
                 }
                 if state.cameraEnabled && !ProcessInfo.processInfo.arguments.contains("-uiTestingShowRecording") {
-                    camera.configureAndStart()
+                    camera.configureAndStart(position: state.cameraPosition)
                 }
             }
             .onDisappear {
@@ -729,10 +729,10 @@ struct PrompterView: View {
     private func cameraLayer(frame: PrompterFrame) -> some View {
         if state.cameraEnabled {
             // No pinch-to-zoom, deliberately. The camera stays at its widest
-            // field of view: a digital zoom on a front camera only crops the
-            // picture, and the script is drawn over this, so a stray pinch
-            // while reaching for the screen used to crop the shot with
-            // nothing on screen to say it had happened.
+            // field of view: a digital zoom only crops the picture, and the
+            // script is drawn over this, so a stray pinch while reaching for
+            // the screen used to crop the shot with nothing on screen to say
+            // it had happened.
             //
             // Framed to the picture and shown whole (aspect FIT): what is on
             // screen is what is recorded. The mirror and the dimming belong
@@ -740,8 +740,8 @@ struct PrompterView: View {
             // flip then pivots on the picture's own centre. `Self.ground`
             // fills the rest of the screen.
             ZStack {
-                CameraPreviewView(session: camera.session, aspectFit: usesPictureFrame)
-                    .scaleEffect(x: -1, y: 1)
+                CameraPreviewView(session: camera.session, aspectFit: usesPictureFrame, inputGeneration: camera.inputGeneration)
+                    .scaleEffect(x: camera.position.previewIsMirrored ? -1 : 1, y: 1)
                 Color.black.opacity(state.cameraDimming)
             }
             .frame(width: frame.picture.width, height: frame.picture.height)
@@ -2300,7 +2300,7 @@ struct PrompterView: View {
         guard !camera.isRecording else { return }
         state.cameraEnabled.toggle()
         if state.cameraEnabled {
-            camera.configureAndStart()
+            camera.configureAndStart(position: state.cameraPosition)
         } else {
             camera.stop()
         }

@@ -5,7 +5,7 @@ import SwiftUI
 /// Standard grouped sections with real headers and footers: the footer says
 /// what the section is *for*, so no control needs an explanation bolted onto
 /// it. Camera sections appear only when the camera is on, and each individual
-/// row is conditional on what this iPhone's front camera actually supports.
+/// row is conditional on what this iPhone's camera actually supports.
 struct PrompterControlsSheet: View {
     @ObservedObject var camera: CameraController
     @ObservedObject var state: TeleprompterState
@@ -22,6 +22,23 @@ struct PrompterControlsSheet: View {
         camera.capabilities.supportsHDR
             || camera.capabilities.supportsStabilization
             || camera.capabilities.supportsLowLightBoost
+    }
+
+    /// The front/back row, shown only on devices that actually have both
+    /// cameras. Switching reconfigures the running session, so it is disabled
+    /// while a take is recording — exactly like the quality pills.
+    private var cameraPosition: Binding<CameraPosition> {
+        Binding(
+            get: { state.cameraPosition },
+            set: { newValue in
+                guard newValue != state.cameraPosition else { return }
+                state.cameraPosition = newValue
+                if !camera.switchCamera(to: newValue) {
+                    // Keep the old camera and put the saved preference back.
+                    state.cameraPosition = camera.position
+                }
+            }
+        )
     }
 
     /// Fraction of the screen the sheet is allowed. Deliberately under half:
@@ -46,6 +63,9 @@ struct PrompterControlsSheet: View {
                 timingSection
                 voiceSection
                 if state.cameraEnabled {
+                    if camera.capabilities.hasBothCameras {
+                        cameraSection
+                    }
                     legibilitySection
                     qualitySection
                     if hasAdjustableCapture { captureSection }
@@ -226,6 +246,18 @@ struct PrompterControlsSheet: View {
     }
 
     // MARK: - Camera
+
+    private var cameraSection: some View {
+        Section("Camera") {
+            Picker("Camera", selection: cameraPosition) {
+                ForEach(CameraPosition.allCases) { option in
+                    Text(option == .front ? "Front" : "Back").tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .disabled(camera.isRecording)
+        }
+    }
 
     @ViewBuilder
     private var qualitySection: some View {

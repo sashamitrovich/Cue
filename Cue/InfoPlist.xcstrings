@@ -9,31 +9,31 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "On Cue uses the front camera to record your take."
+            "value": "On Cue uses the camera to record your take."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "O On Cue usa a câmera frontal para gravar o seu vídeo."
+            "value": "O On Cue usa a câmera para gravar o seu vídeo."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "On Cue usa la fotocamera frontale per registrare la tua ripresa."
+            "value": "On Cue usa la fotocamera per registrare la tua ripresa."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "On Cue usa la cámara frontal para grabar tu toma."
+            "value": "On Cue usa la cámara para grabar tu toma."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "On Cue nutzt die Frontkamera, um deine Aufnahme zu filmen."
+            "value": "On Cue nutzt die Kamera, um deine Aufnahme zu filmen."
           }
         }
       }

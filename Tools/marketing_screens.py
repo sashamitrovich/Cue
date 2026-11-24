@@ -8,7 +8,7 @@ FRAMES = [
     ("m-listening", "01-follows", "On Cue · Listening", "Talk.\nIt follows.",
      "On-device speech keeps your place while you read.", 0.085),
     ("m-recording", "02-record",  "On Cue · Recording", "Read. Record.\nDone.",
-     "Front camera and script on one screen.", 0.085),
+     "Camera and script on one screen.", 0.085),
     ("m-leader",    "03-lens",    "On Cue · Pre-roll",  "Find\nthe lens.",
      "A countdown to settle into, not just a number.", 0.085),
     ("m-mirroring", "04-rigs",    "On Cue · Mirror",    "Built\nfor rigs.",

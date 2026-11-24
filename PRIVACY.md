@@ -14,7 +14,7 @@ Text size, alignment, margins, pace and the other options in Prompter settings a
 
 ## Your recordings
 
-Takes recorded with the front camera are saved to your own Photos library and nowhere else. On Cue does not upload, copy or transmit them.
+Takes you record are saved to your own Photos library and nowhere else. On Cue does not upload, copy or transmit them.
 
 ## Speech recognition
 

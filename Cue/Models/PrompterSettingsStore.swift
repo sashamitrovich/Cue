@@ -12,7 +12,8 @@ struct PrompterSettingsStore {
         case fontSize, mirror, textAlignment, cameraEnabled,
              textOpacity, cueLineFraction, sideMargin, cameraDimming,
              targetWPM, countdownSeconds, showTiming, voiceCommandsEnabled,
-             readTextFloor, recognitionLocale, recognitionLocaleIsAuto
+             readTextFloor, recognitionLocale, recognitionLocaleIsAuto,
+             cameraPosition
     }
 
     private let defaults: UserDefaults
