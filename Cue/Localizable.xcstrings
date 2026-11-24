@@ -1786,30 +1786,30 @@
         }
       }
     },
-    "In landscape the controls move to a rail on the edge they were already on, so they stay under the same thumb and stop eating the height you need for the script.": {
+    "In landscape the controls move to the edge they were already on, so they stay under the same thumb and stop eating the height you need for the script.": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Na horizontal, os controles passam para uma barra lateral, no mesmo lado em que já estavam, e continuam sob o mesmo polegar sem ocupar a altura de que você precisa para o roteiro."
+            "value": "Na horizontal, os controles passam para o mesmo lado em que já estavam, e continuam sob o mesmo polegar sem ocupar a altura de que você precisa para o roteiro."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "En horizontal, los controles pasan a una barra en el borde en el que ya estaban, así siguen bajo el mismo pulgar y no te quitan la altura que necesitas para el guion."
+            "value": "En horizontal, los controles pasan al borde en el que ya estaban, así siguen bajo el mismo pulgar y no te quitan la altura que necesitas para el guion."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "In orizzontale i controlli si spostano in una barra sul lato in cui si trovavano, così restano sotto lo stesso pollice e non occupano più l'altezza che serve allo script."
+            "value": "In orizzontale i controlli si spostano sul lato in cui si trovavano, così restano sotto lo stesso pollice e non occupano più l'altezza che serve allo script."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Im Querformat wandern die Bedienelemente in eine Leiste an der Seite, auf der sie schon waren – so bleiben sie unter demselben Daumen und nehmen dem Skript keine Höhe weg."
+            "value": "Im Querformat wandern die Bedienelemente an die Seite, auf der sie schon waren – so bleiben sie unter demselben Daumen und nehmen dem Skript keine Höhe weg."
           }
         }
       }

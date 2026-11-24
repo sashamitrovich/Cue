@@ -42,7 +42,7 @@ struct HelpSheet: View {
                     explain("Record", "Records a take from the camera. The recording is saved to Photos when you stop.")
                     explain("Drag the script with your finger", "Works always, listening or not — drag to scroll by hand, and voice tracking picks up from wherever you let go, the next word to speak is highlighted.")
                     explain("Camera", "Turns the live camera view behind the script on or off.")
-                    explain("Turning sideways", "In landscape the controls move to a rail on the edge they were already on, so they stay under the same thumb and stop eating the height you need for the script.")
+                    explain("Turning sideways", "In landscape the controls move to the edge they were already on, so they stay under the same thumb and stop eating the height you need for the script.")
                     explain("HD / 4K", "Recording size and frame rate, offered only as far as your device's camera supports. Stop recording to change them.")
                     explain("Mirror", "Flips the script top-to-bottom for teleprompter rigs that bounce the screen off a sheet of glass in front of the lens; the reflection turns it back the right way round. The controls stay exactly where they are and read normally, since you look at them directly rather than through the glass. Reading straight from the phone? Leave it off.")
                     explain("Reading line", "The marked line your eyes read from. Adjust it any time from the settings button, to keep it as near to the lens as possible.")

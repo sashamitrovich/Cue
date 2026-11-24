@@ -488,6 +488,10 @@ final class CameraController: NSObject, ObservableObject {
             applyRecordedConnectionSettings()
             applyCurrentOrientation()
             setStabilization(stabilizationEnabled)
+            // `formatsByMode` was emptied for the new device above; without
+            // this the old camera's quality pills would stay on screen and do
+            // nothing, because `apply(_:)` finds no format for their mode.
+            if let oldDevice { detectCapabilities(for: oldDevice) }
             errorMessage = String(localized: "Couldn't change camera: \(error.localizedDescription)")
             return false
         }
