@@ -238,7 +238,7 @@ struct PrompterView: View {
             return ScriptSpace(
                 size: frame.picture.size,
                 topInset: Self.pictureReadingLineTopInset(frame: frame, showsTiming: state.showTiming),
-                bottomInset: Self.pictureReadingLineBottomInset(frame: frame),
+                bottomInset: Self.pictureReadingLineBottomInset(frame: frame, showsTiming: state.showTiming),
                 leadingInset: side, trailingInset: side)
         }
         // iPad and Mac keep the full-bleed layout: the "picture" is the whole
@@ -834,39 +834,60 @@ struct PrompterView: View {
     static let chipTopPadding: CGFloat = 8
     /// How far from the picture's top edge the chip row reaches, with and
     /// without the timing row in the status chip: its top padding plus the
-    /// taller of the two chips. Two constants, as `landscapeBarHeight(WithTiming)`
+    /// **status** chip's height. Two constants, as `landscapeBarHeight(WithTiming)`
     /// are for the legacy bar, and for the same reason: stated, never
     /// measured. Measured on the real chips (iPhone 15 Pro, simulator, status
     /// chip frames from the accessibility tree): see the report; if the chip
-    /// layout changes, re-measure these.
+    /// layout changes, re-measure these. Since the status chip moved to the
+    /// picture's bottom in portrait, they govern only the landscape and
+    /// no-strip-fallback top row.
     static let chipClearance: CGFloat = 71
     static let chipClearanceWithTiming: CGFloat = 78
 
-    /// The bottom of the chip row in picture space. In the fallback the
-    /// picture is the whole screen, so the chips start below the safe-area
-    /// top and this moves down by it.
+    /// The status chip's height, taken from that same measurement: the
+    /// clearance its top and bottom spanned, less the padding it starts below.
+    /// 63pt, 70pt with the timing row. Stated, never measured — the placement
+    /// has to stay a pure function of geometry.
+    static func statusChipHeight(showsTiming: Bool) -> CGFloat {
+        (showsTiming ? chipClearanceWithTiming : chipClearance) - chipTopPadding
+    }
+
+    /// The bottom of the top chip row in picture space — landscape and the
+    /// no-strip fallback only; portrait with a strip now has nothing in that
+    /// row. In the fallback the picture is the whole screen, so the chips
+    /// start below the safe-area top and this moves down by it.
     static func chipRowBottom(frame: PrompterFrame, showsTiming: Bool) -> CGFloat {
         (frame.isFallback ? frame.safeOverlap.top : 0)
             + (showsTiming ? chipClearanceWithTiming : chipClearance)
     }
 
     /// What the reading line has to clear at its highest, measured from the
-    /// picture's top edge: the chip row. When the picture is the whole screen
-    /// (the 16:9-phone fallback) the row starts below the safe-area top, so
-    /// the script never scrolls under the Dynamic Island either.
+    /// picture's top edge. Landscape and the fallback: the chip row — in the
+    /// fallback the row starts below the safe-area top, so the script never
+    /// scrolls under the Dynamic Island either. Portrait with a strip: nothing
+    /// is in the top row, so the line may start at the picture's top edge;
+    /// `cueY` still adds the clearance the centred word itself needs.
     static func pictureReadingLineTopInset(frame: PrompterFrame, showsTiming: Bool) -> CGFloat {
-        chipRowBottom(frame: frame, showsTiming: showsTiming)
+        guard frame.isFallback || frame.isLandscape else { return 0 }
+        return chipRowBottom(frame: frame, showsTiming: showsTiming)
+    }
+
+    /// The height the two chips' shared bottom row takes in portrait: the
+    /// taller of them, which is the status chip, plus its padding from the
+    /// picture's bottom edge.
+    static func pictureBottomChipRowHeight(showsTiming: Bool) -> CGFloat {
+        max(statusChipHeight(showsTiming: showsTiming), utilityChipHeight) + chipBottomPadding
     }
 
     /// What it has to clear at its lowest. Landscape: the home indicator,
     /// where the picture reaches the bottom edge. Portrait with a strip: the
-    /// utility chip docked at the picture's bottom edge, on top of the home
-    /// indicator (which is already outside the picture there). Same
-    /// asymmetry with the top as `readingLineBottomInset`.
-    static func pictureReadingLineBottomInset(frame: PrompterFrame) -> CGFloat {
+    /// whole bottom row, since the status chip is the taller of the two and
+    /// shares the utility chip's bottom padding, which itself clears the tick.
+    /// The home indicator is already outside the picture there.
+    static func pictureReadingLineBottomInset(frame: PrompterFrame, showsTiming: Bool) -> CGFloat {
         var bottom = frame.safeOverlap.bottom
         if !frame.isFallback, !frame.isLandscape {
-            bottom += utilityChipHeight + chipBottomPadding
+            bottom += pictureBottomChipRowHeight(showsTiming: showsTiming)
         }
         return bottom
     }
@@ -987,12 +1008,18 @@ struct PrompterView: View {
                 .scaleEffect(x: 1, y: state.mirror ? -1 : 1)
         }
         .overlay(alignment: .top) {
-            // A short scrim under the top chrome only. The old full-height
-            // bottom fade had nothing to protect once the controls moved to a
-            // rail, and read as a stray veil across the last line.
-            LinearGradient(colors: [.black.opacity(0.75), .clear], startPoint: .top, endPoint: .bottom)
-                .frame(height: max(0, cueY * 0.7))
-                .allowsHitTesting(false)
+            // A short scrim under the top chrome only. On iPad and Mac that is
+            // still the full-width bar; on a phone the picture is the recorded
+            // frame and there is nothing across its top to protect, where this
+            // only darkened the top of the shot (visible with the camera on).
+            // The old full-height bottom fade had nothing to protect once the
+            // controls moved to a rail, and read as a stray veil across the
+            // last line.
+            if !usesPictureFrame {
+                LinearGradient(colors: [.black.opacity(0.75), .clear], startPoint: .top, endPoint: .bottom)
+                    .frame(height: max(0, cueY * 0.7))
+                    .allowsHitTesting(false)
+            }
         }
         // Placed on the screen last, after the mirror flip above: the flip
         // pivots on the picture's own centre, and a reflection about a box's
@@ -1422,11 +1449,13 @@ struct PrompterView: View {
 
     /// The side padding of the chips, from the picture's edge.
     static let chipEdgePadding: CGFloat = 10
-    /// The chip's padding from the picture's bottom edge in portrait, where
-    /// the utility chip docks above the black strip. Stated, like
-    /// `chipTopPadding`; the home-indicator inset is already outside the
-    /// picture there, so it is not charged a second time.
-    static let chipBottomPadding: CGFloat = 10
+    /// The chips' padding from the picture's bottom edge in portrait, where
+    /// they share the bottom row above the black strip. `tickLength + 4`, so
+    /// the row sits clear of the tick at the picture's bottom centre — the
+    /// mark showing the true middle of the shot must stay visible. Stated,
+    /// like `chipTopPadding`; the home-indicator inset is already outside the
+    /// picture there, so it is not charged a second time. Portrait only.
+    static let chipBottomPadding: CGFloat = tickLength + 4
     /// The utility chip's width: three glass buttons, two gaps, and the
     /// chip's own 4pt padding either side.
     static let utilityChipWidth: CGFloat = glassButtonSize * 3 + glassButtonGap * 2 + 8
@@ -1471,6 +1500,38 @@ struct PrompterView: View {
         return CGRect(x: width - chipEdgePadding - size.width,
                       y: height - chipBottomPadding - size.height,
                       width: size.width, height: size.height)
+    }
+
+    /// The status chip's frame in picture space (origin at the picture's
+    /// top-left) — the "timer" the owner asked to move off the top of the
+    /// picture when the phone is upright.
+    ///
+    /// Portrait with a strip: bottom-leading, sharing the utility chip's row
+    /// and its bottom padding, so the two bottoms line up. Its width keeps the
+    /// old top row's rule — `statusChipMaxWidth`, capped so it cannot reach the
+    /// utility chip (205pt on a 393pt picture, 187pt on a 375pt one). Landscape
+    /// (either thumb edge) and the no-strip fallback keep the top-left
+    /// placement, with the fallback's safe-area offsets and the room it leaves
+    /// for the utility chip in the top-right corner. Pure geometry, like
+    /// `utilityChipRect`.
+    static func statusChipRect(frame: PrompterFrame, showsTiming: Bool) -> CGRect {
+        let pic = frame.picture
+        let height = statusChipHeight(showsTiming: showsTiming)
+        if !frame.isFallback, !frame.isLandscape {
+            let width = min(statusChipMaxWidth,
+                            pic.width - chipEdgePadding - chipEdgePadding - utilityChipWidth - 8)
+            return CGRect(x: chipEdgePadding,
+                          y: pic.height - chipBottomPadding - height,
+                          width: max(0, width), height: height)
+        }
+        let fallback = frame.isFallback
+        let lead = chipEdgePadding + (fallback ? frame.safeOverlap.leading : 0)
+        let trail = chipEdgePadding + (fallback ? frame.safeOverlap.trailing : 0)
+        let reserved = fallback ? utilityChipWidth + 8 : 0
+        let top = chipTopPadding + (fallback ? frame.safeOverlap.top : 0)
+        let room = pic.width - lead - trail - reserved
+        return CGRect(x: lead, y: top,
+                      width: max(0, min(statusChipMaxWidth, room)), height: height)
     }
 
     /// The recorded frame as its own element, for the accessibility tree.
@@ -1519,27 +1580,22 @@ struct PrompterView: View {
         .frame(width: frame.fullSize.width, height: frame.fullSize.height)
     }
 
-    /// Status chip top-left on the picture, in every phone layout. In the
-    /// fallback the utility chip keeps the top-right corner, so this leaves
-    /// room for it; with a strip the utility chip has left the top row and
-    /// the status chip may use the whole width (still capped at
-    /// `statusChipMaxWidth`).
+    /// The status chip: status line and recording mark in its first row,
+    /// timing and the quality pill in its second. Placed by `statusChipRect`,
+    /// which the tests pin — bottom-leading in the same row as the utility
+    /// chip in portrait, top-left in landscape and the no-strip fallback.
     private func statusChipRow(frame: PrompterFrame) -> some View {
         let pic = frame.picture
-        let fallback = frame.isFallback
-        let lead = Self.chipEdgePadding + (fallback ? frame.safeOverlap.leading : 0)
-        let trail = Self.chipEdgePadding + (fallback ? frame.safeOverlap.trailing : 0)
-        let top = Self.chipTopPadding + (fallback ? frame.safeOverlap.top : 0)
-        let reserved = fallback ? Self.utilityChipWidth + 8 : 0
-        let room = pic.width - lead - trail - reserved
-        return HStack(alignment: .top, spacing: 0) {
-            statusChip(width: max(0, min(Self.statusChipMaxWidth, room)))
+        let rect = Self.statusChipRect(frame: frame, showsTiming: state.showTiming)
+        let atBottom = !frame.isFallback && !frame.isLandscape
+        return HStack(alignment: atBottom ? .bottom : .top, spacing: 0) {
+            statusChip(width: rect.width)
             Spacer(minLength: 0)
         }
-        .padding(.leading, lead)
-        .padding(.trailing, trail)
-        .padding(.top, top)
-        .frame(width: pic.width, height: pic.height, alignment: .top)
+        .padding(.leading, rect.minX)
+        .padding(.trailing, pic.width - rect.maxX)
+        .padding(atBottom ? Edge.Set.bottom : .top, atBottom ? pic.height - rect.maxY : rect.minY)
+        .frame(width: pic.width, height: pic.height, alignment: atBottom ? .bottom : .top)
         .position(x: pic.midX, y: pic.midY)
     }
 
@@ -1650,6 +1706,10 @@ struct PrompterView: View {
                     .foregroundStyle(.white.opacity(0.85))
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                    // On the text, not a container: a container identifier
+                    // would hide the words it contains. The UI tests use it
+                    // to find which half of the picture the chip is in.
+                    .accessibilityIdentifier("statusLine")
                 Spacer(minLength: 0)
             }
             if statusChipHasSecondRow {
@@ -1728,7 +1788,7 @@ struct PrompterView: View {
 
     /// Transient messages along the picture's bottom edge, clear of the
     /// floating buttons when there is no strip for them, and clear of the
-    /// utility chip where it now sits at the picture's bottom or side edge.
+    /// whole chip row where the chips now share the picture's bottom row.
     private func pictureBanners(frame: PrompterFrame) -> some View {
         let pic = frame.picture
         let clearsButtons = frame.isFallback
@@ -1736,7 +1796,9 @@ struct PrompterView: View {
         let clearsSideChip = !frame.isFallback && frame.isLandscape
         let bottom = frame.safeOverlap.bottom
             + (clearsButtons && !frame.isLandscape ? Self.takeButtonSize + 24 : 0)
-            + (clearsBottomChip ? Self.utilityChipHeight + Self.chipBottomPadding : 0)
+            + (clearsBottomChip
+                ? Self.pictureBottomChipRowHeight(showsTiming: state.showTiming)
+                : 0)
         let side = (clearsButtons && frame.isLandscape ? Self.railWidth + Self.edgeGap : 0)
             + (clearsSideChip ? Self.utilityChipColumnWidth : 0)
         return VStack(spacing: 0) {
@@ -1945,7 +2007,8 @@ struct PrompterView: View {
 
     /// A one-time hint that the prompter takes spoken instructions. Sits
     /// next to the status chip rather than over the script, and fades on its
-    /// own. On a phone it hangs under the chip row, relative to the picture;
+    /// own. On a phone it hangs below whatever the top row is — the chip row
+    /// in landscape and the fallback, the picture's top edge in portrait;
     /// on iPad and Mac it keeps its old places (under the top bar in
     /// landscape, above the bottom bar in portrait).
     @ViewBuilder
@@ -1963,7 +2026,7 @@ struct PrompterView: View {
         if usesPictureFrame {
             let pic = frame.picture
             tip
-                .padding(.top, Self.chipRowBottom(frame: frame, showsTiming: state.showTiming) + 8)
+                .padding(.top, Self.pictureReadingLineTopInset(frame: frame, showsTiming: state.showTiming) + 8)
                 .frame(width: pic.width, height: pic.height, alignment: .top)
                 .position(x: pic.midX, y: pic.midY)
                 .transition(.opacity)

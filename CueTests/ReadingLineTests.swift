@@ -228,20 +228,26 @@ final class ReadingLineTests: XCTestCase {
     }
 
     func testTheChipRowClearanceDependsOnTheTimingRow() {
-        let f = frame(393, 852, top: 59, bottom: 34)
+        // Landscape keeps the top row, so the timing row still costs clearance.
+        let f = frame(852, 393, bottom: 21, side: 59)
         let without = PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: false)
         let with = PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: true)
         XCTAssertEqual(without, PrompterView.chipClearance)
         XCTAssertEqual(with, PrompterView.chipClearanceWithTiming)
         XCTAssertGreaterThan(with, without, "the timing row makes the chip taller")
+        // Portrait with a strip has nothing in the top row any more.
+        let portrait = frame(393, 852, top: 59, bottom: 34)
+        XCTAssertEqual(PrompterView.pictureReadingLineTopInset(frame: portrait, showsTiming: false), 0)
+        XCTAssertEqual(PrompterView.pictureReadingLineTopInset(frame: portrait, showsTiming: true), 0)
     }
 
-    func testTheSafeAreaIsNotAddedWhenThePictureStaysClearOfIt() {
-        // Portrait: the picture starts below the island, so the 59 pt must
-        // not be charged to the line a second time.
+    func testPortraitWithAStripDoesNotChargeTheTopSafeArea() {
+        // The picture starts below the island and the status chip has moved to
+        // the bottom, so the line may start at the picture's top edge: the
+        // 59 pt island must not be charged to it a second time.
         let f = frame(393, 852, top: 59, bottom: 34)
-        XCTAssertEqual(PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: false),
-                       PrompterView.chipClearance)
+        XCTAssertEqual(PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: false), 0)
+        XCTAssertEqual(PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: true), 0)
     }
 
     func testTheFallbackNeverScrollsUnderTheIsland() {
@@ -254,15 +260,24 @@ final class ReadingLineTests: XCTestCase {
     }
 
     func testTheBottomInsetClearsTheBottomChipInPortraitAndTheHomeIndicatorInLandscape() {
+        // Portrait: the whole bottom row, so the taller chip and its padding.
         XCTAssertEqual(PrompterView.pictureReadingLineBottomInset(
-            frame: frame(393, 852, top: 59, bottom: 34)),
-            PrompterView.utilityChipHeight + PrompterView.chipBottomPadding, accuracy: 1e-9)
+            frame: frame(393, 852, top: 59, bottom: 34), showsTiming: true),
+            PrompterView.statusChipHeight(showsTiming: true) + PrompterView.chipBottomPadding,
+            accuracy: 1e-9)
         XCTAssertEqual(PrompterView.pictureReadingLineBottomInset(
-            frame: frame(852, 393, bottom: 21, side: 59)), 21, accuracy: 1e-9)
+            frame: frame(393, 852, top: 59, bottom: 34), showsTiming: false),
+            PrompterView.statusChipHeight(showsTiming: false) + PrompterView.chipBottomPadding,
+            accuracy: 1e-9)
+        XCTAssertGreaterThan(PrompterView.statusChipHeight(showsTiming: false),
+                             PrompterView.utilityChipHeight,
+                             "the status chip is the taller of the two, so it sets the row")
+        XCTAssertEqual(PrompterView.pictureReadingLineBottomInset(
+            frame: frame(852, 393, bottom: 21, side: 59), showsTiming: true), 21, accuracy: 1e-9)
         // The fallback keeps the chip top-right, so a 16:9 portrait still
         // clears only the home indicator (which it may not even reach).
         XCTAssertEqual(PrompterView.pictureReadingLineBottomInset(
-            frame: frame(375, 667, top: 20)), 0, accuracy: 1e-9)
+            frame: frame(375, 667, top: 20), showsTiming: true), 0, accuracy: 1e-9)
     }
 
     func testTheLowestLineStaysInsideThePictureInEveryCase() {
@@ -278,7 +293,7 @@ final class ReadingLineTests: XCTestCase {
         for f in frames {
             for font: CGFloat in [20, 32, 64] {
                 let top = PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: true)
-                let bottom = PrompterView.pictureReadingLineBottomInset(frame: f)
+                let bottom = PrompterView.pictureReadingLineBottomInset(frame: f, showsTiming: true)
                 let y = PrompterView.cueY(fraction: 1, fullHeight: f.picture.height,
                                           topInset: top, bottomInset: bottom, fontSize: font)
                 XCTAssertGreaterThanOrEqual(y, 0, "\(f.picture) font \(font)")
@@ -375,16 +390,94 @@ final class ReadingLineTests: XCTestCase {
                      "the fallback keeps the chip in the top row, so no bottom/side rect is computed")
     }
 
+    // MARK: - Status chip placement (phones)
+
+    // The owner asked for the "timer" to come down when the phone is upright,
+    // so in portrait the status chip shares the utility chip's bottom row.
+    // These use the real devices' geometry, and pin the pure function the view
+    // places the chip with.
+
+    func testStatusChipSharesTheBottomRowInPortraitWithAStrip() throws {
+        for size in [CGSize(width: 393, height: 852), CGSize(width: 430, height: 932)] {
+            let f = PrompterFrame.make(
+                fullSize: size,
+                safeArea: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0),
+                railOnLeading: false)
+            XCTAssertFalse(f.isFallback, "a modern phone has room for the strip: \(size)")
+            let utility = try XCTUnwrap(PrompterView.utilityChipRect(frame: f), "\(size)")
+            for showsTiming in [false, true] {
+                let chip = PrompterView.statusChipRect(frame: f, showsTiming: showsTiming)
+                let what = "\(size) showsTiming \(showsTiming)"
+                XCTAssertTrue(chip.minX >= 0 && chip.maxX <= f.picture.width, "inside the picture (\(what))")
+                XCTAssertTrue(chip.minY >= 0 && chip.maxY <= f.picture.height, "inside the picture (\(what))")
+                XCTAssertGreaterThan(chip.midY, f.picture.height / 2, "in the bottom half (\(what))")
+                XCTAssertEqual(chip.height, PrompterView.statusChipHeight(showsTiming: showsTiming), accuracy: 1e-9)
+                XCTAssertEqual(chip.minX, PrompterView.chipEdgePadding, accuracy: 1e-9,
+                               "leading edge (\(what))")
+                XCTAssertEqual(chip.maxY, utility.maxY, accuracy: 1e-9,
+                               "bottom-aligned with the utility chip (\(what))")
+                XCTAssertFalse(chip.intersects(utility), "must not overlap the utility chip (\(what))")
+                XCTAssertLessThanOrEqual(chip.maxY, f.picture.height - PrompterView.tickLength,
+                                         "the bottom tick must stay visible (\(what))")
+                // The old top row's width rule: the cap, or as much room as
+                // the utility chip leaves. 205pt on 393, 210 on 430.
+                XCTAssertEqual(chip.width,
+                               min(PrompterView.statusChipMaxWidth,
+                                   f.picture.width - 2 * PrompterView.chipEdgePadding
+                                       - PrompterView.utilityChipWidth - 8),
+                               accuracy: 1e-9, "width (\(what))")
+            }
+        }
+    }
+
+    func testStatusChipKeepsTheTopLeftInLandscape() {
+        for railOnLeading in [true, false] {
+            let f = PrompterFrame.make(
+                fullSize: CGSize(width: 852, height: 393),
+                safeArea: EdgeInsets(top: 0, leading: 59, bottom: 21, trailing: 59),
+                railOnLeading: railOnLeading)
+            let chip = PrompterView.statusChipRect(frame: f, showsTiming: true)
+            let what = "railOnLeading \(railOnLeading)"
+            XCTAssertEqual(chip.minX, PrompterView.chipEdgePadding, accuracy: 1e-9, "top-left (\(what))")
+            XCTAssertEqual(chip.minY, PrompterView.chipTopPadding, accuracy: 1e-9, "top-left (\(what))")
+            XCTAssertLessThan(chip.midY, f.picture.height / 2, "upper part of the picture (\(what))")
+            XCTAssertEqual(chip.width, PrompterView.statusChipMaxWidth, accuracy: 1e-9, "width (\(what))")
+            XCTAssertLessThanOrEqual(chip.maxY, PrompterView.chipClearanceWithTiming + 1e-9,
+                                     "the chip row ends at chipClearance (\(what))")
+        }
+    }
+
+    func testStatusChipKeepsTheTopLeftInTheFallbackAndLeavesTheUtilityChipItsCorner() {
+        let f = frame(375, 667, top: 20)
+        let chip = PrompterView.statusChipRect(frame: f, showsTiming: true)
+        XCTAssertEqual(chip.minX, PrompterView.chipEdgePadding, accuracy: 1e-9)
+        XCTAssertEqual(chip.minY, PrompterView.chipTopPadding + f.safeOverlap.top, accuracy: 1e-9,
+                       "below the safe-area top, since the picture is the screen")
+        XCTAssertLessThan(chip.midY, f.picture.height / 2, "upper part of the picture")
+        XCTAssertLessThanOrEqual(
+            chip.maxX,
+            f.picture.width - PrompterView.chipEdgePadding - PrompterView.utilityChipWidth - 8 + 1e-9,
+            "the utility chip keeps the fallback's top-right corner")
+    }
+
     func testTheLowestLineClearsTheBottomChipInPortrait() {
         let f = frame(393, 852, top: 59, bottom: 34)
         let chip = PrompterView.utilityChipRect(frame: f)!
-        let bottom = PrompterView.pictureReadingLineBottomInset(frame: f)
+        let bottom = PrompterView.pictureReadingLineBottomInset(frame: f, showsTiming: true)
         let top = PrompterView.pictureReadingLineTopInset(frame: f, showsTiming: true)
         let lowest = PrompterView.readingLineBand(
             fullHeight: f.picture.height, topInset: top, bottomInset: bottom, fontSize: 32).lowest
         XCTAssertLessThanOrEqual(
             lowest + PrompterView.readingLineDrop(fontSize: 32), chip.minY + 0.5,
             "the reading line at 100% must sit above the bottom chip")
+        // The status chip is the taller of the two, so it is what the inset
+        // is really sized against.
+        let statusChip = PrompterView.statusChipRect(frame: f, showsTiming: true)
+        XCTAssertLessThanOrEqual(statusChip.minY, chip.minY,
+                                 "the status chip is the taller one, so its top reaches higher in the row")
+        XCTAssertLessThanOrEqual(
+            lowest + PrompterView.readingLineDrop(fontSize: 32), statusChip.minY + 0.5,
+            "the reading line at 100% must sit above the taller status chip too")
     }
 
     func testTheMarginsClearTheVerticalChipInLandscape() throws {

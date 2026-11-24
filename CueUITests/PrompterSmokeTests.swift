@@ -308,6 +308,29 @@ final class PrompterSmokeTests: XCTestCase {
                                      "the utility chip must hug the trailing edge (\(what))")
             }
 
+            // The status chip carries the timer, and the owner asked for it to
+            // come down when the phone is upright: portrait puts it in the
+            // bottom row beside the utility chip, landscape keeps the top-left.
+            let statusLine = app.staticTexts["statusLine"]
+            XCTAssertTrue(statusLine.waitForExistence(timeout: 5),
+                          "the status line must be on screen (\(what))")
+            XCTAssertTrue(picture.insetBy(dx: -1, dy: -1).contains(statusLine.frame),
+                          "the status line at \(statusLine.frame) must be inside the picture \(picture) (\(what))")
+            if orientation.isLandscape {
+                XCTAssertLessThan(statusLine.frame.midY, picture.midY,
+                                  "the status chip must stay in the upper part of the picture in landscape (\(what)): "
+                                  + "line \(statusLine.frame), picture \(picture)")
+            } else {
+                XCTAssertGreaterThan(statusLine.frame.midY, picture.midY,
+                                     "the status chip must sit in the lower half of the picture in portrait (\(what)): "
+                                     + "line \(statusLine.frame), picture \(picture)")
+            }
+            for button in utility {
+                XCTAssertFalse(statusLine.frame.intersects(button.frame),
+                               "the status line at \(statusLine.frame) must not overlap "
+                               + "\(button.identifier) at \(button.frame) (\(what))")
+            }
+
             dragLine(app, picture: picture, what)
         }
 
