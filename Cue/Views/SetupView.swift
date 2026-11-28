@@ -135,7 +135,7 @@ struct SetupView: View {
             Button("Use It") {
                 pendingSave?.cancel()
                 openedFileURL = nil
-                state.loadScript(shared.text)
+                state.scriptText = shared.text
                 SharedScriptInbox()?.clear()
                 sharedScript = nil
             }
@@ -304,7 +304,7 @@ struct SetupView: View {
             Menu {
                 LanguagePickerContent(selection: Binding(
                     get: { state.recognitionLocale },
-                    set: { state.selectLocaleManually($0) }
+                    set: { state.recognitionLocale = $0 }
                 ))
             } label: {
                 HStack(spacing: 3) {
@@ -429,7 +429,7 @@ struct SetupView: View {
                 }
                 pendingSave?.cancel()
                 openedFileURL = url
-                state.loadScript(text)
+                state.scriptText = text
             } catch {
                 importError = String(localized: "Couldn't read \(url.lastPathComponent): \(error.localizedDescription)")
             }

@@ -173,7 +173,7 @@ struct PrompterControlsSheet: View {
         Section {
             LanguagePickerContent(selection: Binding(
                 get: { state.recognitionLocale },
-                set: { state.selectLocaleManually($0) }
+                set: { state.recognitionLocale = $0 }
             ))
             Toggle("Voice commands", isOn: $state.voiceCommandsEnabled)
             #if DEBUG

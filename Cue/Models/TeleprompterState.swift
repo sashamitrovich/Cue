@@ -68,12 +68,8 @@ enum ScriptAlignment: String, CaseIterable, Identifiable {
 /// sliding-window fuzzy matcher from the original web prototype.
 final class TeleprompterState: ObservableObject {
     @Published var scriptText: String = TeleprompterState.defaultScript {
-        // Emptying the editor means the next words are a new script, so a
-        // language picked by hand for the old one no longer applies.
         didSet {
-            if scriptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                recognitionLocaleIsAuto = true
-            }
+            if persistsSettings { scriptStore.save(scriptText) }
         }
     }
     /// Every word in reading order — what the matcher walks.
@@ -169,39 +165,14 @@ final class TeleprompterState: ObservableObject {
     @Published var recognitionLocale: String = SpeechLocales.systemDefault() {
         didSet { if persistsSettings { settings.set(.recognitionLocale, recognitionLocale) } }
     }
-    /// Whether the listening language tracks the loaded script automatically.
-    /// False after the reader picks a language by hand, and only for that
-    /// script: loading a new one or emptying the editor turns it back on.
-    /// Persisted, so a manual pick survives a relaunch. See `selectLocaleManually`.
-    @Published var recognitionLocaleIsAuto: Bool = true {
-        didSet { if persistsSettings { settings.set(.recognitionLocaleIsAuto, recognitionLocaleIsAuto) } }
-    }
-
-    /// A new script arrived (opened from Files, or shared in). A language
-    /// picked by hand covered only the script it was picked for, so detection
-    /// takes over again; the editor runs it once the text lands.
-    func loadScript(_ text: String) {
-        recognitionLocaleIsAuto = true
-        scriptText = text
-    }
-
-    /// The reader picked a language by hand: honour it for this script and
-    /// stop auto-detecting until a new one is loaded (`loadScript`) or the
-    /// editor is emptied.
-    /// The pickers call this instead of writing `recognitionLocale` directly.
-    func selectLocaleManually(_ identifier: String) {
-        recognitionLocaleIsAuto = false
-        recognitionLocale = identifier
-    }
-
-    /// If the language is still following the script, detect the loaded text's
-    /// language and switch to the best locale the device can recognise for it.
-    /// A low-confidence or unrecognisable result leaves the current locale be.
-    /// Does not clear `recognitionLocaleIsAuto` — only a manual pick does that.
+    /// Detect the script's language and switch to the best locale the device
+    /// can recognise for it, even over a language the reader picked by hand:
+    /// the script on screen decides, until they pick again.
+    /// A low-confidence or unrecognisable result, or a script already in the
+    /// current locale's language, leaves the locale be.
     /// Runs from the editor as the script changes, not only at Start, so the
     /// "Listening in" line is right before it matters (#17).
     func applyAutoLocaleIfNeeded() {
-        guard recognitionLocaleIsAuto else { return }
         let detected = SpeechLocales.detectLanguage(in: scriptText)
         guard let chosen = SpeechLocales.autoLocale(
             detected: detected?.language,
@@ -218,9 +189,14 @@ final class TeleprompterState: ObservableObject {
     /// a test run always sees compiled-in defaults, never whatever a
     /// previous run — test or real — left in this simulator's defaults.
     private let persistsSettings: Bool
+    /// Where a copy of the script is kept between launches (#34). Untouched
+    /// when `persistsSettings` is false.
+    private let scriptStore: ScriptStore
 
-    init(settings: PrompterSettingsStore = PrompterSettingsStore()) {
+    init(settings: PrompterSettingsStore = PrompterSettingsStore(),
+         scriptStore: ScriptStore = ScriptStore()) {
         self.settings = settings
+        self.scriptStore = scriptStore
         persistsSettings = !ProcessInfo.processInfo.arguments.contains("-uiTestingNoCamera")
         // Lets MarketingCaptures stage the localized App Store sets with a
         // script in the storefront's own language.
@@ -249,20 +225,12 @@ final class TeleprompterState: ObservableObject {
         showTiming = settings.bool(.showTiming, default: showTiming)
         voiceCommandsEnabled = settings.bool(.voiceCommandsEnabled, default: voiceCommandsEnabled)
         readTextFloor = settings.double(.readTextFloor, default: readTextFloor)
-        // One-time upgrade seed: 1.5.5 and earlier had no
-        // `recognitionLocaleIsAuto` key, so a reader who picked a language there
-        // has a persisted `recognitionLocale` but no flag. Treat that prior pick
-        // as manual — auto off — so the new auto-detect doesn't silently
-        // re-detect over an explicit choice on the first launch after upgrading.
-        // Fresh installs (nothing persisted) and anyone who already has the flag
-        // keep the compiled-in default (auto on). Captured before the assignment
-        // below, whose `didSet` would otherwise write the locale back.
-        let hadPersistedLocale = settings.has(.recognitionLocale)
         recognitionLocale = settings.string(.recognitionLocale, default: recognitionLocale)
-        recognitionLocaleIsAuto = settings.bool(
-            .recognitionLocaleIsAuto,
-            default: hadPersistedLocale ? false : true
-        )
+        // Restore the saved script last (#34), verbatim and empty included
+        // (the editor was cleared on purpose). The saved language is restored
+        // above; the editor then overrides it by detecting the language of
+        // this script.
+        if let saved = scriptStore.load() { scriptText = saved }
     }
 
     static let countdownOptions = [0, 3, 5, 10]

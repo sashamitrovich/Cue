@@ -1,12 +1,16 @@
 # Privacy Policy — On Cue Teleprompter
 
-Last updated: 22 August 2026
+Last updated: 28 November 2026
 
 On Cue does not collect, store or transmit any personal data to its developer. There is no account, no analytics, no advertising and no tracking of any kind.
 
 ## Your scripts
 
-Scripts you type, or open from Files or iCloud Drive, stay on your device. If you open a file, edits save back to that same file automatically as you type — nothing is uploaded anywhere, and nothing leaves your device to make that happen.
+Scripts you type, or open from Files or iCloud Drive, stay on your device. A copy of your script is kept in the app's own storage on your device, so it is still there the next time you open the app. That copy is included in your device backups, like other app data.
+
+If you open a file, edits save back to that file while you are editing it. Nothing is uploaded anywhere, and nothing leaves your device to make that happen.
+
+After you quit and reopen the app, the script is the saved copy and is no longer tied to the original file. Edits go to the copy until you open the file again.
 
 ## Your settings
 

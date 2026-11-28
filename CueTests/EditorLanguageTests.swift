@@ -3,7 +3,8 @@ import XCTest
 
 /// #17: the editor now asks for detection as the script changes, not only at
 /// Start. That makes detection run far more often, so these pin down that it
-/// still never overrides a language the reader picked by hand.
+/// still never churns on short fragments, and a confident different language
+/// overrides a manual pick (#34).
 final class EditorLanguageTests: XCTestCase {
     private var suiteName: String!
     private var state: TeleprompterState!
@@ -29,15 +30,6 @@ final class EditorLanguageTests: XCTestCase {
         XCTAssertTrue(state.words.isEmpty, "detection alone must not build the script")
     }
 
-    func testAManualPickSurvivesEveryEdit() {
-        state.selectLocaleManually("de-DE")
-        for n in stride(from: 10, through: portuguese.count, by: 10) {
-            state.scriptText = String(portuguese.prefix(n))
-            state.applyAutoLocaleIfNeeded()
-        }
-        XCTAssertEqual(state.recognitionLocale, "de-DE")
-    }
-
     func testAShortFragmentDoesNotFlipTheLanguage() {
         // Typing "Oi" into an English script mustn't swing to Portuguese.
         state.recognitionLocale = "en-US"
@@ -46,46 +38,29 @@ final class EditorLanguageTests: XCTestCase {
         XCTAssertEqual(state.recognitionLocale, "en-US")
     }
 
-    // MARK: - A manual pick covers only the script it was made for
-
-    func testOpeningANewScriptDetectsAgainAfterAManualPick() {
-        state.selectLocaleManually("de-DE")
-        state.loadScript(portuguese)
-        state.applyAutoLocaleIfNeeded()   // what the editor runs once the text lands
-        XCTAssertTrue(state.recognitionLocale.hasPrefix("pt"), "got \(state.recognitionLocale)")
-    }
-
-    func testEmptyingTheEditorDetectsAgainForWhatIsTypedNext() {
-        state.selectLocaleManually("de-DE")
-        state.scriptText = ""
-        state.scriptText = portuguese
-        state.applyAutoLocaleIfNeeded()
-        XCTAssertTrue(state.recognitionLocale.hasPrefix("pt"), "got \(state.recognitionLocale)")
-    }
-
-    func testEditingTheSameScriptKeepsTheManualPick() {
-        state.scriptText = portuguese
-        state.selectLocaleManually("de-DE")
-        state.scriptText = portuguese + " E a segunda é falar devagar."
-        state.applyAutoLocaleIfNeeded()
-        XCTAssertEqual(state.recognitionLocale, "de-DE")
-    }
-
-    func testAManualPickSurvivesARelaunch() {
-        let store = PrompterSettingsStore(defaults: UserDefaults(suiteName: suiteName)!)
-        state.selectLocaleManually("de-DE")
-        let relaunched = TeleprompterState(settings: store)
-        relaunched.applyAutoLocaleIfNeeded()  // editor appears with the default (English) script
-        XCTAssertEqual(relaunched.recognitionLocale, "de-DE")
-    }
+    // MARK: - The script on screen decides the language, over a manual pick
 
     func testADetectedLanguageSurvivesARelaunch() {
         let store = PrompterSettingsStore(defaults: UserDefaults(suiteName: suiteName)!)
         state.recognitionLocale = "en-US"
-        state.loadScript(portuguese)
+        state.scriptText = portuguese
         state.applyAutoLocaleIfNeeded()
         let detected = state.recognitionLocale
         XCTAssertTrue(detected.hasPrefix("pt"))
         XCTAssertEqual(TeleprompterState(settings: store).recognitionLocale, detected)
+    }
+
+    func testPastingAnotherLanguageOverridesAManualPick() {
+        state.recognitionLocale = "de-DE"
+        state.scriptText = portuguese   // a paste: plain assignment
+        state.applyAutoLocaleIfNeeded()
+        XCTAssertTrue(state.recognitionLocale.hasPrefix("pt"), "got \(state.recognitionLocale)")
+    }
+
+    func testPastingEnglishOverridesAManualGermanPick() {
+        state.recognitionLocale = "de-DE"
+        state.scriptText = "Good morning everyone. Today I want to walk you through the three things we changed this quarter, and why they matter to the people who use our product every day."
+        state.applyAutoLocaleIfNeeded()
+        XCTAssertTrue(state.recognitionLocale.hasPrefix("en"), "got \(state.recognitionLocale)")
     }
 }

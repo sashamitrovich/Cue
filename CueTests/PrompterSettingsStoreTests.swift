@@ -61,17 +61,15 @@ final class TeleprompterStateSettingsPersistenceTests: XCTestCase {
         XCTAssertEqual(second.mirror, true)
     }
 
-    func testScriptTextAndSessionStateAreNotPersisted() {
+    func testSessionStateIsNotPersisted() {
         let name = "state-settings-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         let store = PrompterSettingsStore(defaults: defaults)
 
         let first = TeleprompterState(settings: store)
-        first.scriptText = "Something else entirely"
         first.activeIndex = 5
 
         let second = TeleprompterState(settings: store)
-        XCTAssertNotEqual(second.scriptText, "Something else entirely")
         XCTAssertEqual(second.activeIndex, 0)
     }
 }

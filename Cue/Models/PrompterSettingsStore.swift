@@ -1,9 +1,10 @@
 import Foundation
 
 /// Persists the prompter's tunable settings — everything in the Prompter
-/// settings sheet — across launches. The script itself and session state
-/// (the reading cursor, whether a take is running, manual mode) reset with
-/// each launch by design; only preferences live here.
+/// settings sheet — across launches. The script has its own store
+/// (`ScriptStore`); session state (the reading cursor, whether a take is
+/// running, manual mode) resets with each launch by design. Only preferences
+/// live here.
 struct PrompterSettingsStore {
     /// `CaseIterable` so `SettingsPersistenceTests` can assert that every key
     /// has a round-trip test — a setting that is added here but never read
@@ -12,7 +13,7 @@ struct PrompterSettingsStore {
         case fontSize, mirror, textAlignment, cameraEnabled,
              textOpacity, cueLineFraction, sideMargin, cameraDimming,
              targetWPM, countdownSeconds, showTiming, voiceCommandsEnabled,
-             readTextFloor, recognitionLocale, recognitionLocaleIsAuto,
+             readTextFloor, recognitionLocale,
              cameraPosition
     }
 
@@ -52,13 +53,5 @@ struct PrompterSettingsStore {
 
     func set(_ key: Key, _ value: String) {
         defaults.set(value, forKey: key.rawValue)
-    }
-
-    /// Whether a value for `key` has ever been written. Distinct from the typed
-    /// getters, which return a default when the key is absent — the upgrade
-    /// seed in `TeleprompterState.init` must tell "never written" (a fresh
-    /// install, or a pre-1.5.6 reader) apart from "written as false".
-    func has(_ key: Key) -> Bool {
-        defaults.object(forKey: key.rawValue) != nil
     }
 }

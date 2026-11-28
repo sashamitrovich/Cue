@@ -88,12 +88,6 @@ final class SettingsPersistenceTests: XCTestCase {
         XCTAssertEqual(afterRelaunch { $0.recognitionLocale = "hr-HR" }.recognitionLocale, "hr-HR")
     }
 
-    func testRecognitionLocaleIsAutoSurvivesARelaunch() {
-        // A manual language pick turns auto-detection off; that choice must
-        // persist, or the next launch would silently re-detect over it.
-        XCTAssertFalse(afterRelaunch { $0.selectLocaleManually("de-DE") }.recognitionLocaleIsAuto)
-    }
-
     func testCameraEnabledSurvivesARelaunch() {
         // This one persisting is what made the setup screen's camera control
         // necessary: turning it off inside the prompter came back next launch
@@ -113,34 +107,7 @@ final class SettingsPersistenceTests: XCTestCase {
         XCTAssertEqual(fresh.targetWPM, ReadingPace.defaultWPM)
         XCTAssertGreaterThan(fresh.textOpacity, 0, "a default of zero would render the script invisible")
         XCTAssertFalse(fresh.recognitionLocale.isEmpty)
-        XCTAssertTrue(fresh.recognitionLocaleIsAuto, "a fresh install should start with auto-detection on")
         XCTAssertEqual(fresh.cameraPosition, .front, "the front camera is the default")
-    }
-
-    func testUpgradeFromBeforeAutoDetectKeepsTheManualLocale() {
-        // 1.5.5 and earlier had no recognitionLocaleIsAuto key. A reader who
-        // manually chose a language there has recognitionLocale persisted but no
-        // flag; the new auto-detect must not silently re-detect over that
-        // explicit choice on the first launch after upgrading, so the flag must
-        // come back off.
-        defaults.set("de-DE", forKey: PrompterSettingsStore.Key.recognitionLocale.rawValue)
-        let state = TeleprompterState(settings: PrompterSettingsStore(defaults: defaults))
-        XCTAssertFalse(state.recognitionLocaleIsAuto)
-        XCTAssertEqual(state.recognitionLocale, "de-DE")
-    }
-
-    func testUpgradeSeedHonorsTheOldPickUntilANewScriptLoads() {
-        // The whole journey in one place: a pre-1.5.6 manual pick is honoured
-        // for the default script (auto off), and opening a new script re-arms
-        // detection — the old pick covered only the script it was made for.
-        defaults.set("de-DE", forKey: PrompterSettingsStore.Key.recognitionLocale.rawValue)
-        let state = TeleprompterState(settings: PrompterSettingsStore(defaults: defaults))
-        XCTAssertFalse(state.recognitionLocaleIsAuto)
-
-        state.loadScript("Oi, pessoal! Hoje eu trouxe três dicas simples para quem tem medo de falar em público.")
-        XCTAssertTrue(state.recognitionLocaleIsAuto, "loading a new script re-arms auto-detection")
-        XCTAssertEqual(state.recognitionLocale, "de-DE",
-                       "re-arming only allows detection; the locale changes once the new script is actually detected")
     }
 
     func testEveryPersistedKeyIsCovered() {
@@ -150,7 +117,7 @@ final class SettingsPersistenceTests: XCTestCase {
             .fontSize, .mirror, .textAlignment, .cameraEnabled, .textOpacity,
             .cueLineFraction, .sideMargin, .cameraDimming, .targetWPM,
             .countdownSeconds, .showTiming, .voiceCommandsEnabled,
-            .readTextFloor, .recognitionLocale, .recognitionLocaleIsAuto,
+            .readTextFloor, .recognitionLocale,
             .cameraPosition,
         ]
         let all = Set(PrompterSettingsStore.Key.allCases)
